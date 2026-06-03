@@ -109,9 +109,53 @@ export default function MainContent({
         const obj = await res.json();
         const resultsList = obj.data.results || [];
         
-        // Use the search API engine's native relevance and popularity ranking directly
+        // Sorting algorithm using a multi-factor relevance score:
+        // song title matches (exact/starts-with/contains), artist matches, and popularity (play count)
+        const sorted = [...resultsList].sort((a, b) => {
+          const q = query.toLowerCase().trim();
+          
+          const getScore = (track) => {
+            let score = 0;
+            const title = track.name.toLowerCase();
+            const primaryArtists = track.artists?.primary?.map(art => art.name.toLowerCase()) || [];
+            const allArtists = track.artists?.all?.map(art => art.name.toLowerCase()) || [];
+            const playCount = Number(track.playCount) || 0;
+
+            // 1. Song Title Matches
+            if (title === q) {
+              score += 100;
+            } else if (title.startsWith(q)) {
+              score += 60;
+            } else if (title.includes(q)) {
+              score += 30;
+            }
+
+            // 2. Artist Matches
+            const exactArtist = primaryArtists.some(name => name === q) || allArtists.some(name => name === q);
+            const startsArtist = primaryArtists.some(name => name.startsWith(q)) || allArtists.some(name => name.startsWith(q));
+            const includesArtist = primaryArtists.some(name => name.includes(q)) || allArtists.some(name => name.includes(q));
+
+            if (exactArtist) {
+              score += 80;
+            } else if (startsArtist) {
+              score += 45;
+            } else if (includesArtist) {
+              score += 15;
+            }
+
+            // 3. Popularity Score (Logarithmic playCount mapping to give weight to most played songs)
+            if (playCount > 0) {
+              score += Math.log10(playCount) * 8;
+            }
+
+            return score;
+          };
+
+          return getScore(b) - getScore(a);
+        });
+
         setSearchResults({
-          songs: resultsList
+          songs: sorted
         });
       }
     } catch (e) {
