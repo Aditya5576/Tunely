@@ -53,11 +53,15 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
   };
 
   return (
-    <div className={`song-row ${isCurrentTrack ? 'active' : ''}`} onMouseLeave={() => setIsDropdownOpen(false)}>
+    <div 
+      className={`song-row ${isCurrentTrack ? 'active' : ''}`} 
+      onClick={handlePlayClick}
+      onMouseLeave={() => setIsDropdownOpen(false)}
+    >
       {/* Index / Play Button */}
       <div className="song-index-col">
         <span className="index-number">{index + 1}</span>
-        <button className="row-play-btn" onClick={handlePlayClick}>
+        <button className="row-play-btn" onClick={(e) => { e.stopPropagation(); handlePlayClick(); }}>
           {isCurrentTrack && isPlaying ? (
             <Pause size={14} fill="currentColor" />
           ) : (
@@ -118,7 +122,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
                       <button 
                         key={p.id} 
                         className="dropdown-item"
-                        onClick={() => addToCustomPlaylist(p.id)}
+                        onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
                         disabled={alreadyAdded}
                       >
                         <span>{p.name}</span>
