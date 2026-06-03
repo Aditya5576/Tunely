@@ -383,7 +383,8 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
             border-radius: 0 16px 16px 0;
-            border-right: 1px solid var(--border-color);
+            border: 1px solid var(--border-color);
+            border-left: none;
           }
 
           .sidebar.open {

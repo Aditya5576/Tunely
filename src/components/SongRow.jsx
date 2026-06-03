@@ -147,10 +147,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           cursor: pointer;
           transition: background-color 0.2s;
           position: relative;
-        }
-
-        .song-row:hover {
-          background-color: var(--bg-hover);
+          touch-action: manipulation;
         }
 
         .song-row.active {
@@ -177,12 +174,18 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           height: 24px;
         }
 
-        .song-row:hover .index-number {
-          display: none;
-        }
+        @media (hover: hover) {
+          .song-row:hover {
+            background-color: var(--bg-hover);
+          }
 
-        .song-row:hover .row-play-btn {
-          display: flex;
+          .song-row:hover .index-number {
+            display: none;
+          }
+
+          .song-row:hover .row-play-btn {
+            display: flex;
+          }
         }
 
         .play-icon-offset {
@@ -275,13 +278,15 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           border-radius: 50%;
         }
 
-        .song-row:hover .row-action-btn {
-          opacity: 1;
-        }
+        @media (hover: hover) {
+          .song-row:hover .row-action-btn {
+            opacity: 1;
+          }
 
-        .row-action-btn:hover {
-          color: var(--text-main);
-          background: rgba(255,255,255,0.05);
+          .row-action-btn:hover {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.05);
+          }
         }
 
         /* Dropdown popover */
@@ -371,6 +376,9 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           .song-duration-col {
             width: 80px;
             gap: 10px;
+          }
+          .row-action-btn {
+            opacity: 1;
           }
         }
       `}</style>

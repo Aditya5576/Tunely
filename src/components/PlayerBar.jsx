@@ -576,7 +576,7 @@ export default function PlayerBar() {
           z-index: 2000;
           display: flex;
           flex-direction: column;
-          padding: 24px 32px;
+          padding: calc(24px + env(safe-area-inset-top, 0px)) 32px calc(24px + env(safe-area-inset-bottom, 0px));
           animation: slide-up-player 0.35s cubic-bezier(0.25, 1, 0.5, 1);
           overflow: hidden;
         }
@@ -780,22 +780,37 @@ export default function PlayerBar() {
 
         @media (max-width: 768px) {
           .player-bar {
-            height: 64px;
-            padding: 0 16px;
+            height: calc(64px + env(safe-area-inset-bottom, 0px));
+            padding: 0 16px env(safe-area-inset-bottom, 0px);
             cursor: pointer;
             box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
-            border-radius: 12px 12px 0 0;
-            background: rgba(12, 12, 18, 0.95);
+            border-radius: 16px 16px 0 0;
+            background: rgba(12, 12, 18, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
             position: fixed;
             bottom: 0;
             left: 0;
             width: 100vw;
+            display: flex;
+            align-items: center;
+          }
+
+          /* Click latency reduction and touch action mapping for iPhone */
+          button, 
+          .player-bar,
+          .pf-btn,
+          .pf-play-btn,
+          .pf-tool-btn {
+            touch-action: manipulation;
           }
 
           .mobile-progress-line {
             display: block;
             position: fixed;
-            bottom: 64px;
+            bottom: calc(64px + env(safe-area-inset-bottom, 0px));
             left: 0;
             height: 2px;
             background: var(--primary);

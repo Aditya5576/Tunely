@@ -109,53 +109,9 @@ export default function MainContent({
         const obj = await res.json();
         const resultsList = obj.data.results || [];
         
-        // Sorting algorithm using a multi-factor relevance score:
-        // song title matches (exact/starts-with/contains), artist matches, and popularity (play count)
-        const sorted = [...resultsList].sort((a, b) => {
-          const q = query.toLowerCase().trim();
-          
-          const getScore = (track) => {
-            let score = 0;
-            const title = track.name.toLowerCase();
-            const primaryArtists = track.artists?.primary?.map(art => art.name.toLowerCase()) || [];
-            const allArtists = track.artists?.all?.map(art => art.name.toLowerCase()) || [];
-            const playCount = track.playCount || 0;
-
-            // 1. Song Title Matches
-            if (title === q) {
-              score += 100;
-            } else if (title.startsWith(q)) {
-              score += 60;
-            } else if (title.includes(q)) {
-              score += 30;
-            }
-
-            // 2. Artist Matches
-            const exactArtist = primaryArtists.some(name => name === q) || allArtists.some(name => name === q);
-            const startsArtist = primaryArtists.some(name => name.startsWith(q)) || allArtists.some(name => name.startsWith(q));
-            const includesArtist = primaryArtists.some(name => name.includes(q)) || allArtists.some(name => name.includes(q));
-
-            if (exactArtist) {
-              score += 80;
-            } else if (startsArtist) {
-              score += 45;
-            } else if (includesArtist) {
-              score += 15;
-            }
-
-            // 3. Popularity Score (Logarithmic playCount mapping to give weight to most played songs)
-            if (playCount > 0) {
-              score += Math.log10(playCount) * 8;
-            }
-
-            return score;
-          };
-
-          return getScore(b) - getScore(a);
-        });
-
+        // Use the search API engine's native relevance and popularity ranking directly
         setSearchResults({
-          songs: sorted
+          songs: resultsList
         });
       }
     } catch (e) {
@@ -660,10 +616,12 @@ export default function MainContent({
           font-size: 14px;
         }
 
-        .hero-play-btn:hover:not(:disabled) {
-          background: var(--primary-hover);
-          transform: scale(1.03);
-          box-shadow: 0 0 16px var(--primary-glow);
+        @media (hover: hover) {
+          .hero-play-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: scale(1.03);
+            box-shadow: 0 0 16px var(--primary-glow);
+          }
         }
 
         .shortcuts-grid {
@@ -695,10 +653,12 @@ export default function MainContent({
           text-align: left;
         }
 
-        .shortcut-card:hover {
-          background: var(--bg-hover);
-          transform: translateY(-2px);
-          border-color: rgba(29, 185, 84, 0.2);
+        @media (hover: hover) {
+          .shortcut-card:hover {
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+            border-color: rgba(29, 185, 84, 0.2);
+          }
         }
 
         .shortcut-icon-container {
@@ -771,9 +731,11 @@ export default function MainContent({
           border-radius: 50%;
         }
 
-        .clear-search-btn:hover {
-          color: var(--text-main);
-          background: var(--bg-hover);
+        @media (hover: hover) {
+          .clear-search-btn:hover {
+            color: var(--text-main);
+            background: var(--bg-hover);
+          }
         }
 
         .categories-grid-section {
@@ -801,11 +763,6 @@ export default function MainContent({
           transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .category-card:hover {
-          transform: translateY(-4px) scale(1.02);
-          box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-        }
-
         .category-card h3 {
           font-size: 16px;
           font-weight: 700;
@@ -823,9 +780,16 @@ export default function MainContent({
           transition: transform 0.3s;
         }
 
-        .category-card:hover .category-overlay-icon {
-          transform: rotate(10deg) scale(1.2);
-          color: rgba(255,255,255,0.25);
+        @media (hover: hover) {
+          .category-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+          }
+
+          .category-card:hover .category-overlay-icon {
+            transform: rotate(10deg) scale(1.2);
+            color: rgba(255,255,255,0.25);
+          }
         }
 
         .bg-gradient-to-br {
@@ -887,9 +851,11 @@ export default function MainContent({
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .top-result-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(29, 185, 84, 0.2);
+        @media (hover: hover) {
+          .top-result-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(29, 185, 84, 0.2);
+          }
         }
 
         .top-result-cover {
@@ -946,14 +912,16 @@ export default function MainContent({
           box-shadow: 0 6px 16px rgba(29, 185, 84, 0.3);
         }
 
-        .top-result-card:hover .top-result-play-btn {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        @media (hover: hover) {
+          .top-result-card:hover .top-result-play-btn {
+            opacity: 1;
+            transform: translateY(0);
+          }
 
-        .top-result-play-btn:hover {
-          background: var(--primary-hover);
-          transform: scale(1.08) !important;
+          .top-result-play-btn:hover {
+            background: var(--primary-hover);
+            transform: scale(1.08) !important;
+          }
         }
 
         .compact-song-list {
@@ -1077,9 +1045,11 @@ export default function MainContent({
           box-shadow: 0 4px 12px var(--primary-glow);
         }
 
-        .detail-play-btn:hover:not(:disabled) {
-          background: var(--primary-hover);
-          transform: scale(1.03);
+        @media (hover: hover) {
+          .detail-play-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: scale(1.03);
+          }
         }
 
         /* Tracklist layout styles */
@@ -1151,13 +1121,15 @@ export default function MainContent({
           opacity: 0;
         }
 
-        .custom-track-row-wrapper:hover .remove-song-custom-btn {
-          opacity: 1;
-        }
+        @media (hover: hover) {
+          .custom-track-row-wrapper:hover .remove-song-custom-btn {
+            opacity: 1;
+          }
 
-        .remove-song-custom-btn:hover {
-          color: #ef4444;
-          background: rgba(239, 68, 68, 0.1);
+          .remove-song-custom-btn:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+          }
         }
 
         .empty-tracklist-placeholder {
@@ -1194,10 +1166,12 @@ export default function MainContent({
           font-weight: 500;
         }
 
-        .go-search-btn:hover {
-          background: var(--primary);
-          color: var(--bg-darker);
-          border-color: var(--primary);
+        @media (hover: hover) {
+          .go-search-btn:hover {
+            background: var(--primary);
+            color: var(--bg-darker);
+            border-color: var(--primary);
+          }
         }
 
         /* Generic Loading Bouncer */
@@ -1238,13 +1212,20 @@ export default function MainContent({
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
             background: rgba(10, 15, 30, 0.45);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border-bottom: 1px solid var(--border-color);
             z-index: 50;
             width: 100%;
+          }
+
+          button, 
+          .shortcut-card, 
+          .category-card, 
+          .top-result-card {
+            touch-action: manipulation;
           }
 
           .menu-toggle-btn {
@@ -1254,8 +1235,20 @@ export default function MainContent({
             border-radius: 50%;
           }
 
-          .menu-toggle-btn:hover {
-            background: var(--bg-hover);
+          @media (hover: hover) {
+            .menu-toggle-btn:hover {
+              background: var(--bg-hover);
+            }
+          }
+
+          /* Ensure action buttons are visible and styled on mobile views */
+          .top-result-play-btn {
+            opacity: 1;
+            transform: translateY(0);
+          }
+
+          .remove-song-custom-btn {
+            opacity: 1;
           }
 
           .mobile-logo {
