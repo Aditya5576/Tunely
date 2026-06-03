@@ -37,22 +37,21 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
     
     // If the deleted playlist was selected, reset view to home
     if (selectedPlaylistId === playlistId) {
-      setCurrentView('home');
-      setSelectedPlaylistId(null);
+      window.location.hash = 'home';
       if (setIsSidebarOpen) setIsSidebarOpen(false);
     }
   };
 
   const handlePlaylistClick = (playlist) => {
-    setSelectedPlaylistId(playlist.id);
-    setCurrentView(playlist.type === 'album' ? 'album' : (playlist.type === 'custom' ? 'custom' : 'playlist'));
+    const view = playlist.type === 'album' ? 'album' : (playlist.type === 'custom' ? 'custom' : 'playlist');
+    window.location.hash = `${view}-${playlist.id}`;
     if (setIsSidebarOpen) setIsSidebarOpen(false);
   };
 
   return (
     <div className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`}>
       {/* Brand Header */}
-      <div className="sidebar-header" onClick={() => { setCurrentView('home'); setSelectedPlaylistId(null); if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
+      <div className="sidebar-header" onClick={() => { window.location.hash = 'home'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
         <div className="logo-icon"></div>
         <h2>Tunely<span className="dot">.</span></h2>
       </div>
@@ -61,14 +60,14 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
       <div className="nav-menu">
         <button 
           className={`nav-item ${currentView === 'home' ? 'active' : ''}`}
-          onClick={() => { setCurrentView('home'); setSelectedPlaylistId(null); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+          onClick={() => { window.location.hash = 'home'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
           <Home size={20} />
           <span>Home</span>
         </button>
         <button 
           className={`nav-item ${currentView === 'search' ? 'active' : ''}`}
-          onClick={() => { setCurrentView('search'); setSelectedPlaylistId(null); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+          onClick={() => { window.location.hash = 'search'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
           <Search size={20} />
           <span>Search</span>

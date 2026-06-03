@@ -186,7 +186,7 @@ export default function MainContent({
                     key={idx} 
                     className="shortcut-card glass-panel"
                     onClick={() => {
-                      setCurrentView('search');
+                      window.location.hash = 'search';
                       handleCategoryClick(cat);
                     }}
                   >
@@ -530,7 +530,7 @@ export default function MainContent({
                         <Compass size={32} />
                         <h3>Your playlist is empty</h3>
                         <p>Go to the <strong>Search</strong> tab to find songs and click the "+" button to populate your playlist!</p>
-                        <button className="go-search-btn" onClick={() => setCurrentView('search')}>
+                        <button className="go-search-btn" onClick={() => { window.location.hash = 'search'; }}>
                           Go to Search
                         </button>
                       </div>

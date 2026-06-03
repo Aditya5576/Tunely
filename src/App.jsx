@@ -26,6 +26,42 @@ function TunelyApp() {
     }
   }, []);
 
+  // Hash-based routing event listener for Safari Back/Forward button support (stops 404s)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash || '#home';
+      
+      if (hash === '#home') {
+        setCurrentView('home');
+        setSelectedPlaylistId(null);
+      } else if (hash === '#search') {
+        setCurrentView('search');
+        setSelectedPlaylistId(null);
+      } else if (hash.startsWith('#playlist-')) {
+        const id = hash.replace('#playlist-', '');
+        setSelectedPlaylistId(id);
+        setCurrentView('playlist');
+      } else if (hash.startsWith('#album-')) {
+        const id = hash.replace('#album-', '');
+        setSelectedPlaylistId(id);
+        setCurrentView('album');
+      } else if (hash.startsWith('#custom-')) {
+        const id = hash.replace('#custom-', '');
+        setSelectedPlaylistId(id);
+        setCurrentView('custom');
+      } else {
+        setCurrentView('home');
+        setSelectedPlaylistId(null);
+      }
+    };
+
+    // Initialize routing based on current hash
+    handleHashChange();
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   return (
     <>
       <div className="app-container">
