@@ -143,8 +143,10 @@ export default function MainContent({
               score += 15;
             }
 
-            // 3. Popularity Score (Normalized playCount, cap at 30 points)
-            score += Math.min(30, playCount / 100000);
+            // 3. Popularity Score (Logarithmic playCount mapping to give weight to most played songs)
+            if (playCount > 0) {
+              score += Math.log10(playCount) * 8;
+            }
 
             return score;
           };
@@ -353,7 +355,14 @@ export default function MainContent({
                             <span>{searchResults.songs[0].artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist'}</span>
                             <span className="top-result-tag">Song</span>
                           </div>
-                          <button className="top-result-play-btn" title="Play">
+                          <button 
+                            className="top-result-play-btn" 
+                            title="Play"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTrack(searchResults.songs[0], searchResults.songs);
+                            }}
+                          >
                             <Play size={20} fill="currentColor" style={{ marginLeft: '2px' }} />
                           </button>
                         </div>
