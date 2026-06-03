@@ -28,7 +28,12 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
   const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
 
   const response = await fetch(url.toString(), {
-    headers: { 'Content-Type': 'application/json', 'User-Agent': randomUserAgent }
+    headers: { 
+      'Content-Type': 'application/json', 
+      'User-Agent': randomUserAgent,
+      'X-Forwarded-For': '103.241.136.1',
+      'X-Real-IP': '103.241.136.1'
+    }
   })
 
   const data = await response.json()
