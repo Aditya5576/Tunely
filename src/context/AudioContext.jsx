@@ -544,7 +544,6 @@ export const AudioProvider = ({ children }) => {
   // Initialize audio parameters
   useEffect(() => {
     const audio = audioRef.current;
-    audio.volume = volume;
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
@@ -584,9 +583,8 @@ export const AudioProvider = ({ children }) => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
-      audio.pause();
     };
-  }, [queue, currentIndex, loopMode, isShuffle, volume]);
+  }, [queue, currentIndex, loopMode, isShuffle]);
 
   // Adjust volume smoothly
   useEffect(() => {
