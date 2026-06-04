@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Search, ListMusic, User, X, Info, Settings } from 'lucide-react';
+import { Home, Search, ListMusic, User, X, Info, Settings, Music } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
@@ -106,13 +106,13 @@ function TunelyApp() {
         <div className={`splash-screen ${!showSplash ? 'fade-out' : ''}`}>
           <div className="splash-logo-container">
             <div className="splash-logo-circle">
-              <span className="splash-logo-letter">A</span>
+              <Music className="splash-music-icon" size={38} />
               <div className="splash-logo-disc"></div>
             </div>
             <h1 className="splash-title">Tunely</h1>
-            <p className="splash-tagline">High-Fidelity Audio Player</p>
-            <div className="splash-eq-bars">
-              <span></span><span></span><span></span><span></span><span></span>
+            <p className="splash-tagline">Premium High-Fidelity Audio</p>
+            <div className="splash-loader-bar">
+              <div className="splash-loader-progress"></div>
             </div>
           </div>
           <div className="splash-footer">
@@ -157,6 +157,10 @@ function TunelyApp() {
         <LyricsPanel />
       </div>
 
+      {isAccountOpen && (
+        <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>
+      )}
+
       {/* Account Menu Drawer on Mobile */}
       <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
         <div className="drawer-header">
@@ -188,9 +192,6 @@ function TunelyApp() {
           <span className="app-version">Tunely Mobile v1.0</span>
         </div>
       </div>
-      {isAccountOpen && (
-        <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>
-      )}
 
       {/* Mobile Bottom Tab Bar */}
       <div className="mobile-tab-bar">

@@ -364,11 +364,23 @@ input[type="range"]:hover::-moz-range-thumb {
   }
 
   .close-drawer-btn {
+    border: none;
+    background: transparent;
     color: var(--text-muted);
     width: 36px;
     height: 36px;
     border-radius: 50%;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  .close-drawer-btn:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-main);
   }
 
   .drawer-divider {
@@ -414,7 +426,7 @@ input[type="range"]:hover::-moz-range-thumb {
 .splash-screen {
   position: fixed;
   inset: 0;
-  background: var(--bg-darker);
+  background: #040508; /* Absolutely opaque dark background */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -423,7 +435,7 @@ input[type="range"]:hover::-moz-range-thumb {
   transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: opacity, transform;
   transform: translate3d(0, 0, 0);
-  background: radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.12) 0%, #05060b 80%);
+  background-image: radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.15) 0%, #040508 70%);
 }
 
 .splash-screen.fade-out {
@@ -440,34 +452,48 @@ input[type="range"]:hover::-moz-range-thumb {
 }
 
 .splash-logo-circle {
-  width: 100px;
-  height: 100px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0, 229, 255, 0.25) 0%, rgba(108, 92, 231, 0.15) 100%);
-  border: 2px solid rgba(0, 229, 255, 0.35);
+  background: rgba(9, 13, 22, 0.7);
+  border: 2px solid rgba(0, 229, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
-  animation: splash-pulse 3s ease-in-out infinite;
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.25);
+  animation: splash-pulse 2s ease-in-out infinite;
 }
 
-.splash-logo-letter {
-  font-family: var(--font-display);
-  font-size: 42px;
-  font-weight: 850;
+.splash-music-icon {
   color: var(--primary);
+  filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.8));
+  animation: splash-icon-float 3s ease-in-out infinite;
   z-index: 10;
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+.splash-logo-circle::before,
+.splash-logo-circle::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  opacity: 0;
+  animation: splash-wave 2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+}
+
+.splash-logo-circle::after {
+  animation-delay: 1s;
 }
 
 .splash-logo-disc {
   position: absolute;
-  inset: -6px;
+  inset: -8px;
   border: 1px dashed rgba(0, 229, 255, 0.25);
   border-radius: 50%;
-  animation: splash-spin 8s linear infinite;
+  animation: splash-spin 12s linear infinite;
+  pointer-events: none;
 }
 
 .splash-title {
@@ -480,33 +506,31 @@ input[type="range"]:hover::-moz-range-thumb {
 }
 
 .splash-tagline {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 500;
 }
 
-.splash-eq-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 24px;
+/* Linear Loading Progress Bar */
+.splash-loader-bar {
+  width: 180px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1.5px;
   margin-top: 16px;
+  overflow: hidden;
+  position: relative;
 }
 
-.splash-eq-bars span {
-  width: 3px;
-  height: 4px;
-  background-color: var(--primary);
-  border-radius: 2px;
-  animation: splash-eq-bounce 0.8s ease-in-out infinite alternate;
+.splash-loader-progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00e5ff, #0084ff);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.7);
+  animation: splash-loading-progress 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
-
-.splash-eq-bars span:nth-child(1) { animation-duration: 0.6s; }
-.splash-eq-bars span:nth-child(2) { animation-duration: 0.9s; animation-delay: 0.15s; }
-.splash-eq-bars span:nth-child(3) { animation-duration: 0.7s; animation-delay: 0.3s; }
-.splash-eq-bars span:nth-child(4) { animation-duration: 0.8s; animation-delay: 0.45s; }
-.splash-eq-bars span:nth-child(5) { animation-duration: 0.5s; animation-delay: 0.6s; }
 
 .splash-footer {
   position: absolute;
@@ -524,17 +548,37 @@ input[type="range"]:hover::-moz-range-thumb {
 
 @keyframes splash-pulse {
   0%, 100% {
-    box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
-    border-color: rgba(0, 229, 255, 0.35);
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.2);
+    border-color: rgba(0, 229, 255, 0.3);
   }
   50% {
-    box-shadow: 0 0 45px rgba(0, 229, 255, 0.45);
+    box-shadow: 0 0 40px rgba(0, 229, 255, 0.4);
     border-color: var(--primary);
   }
 }
 
-@keyframes splash-eq-bounce {
-  to { height: 24px; }
+@keyframes splash-wave {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-icon-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(4deg);
+  }
+}
+
+@keyframes splash-loading-progress {
+  to { width: 100%; }
 }
 
 @keyframes splash-footer-fade {
