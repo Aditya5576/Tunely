@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
-  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown 
+  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart
 } from 'lucide-react';
 
 export default function PlayerBar() {
@@ -18,6 +18,50 @@ export default function PlayerBar() {
   const [localTime, setLocalTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const handleTouchStart = (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchEnd - touchStart;
+    const isSwipeDown = distance > 100; // 100px threshold for collapse
+    if (isSwipeDown) {
+      setIsExpanded(false);
+    }
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Sync liked state when track changes
+  useEffect(() => {
+    if (!currentTrack) return;
+    const likedSongs = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
+    setIsLiked(likedSongs.some(id => id === currentTrack.id));
+  }, [currentTrack?.id]);
+
+  const toggleLike = (e) => {
+    e.stopPropagation();
+    if (!currentTrack) return;
+    const likedSongs = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
+    let updated;
+    if (isLiked) {
+      updated = likedSongs.filter(id => id !== currentTrack.id);
+    } else {
+      updated = [...likedSongs, currentTrack.id];
+    }
+    localStorage.setItem('tunely_liked_songs', JSON.stringify(updated));
+    setIsLiked(!isLiked);
+  };
 
   const getThumbnailLarge = () => {
     if (!currentTrack) return '';
@@ -74,13 +118,17 @@ export default function PlayerBar() {
     return 'Unknown Artist';
   };
 
+  const isLongName = currentTrack && currentTrack.name.length > 20;
+
   return (
     <>
       {/* Top thin progress line for collapsed mobile player */}
-      <div 
-        className="mobile-progress-line" 
-        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-      ></div>
+      <div className="mobile-progress-line-bg">
+        <div 
+          className="mobile-progress-line" 
+          style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+        ></div>
+      </div>
 
       <div className="player-bar glass-panel" onClick={(e) => {
         // Expand player on mobile if clicking on the bar itself, not on active buttons
@@ -93,7 +141,7 @@ export default function PlayerBar() {
         {currentTrack ? (
           <>
             <div className="album-art-container">
-              <img src={getThumbnail()} alt={currentTrack.name} className={`album-art ${isPlaying ? 'playing' : ''}`} />
+              <img src={getThumbnail()} alt={currentTrack.name} className={`album-art ${isPlaying ? 'playing' : ''}`} loading="lazy" decoding="async" />
               {isLoadingTrack && (
                 <div className="art-loader">
                   <Loader2 size={16} className="spinner" />
@@ -101,10 +149,14 @@ export default function PlayerBar() {
               )}
             </div>
             <div className="track-details">
-              <span className="track-name">{currentTrack.name}</span>
+              <div className="track-name-wrapper">
+                <span className={`track-name ${isLongName ? 'marquee-active' : ''}`}>
+                  {currentTrack.name}
+                </span>
+              </div>
               <span className="artist-name">{getArtistsString()}</span>
             </div>
-            {/* Collapsed Mobile EQ Visualizer */}
+            {/* Collapsed Mobile EQ Indicator */}
             <div className="mobile-eq-indicator">
               <div className={`eq-bar ${isPlaying ? 'animated' : ''}`}></div>
               <div className={`eq-bar ${isPlaying ? 'animated' : ''}`}></div>
@@ -185,6 +237,9 @@ export default function PlayerBar() {
             onMouseUp={handleScrubEnd}
             onTouchEnd={handleScrubEnd}
             disabled={!currentTrack}
+            style={{
+              background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${(localTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.15) ${(localTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.15) 100%)`
+            }}
           />
           <span className="time-display">{formatTime(duration)}</span>
         </div>
@@ -224,19 +279,52 @@ export default function PlayerBar() {
               setTrackVolume(vol);
               if (vol > 0) setIsMuted(false);
             }}
+            style={{
+              background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) 100%)`
+            }}
           />
         </div>
+      </div>
 
-        {/* Mobile-only Play/Pause Toggle */}
-        <button className="mobile-play-btn" onClick={(e) => { e.stopPropagation(); togglePlay(); }} disabled={!currentTrack}>
-          {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+      {/* Mobile Only Playback & Action Controls */}
+      <div className="mobile-player-controls">
+        <button 
+          className={`mp-action-btn heart ${isLiked ? 'liked' : ''}`}
+          onClick={toggleLike}
+          disabled={!currentTrack}
+          title={isLiked ? 'Unlike' : 'Like'}
+        >
+          <Heart size={20} fill={isLiked ? 'var(--primary)' : 'none'} />
+        </button>
+        
+        <button 
+          className="mp-play-btn"
+          onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+          disabled={!currentTrack}
+          title={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="play-icon-offset-mini" />}
+        </button>
+
+        <button 
+          className="mp-action-btn next"
+          onClick={(e) => { e.stopPropagation(); nextTrack(); }}
+          disabled={!currentTrack}
+          title="Next Track"
+        >
+          <SkipForward size={18} fill="currentColor" />
         </button>
       </div>
       </div>
 
       {/* Fullscreen Mobile Player Overlay */}
       {isExpanded && (
-        <div className="player-fullscreen glass-panel">
+        <div 
+          className="player-fullscreen glass-panel"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {/* Dynamic Blurred Artwork Background */}
           <div 
             className="pf-background" 
@@ -257,10 +345,22 @@ export default function PlayerBar() {
             <img src={getThumbnailLarge()} alt={currentTrack?.name} className={`pf-art ${isPlaying ? 'playing' : ''}`} />
           </div>
 
-          {/* Track Details */}
+          {/* Track Details + Heart */}
           <div className="pf-details">
-            <span className="pf-track-name">{currentTrack?.name || 'No song selected'}</span>
-            <span className="pf-artist-name">{getArtistsString()}</span>
+            <div className="pf-details-row">
+              <div className="pf-details-text">
+                <span className="pf-track-name">{currentTrack?.name || 'No song selected'}</span>
+                <span className="pf-artist-name">{getArtistsString()}</span>
+              </div>
+              <button 
+                className={`pf-heart-btn ${isLiked ? 'liked' : ''}`}
+                onClick={toggleLike}
+                disabled={!currentTrack}
+                title={isLiked ? 'Unlike' : 'Like'}
+              >
+                <Heart size={22} fill={isLiked ? 'currentColor' : 'none'} />
+              </button>
+            </div>
           </div>
 
           {/* Progress Slider */}
@@ -277,6 +377,9 @@ export default function PlayerBar() {
                 onMouseUp={handleScrubEnd}
                 onTouchEnd={handleScrubEnd}
                 disabled={!currentTrack}
+                style={{
+                  background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${(localTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.15) ${(localTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.15) 100%)`
+                }}
               />
             </div>
             <div className="pf-time-labels">
@@ -302,6 +405,26 @@ export default function PlayerBar() {
             <button className={`pf-btn loop ${loopMode !== 'none' ? 'active' : ''}`} onClick={toggleLoop}>
               <Repeat size={20} />
             </button>
+          </div>
+
+          {/* Fullscreen Volume Slider */}
+          <div className="pf-volume-container">
+            <Volume2 size={16} className="pf-volume-icon" />
+            <input 
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                const vol = parseFloat(e.target.value);
+                setTrackVolume(vol);
+                if (vol > 0) setIsMuted(false);
+              }}
+              style={{
+                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) 100%)`
+              }}
+            />
           </div>
 
           {/* Bottom Toolbar: Lyrics & Queue */}
@@ -671,13 +794,25 @@ export default function PlayerBar() {
         }
 
         .pf-details {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
           text-align: left;
           margin-bottom: 20px;
           position: relative;
           z-index: 2;
+        }
+
+        .pf-details-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          justify-content: space-between;
+        }
+
+        .pf-details-text {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+          overflow: hidden;
         }
 
         .pf-track-name {
@@ -695,6 +830,31 @@ export default function PlayerBar() {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .pf-heart-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          color: var(--text-muted);
+          flex-shrink: 0;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pf-heart-btn.liked {
+          color: var(--primary);
+          animation: heart-pop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pf-heart-btn:hover:not(:disabled) {
+          color: var(--text-main);
+          background: rgba(255,255,255,0.06);
+        }
+
+        @keyframes heart-pop {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.3); }
+          100% { transform: scale(1); }
         }
 
         .pf-progress-container {
@@ -778,24 +938,59 @@ export default function PlayerBar() {
           color: var(--primary);
         }
 
+        /* Track marquee styles */
+        .track-name-wrapper {
+          overflow: hidden;
+          white-space: nowrap;
+          width: 100%;
+          position: relative;
+        }
+
+        .track-name {
+          display: inline-block;
+          white-space: nowrap;
+        }
+
+        .track-name.marquee-active {
+          animation: marquee-play 12s linear infinite;
+          padding-right: 40px;
+        }
+
+        @keyframes marquee-play {
+          0% { transform: translateX(0); }
+          10% { transform: translateX(0); }
+          80% { transform: translateX(-40%); }
+          100% { transform: translateX(0); }
+        }
+
+        .mobile-player-controls {
+          display: none;
+        }
+
+        .mobile-progress-line-bg {
+          display: none;
+        }
+
         @media (max-width: 768px) {
           .player-bar {
-            height: calc(64px + env(safe-area-inset-bottom, 0px));
-            padding: 0 16px env(safe-area-inset-bottom, 0px);
+            height: 64px;
+            padding: 0 16px;
             cursor: pointer;
             box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
-            border-radius: 16px 16px 0 0;
-            background: rgba(12, 12, 18, 0.75);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            border-radius: 12px 12px 0 0;
+            background: rgba(12, 12, 18, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--border-color);
             border-bottom: none;
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100vw;
+            bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+            left: 8px;
+            right: 8px;
+            width: calc(100vw - 16px);
             display: flex;
             align-items: center;
+            z-index: 200;
           }
 
           /* Click latency reduction and touch action mapping for iPhone */
@@ -807,19 +1002,28 @@ export default function PlayerBar() {
             touch-action: manipulation;
           }
 
-          .mobile-progress-line {
+          .mobile-progress-line-bg {
             display: block;
             position: fixed;
-            bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-            left: 0;
+            bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 64px);
+            left: 8px;
+            right: 8px;
             height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 201;
+            border-radius: 1px;
+            overflow: hidden;
+            width: calc(100vw - 16px);
+          }
+
+          .mobile-progress-line {
+            height: 100%;
             background: var(--primary);
-            z-index: 101;
             transition: width 0.1s linear;
           }
 
           .song-info {
-            width: calc(100% - 48px);
+            width: calc(100% - 130px) !important;
           }
 
           .album-art-container {
@@ -841,17 +1045,85 @@ export default function PlayerBar() {
             display: none;
           }
 
-          .mobile-play-btn {
-            display: flex;
-            background: #fff;
-            color: #000;
-            width: 32px;
-            height: 32px;
+          .mobile-player-controls {
+            display: flex !important;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            z-index: 10;
+          }
+
+          .mp-action-btn {
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
+            display: flex;
             align-items: center;
             justify-content: center;
-            margin-left: auto;
+          }
+
+          .mp-action-btn:active {
+            background: rgba(255, 255, 255, 0.08);
+          }
+
+          .mp-action-btn.heart.liked {
+            color: var(--primary);
+          }
+
+          .mp-play-btn {
+            background: #fff;
+            color: #000;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+          }
+
+          .mp-play-btn:active {
+            transform: scale(0.92);
+          }
+
+          .play-icon-offset-mini {
+            margin-left: 2px;
+          }
+
+          /* Fullscreen art scale */
+          .pf-art {
+            width: min(75vw, 340px) !important;
+            height: min(75vw, 340px) !important;
+            max-width: none !important;
+            max-height: none !important;
+          }
+
+          /* Custom Volume slider container for Fullscreen Mobile Player */
+          .pf-volume-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 0 8px;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 2;
+          }
+
+          .pf-volume-icon {
+            color: var(--text-muted);
+            flex-shrink: 0;
+          }
+
+          .pf-volume-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            -webkit-appearance: none;
           }
 
           /* Mobile Equalizer animation indicator */

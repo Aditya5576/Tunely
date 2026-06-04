@@ -74,7 +74,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
       <div className="song-title-col">
         <div className="song-cover-container">
           {getThumbnail() ? (
-            <img src={getThumbnail()} alt={track.name} className="song-cover" />
+            <img src={getThumbnail()} alt={track.name} className="song-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="song-cover-placeholder">
               <Music size={14} />

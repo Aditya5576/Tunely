@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Home, Search, ListMusic, User, X, Info, Settings } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
@@ -7,9 +8,10 @@ import QueuePanel from './components/QueuePanel';
 import { AudioProvider } from './context/AudioContext';
 
 function TunelyApp() {
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'search' | 'playlist' | 'album' | 'custom'
+  const [currentView, setCurrentView] = useState('home'); // 'home' | 'search' | 'playlist' | 'album' | 'custom' | 'library'
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   
   // Custom user playlists state
   const [customPlaylists, setCustomPlaylists] = useState([]);
@@ -37,6 +39,9 @@ function TunelyApp() {
       } else if (hash === '#search') {
         setCurrentView('search');
         setSelectedPlaylistId(null);
+      } else if (hash === '#library') {
+        setCurrentView('library');
+        setSelectedPlaylistId(null);
       } else if (hash.startsWith('#playlist-')) {
         const id = hash.replace('#playlist-', '');
         setSelectedPlaylistId(id);
@@ -62,6 +67,23 @@ function TunelyApp() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Handles creating a new custom playlist (shared between sidebar and mobile library)
+  const createNewPlaylist = () => {
+    const name = prompt("Enter playlist name:", `My Playlist #${customPlaylists.length + 1}`);
+    if (!name || name.trim() === "") return;
+    
+    const newPlaylist = {
+      id: `custom_${Date.now()}`,
+      name: name.trim(),
+      type: 'custom',
+      songs: []
+    };
+    
+    const updated = [...customPlaylists, newPlaylist];
+    setCustomPlaylists(updated);
+    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+  };
+
   return (
     <>
       <div className="app-container">
@@ -75,6 +97,7 @@ function TunelyApp() {
           setCustomPlaylists={setCustomPlaylists}
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
+          createNewPlaylist={createNewPlaylist}
         />
 
         {isSidebarOpen && (
@@ -90,11 +113,73 @@ function TunelyApp() {
           customPlaylists={customPlaylists}
           setCustomPlaylists={setCustomPlaylists}
           setIsSidebarOpen={setIsSidebarOpen}
+          setIsAccountOpen={setIsAccountOpen}
+          createNewPlaylist={createNewPlaylist}
         />
 
         {/* Right pane: Drawer sections for Lyrics and Playback Queue */}
         <QueuePanel />
         <LyricsPanel />
+      </div>
+
+      {/* Account Menu Drawer on Mobile */}
+      <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
+          <div className="profile-badge-large">A</div>
+          <div className="profile-details-large">
+            <h3>Aditya</h3>
+            <span className="view-profile-link">View profile</span>
+          </div>
+          <button className="close-drawer-btn" onClick={() => setIsAccountOpen(false)}>
+            <X size={24} />
+          </button>
+        </div>
+        <div className="drawer-divider"></div>
+        <div className="drawer-content">
+          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Account switching is not available in guest mode."); }}>
+            <User size={18} />
+            <span>Add account</span>
+          </div>
+          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
+            <Info size={18} />
+            <span>What's new</span>
+          </div>
+          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Settings configuration coming soon!"); }}>
+            <Settings size={18} />
+            <span>Settings and privacy</span>
+          </div>
+        </div>
+        <div className="drawer-footer">
+          <span className="app-version">Tunely Mobile v1.0</span>
+        </div>
+      </div>
+      {isAccountOpen && (
+        <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>
+      )}
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="mobile-tab-bar">
+        <button 
+          className={`tab-item ${currentView === 'home' ? 'active' : ''}`}
+          onClick={() => { window.location.hash = 'home'; }}
+        >
+          <Home size={22} />
+          <span>Home</span>
+        </button>
+        <button 
+          className={`tab-item ${currentView === 'search' ? 'active' : ''}`}
+          onClick={() => { window.location.hash = 'search'; }}
+        >
+          <Search size={22} />
+          <span>Search</span>
+        </button>
+        <button 
+          className={`tab-item ${currentView === 'library' || currentView === 'playlist' || currentView === 'album' || currentView === 'custom' ? 'active' : ''}`}
+          onClick={() => { window.location.hash = 'library'; }}
+        >
+          <ListMusic size={22} />
+          <span>Library</span>
+        </button>
       </div>
 
       {/* Bottom sticky pane: Global player and track sliders */}

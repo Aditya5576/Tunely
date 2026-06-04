@@ -3,9 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#060609" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="Experience gapless music playback, real-time global song search, and synchronized lyrics in a beautiful obsidian glassmorphism UI." />
-    <title>Tunely - Web Player & High-Fidelity Music</title>
+    <title>Tunely - Web Player &amp; High-Fidelity Music</title>
+
+    <!-- Preconnect to API backend for faster first requests -->
+    <link rel="preconnect" href="https://jiosaavn-api.adityapatil2348.workers.dev" />
+    <link rel="dns-prefetch" href="https://jiosaavn-api.adityapatil2348.workers.dev" />
+
+    <!-- Preconnect to JioSaavn CDN for album art and audio -->
+    <link rel="preconnect" href="https://c.saavncdn.com" crossorigin />
+    <link rel="dns-prefetch" href="https://c.saavncdn.com" />
+    <link rel="preconnect" href="https://aac.saavncdn.com" crossorigin />
+    <link rel="dns-prefetch" href="https://aac.saavncdn.com" />
+
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
   <body>
     <div id="root"></div>

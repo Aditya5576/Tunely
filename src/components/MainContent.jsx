@@ -1,9 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu, Plus, ChevronLeft, ListMusic, Trash2 } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import SongRow from './SongRow';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:3000').trim();
+
+// In-memory cache for search results and trending data
+const searchCache = new Map();
+const homeCache = { data: null, ts: 0 };
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const PRE_CONFIGURED_PLAYLISTS = [
+  { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist', description: 'Relaxing beats for focus' },
+  { id: '83313988', name: 'Top Hindi Hits', type: 'playlist', description: 'Best of Bollywood' },
+  { id: '1108582', name: 'Global Top 50', type: 'playlist', description: 'Worldwide chart-toppers' },
+  { id: '69996470', name: 'AiSh, Vol. 4', type: 'album', description: 'Featured album' }
+];
 
 export default function MainContent({ 
   currentView, 
@@ -12,7 +24,9 @@ export default function MainContent({
   setSelectedPlaylistId,
   customPlaylists,
   setCustomPlaylists,
-  setIsSidebarOpen
+  setIsSidebarOpen,
+  setIsAccountOpen,
+  createNewPlaylist
 }) {
   const { playTrack, queue, currentIndex, isPlaying, togglePlay } = useAudio();
   
@@ -20,10 +34,16 @@ export default function MainContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
+  const searchInputRef = useRef(null);
 
   // Home states
   const [homeTrending, setHomeTrending] = useState([]);
   const [homeLoading, setHomeLoading] = useState(true);
+  const [homeFeatured, setHomeFeatured] = useState([]);
+  const [homeFeaturedLoading, setHomeFeaturedLoading] = useState(true);
+  const [podcasts, setPodcasts] = useState([]);
+  const [podcastsLoading, setPodcastsLoading] = useState(false);
+  const [homeFilter, setHomeFilter] = useState('all'); // 'all' | 'music' | 'podcasts'
 
   // Playlist/Album detail states
   const [detailData, setDetailData] = useState(null);
@@ -32,7 +52,25 @@ export default function MainContent({
   // Fetch trending songs for Home view on mount
   useEffect(() => {
     fetchHomeTrending();
+    fetchHomeFeatured();
   }, []);
+
+  // Fetch podcasts when filter changes to podcasts
+  useEffect(() => {
+    if (homeFilter === 'podcasts') {
+      fetchPodcasts();
+    }
+  }, [homeFilter]);
+
+  // Focus search input when view changes to search
+  useEffect(() => {
+    if (currentView === 'search' && searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentView]);
 
   // Fetch playlist/album details when selected ID changes
   useEffect(() => {
@@ -48,20 +86,57 @@ export default function MainContent({
   }, [selectedPlaylistId, currentView, customPlaylists]);
 
   const fetchHomeTrending = async () => {
+    // Serve from in-memory cache if fresh
+    if (homeCache.data && Date.now() - homeCache.ts < CACHE_TTL) {
+      setHomeTrending(homeCache.data);
+      setHomeLoading(false);
+      return;
+    }
     setHomeLoading(true);
     try {
-      // Query popular Hindi and English songs
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Lofi&limit=8`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Lofi&limit=8`);
       if (res.ok) {
         const obj = await res.json();
-        setHomeTrending(obj.data.results || []);
+        const results = obj.data.results || [];
+        homeCache.data = results;
+        homeCache.ts = Date.now();
+        setHomeTrending(results);
       }
     } catch (e) {
       console.error("Error loading home page trending tracks:", e);
     } finally {
       setHomeLoading(false);
+    }
+  };
+
+  const fetchHomeFeatured = async () => {
+    setHomeFeaturedLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Bollywood%20Hits&limit=6`);
+      if (res.ok) {
+        const obj = await res.json();
+        setHomeFeatured(obj.data.results || []);
+      }
+    } catch (e) {
+      console.error("Error loading home featured tracks:", e);
+    } finally {
+      setHomeFeaturedLoading(false);
+    }
+  };
+
+  const fetchPodcasts = async () => {
+    if (podcasts.length > 0) return;
+    setPodcastsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Podcast%20Story&limit=6`);
+      if (res.ok) {
+        const obj = await res.json();
+        setPodcasts(obj.data.results || []);
+      }
+    } catch (e) {
+      console.error("Error loading podcasts:", e);
+    } finally {
+      setPodcastsLoading(false);
     }
   };
 
@@ -92,71 +167,60 @@ export default function MainContent({
       return;
     }
 
+    // Instant result from cache, no loader flash
+    const cacheKey = searchQuery.trim().toLowerCase();
+    if (searchCache.has(cacheKey)) {
+      setSearchResults(searchCache.get(cacheKey));
+      setSearchLoading(false);
+      return;
+    }
     setSearchLoading(true);
     const delayDebounceFn = setTimeout(() => {
       performSearch(searchQuery);
-    }, 400); // 400ms debounce to prevent API spam
+    }, 200); // 200ms debounce for snappy feel
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, currentView]);
 
   async function performSearch(query) {
+    const cacheKey = query.trim().toLowerCase();
+    // Return cached result if available
+    if (searchCache.has(cacheKey)) {
+      setSearchResults(searchCache.get(cacheKey));
+      setSearchLoading(false);
+      return;
+    }
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`);
       if (res.ok) {
         const obj = await res.json();
         const resultsList = obj.data.results || [];
         
-        // Sorting algorithm using a multi-factor relevance score:
-        // song title matches (exact/starts-with/contains), artist matches, and popularity (play count)
-        const sorted = [...resultsList].sort((a, b) => {
-          const q = query.toLowerCase().trim();
-          
-          const getScore = (track) => {
-            let score = 0;
-            const title = track.name.toLowerCase();
-            const primaryArtists = track.artists?.primary?.map(art => art.name.toLowerCase()) || [];
-            const allArtists = track.artists?.all?.map(art => art.name.toLowerCase()) || [];
-            const playCount = Number(track.playCount) || 0;
-
-            // 1. Song Title Matches
-            if (title === q) {
-              score += 100;
-            } else if (title.startsWith(q)) {
-              score += 60;
-            } else if (title.includes(q)) {
-              score += 30;
-            }
-
-            // 2. Artist Matches
-            const exactArtist = primaryArtists.some(name => name === q) || allArtists.some(name => name === q);
-            const startsArtist = primaryArtists.some(name => name.startsWith(q)) || allArtists.some(name => name.startsWith(q));
-            const includesArtist = primaryArtists.some(name => name.includes(q)) || allArtists.some(name => name.includes(q));
-
-            if (exactArtist) {
-              score += 80;
-            } else if (startsArtist) {
-              score += 45;
-            } else if (includesArtist) {
-              score += 15;
-            }
-
-            // 3. Popularity Score (Logarithmic playCount mapping to give weight to most played songs)
-            if (playCount > 0) {
-              score += Math.log10(playCount) * 8;
-            }
-
-            return score;
-          };
-
-          return getScore(b) - getScore(a);
-        });
-
-        setSearchResults({
-          songs: sorted
-        });
+        const q = query.toLowerCase().trim();
+        const getScore = (track) => {
+          let score = 0;
+          const title = track.name.toLowerCase();
+          const primaryArtists = track.artists?.primary?.map(art => art.name.toLowerCase()) || [];
+          const allArtists = track.artists?.all?.map(art => art.name.toLowerCase()) || [];
+          const playCount = Number(track.playCount) || 0;
+          if (title === q) score += 100;
+          else if (title.startsWith(q)) score += 60;
+          else if (title.includes(q)) score += 30;
+          const exactArtist = primaryArtists.some(n => n === q) || allArtists.some(n => n === q);
+          const startsArtist = primaryArtists.some(n => n.startsWith(q)) || allArtists.some(n => n.startsWith(q));
+          const includesArtist = primaryArtists.some(n => n.includes(q)) || allArtists.some(n => n.includes(q));
+          if (exactArtist) score += 80;
+          else if (startsArtist) score += 45;
+          else if (includesArtist) score += 15;
+          if (playCount > 0) score += Math.log10(playCount) * 8;
+          return score;
+        };
+        const sorted = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
+        const result = { songs: sorted };
+        // Cache result (max 100 entries to avoid memory bloat)
+        if (searchCache.size > 100) searchCache.clear();
+        searchCache.set(cacheKey, result);
+        setSearchResults(result);
       }
     } catch (e) {
       console.error("Search failed:", e);
@@ -184,18 +248,62 @@ export default function MainContent({
     playTrack(tracks[0], tracks);
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <div className="main-content">
-      {/* Mobile Top Bar */}
+      {/* Mobile Top Bar - Spotify Style */}
       <div className="mobile-header">
-        <button className="menu-toggle-btn" onClick={() => setIsSidebarOpen(true)} title="Open Menu">
-          <Menu size={20} />
-        </button>
-        <div className="mobile-logo">
-          <div className="logo-icon-mini"></div>
-          <h2>Tunely</h2>
-        </div>
-        <div style={{ width: 36 }}></div>
+        {/* Left: Avatar or Back button */}
+        {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
+          <button className="mobile-back-btn" onClick={() => { window.location.hash = 'library'; }} title="Back">
+            <ChevronLeft size={24} />
+          </button>
+        ) : (
+          <button className="mobile-avatar-btn" onClick={() => setIsAccountOpen && setIsAccountOpen(true)} title="Profile">
+            <div className="mobile-avatar">A</div>
+          </button>
+        )}
+
+        {/* Center: View-dependent content */}
+        {currentView === 'home' && (
+          <div className="mobile-filter-pills">
+            {['All', 'Music', 'Podcasts'].map(label => (
+              <button
+                key={label}
+                className={`filter-pill ${homeFilter === label.toLowerCase() ? 'active' : ''}`}
+                onClick={() => setHomeFilter(label.toLowerCase())}
+              >{label}</button>
+            ))}
+          </div>
+        )}
+        {currentView === 'search' && (
+          <span className="mobile-view-title">Search</span>
+        )}
+        {currentView === 'library' && (
+          <span className="mobile-view-title">Your Library</span>
+        )}
+        {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') && (
+          <span className="mobile-view-title" style={{ fontSize: 15, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}></span>
+        )}
+
+        {/* Right: Context actions */}
+        {currentView === 'library' ? (
+          <button className="mobile-icon-btn" onClick={createNewPlaylist} title="New Playlist">
+            <Plus size={22} />
+          </button>
+        ) : currentView === 'home' || currentView === 'search' ? (
+          <button className="mobile-icon-btn" onClick={() => { window.location.hash = 'search'; }} title="Search">
+            <SearchIcon size={20} />
+          </button>
+        ) : (
+          <div style={{ width: 36 }} />
+        )}
       </div>
 
       {/* Scrollable Container */}
@@ -204,7 +312,12 @@ export default function MainContent({
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
           <div className="view-home">
-            {/* Hero banner */}
+            {/* Mobile Greeting (hidden on desktop via CSS, styled beautiful on mobile) */}
+            <div className="mobile-greeting-wrapper">
+              <h1>{getGreeting()}, Aditya 👋</h1>
+            </div>
+
+            {/* Hero banner - visible on desktop, hidden on mobile */}
             <div className="hero-banner">
               <div className="hero-tag">Trending</div>
               <h1>Discover High Fidelity</h1>
@@ -221,32 +334,106 @@ export default function MainContent({
               </div>
             </div>
 
-            {/* Quick shortcuts */}
-            <div className="shortcuts-grid">
-              <h2>Quick Discoveries</h2>
-              <div className="shortcuts-container">
-                {['Lo-Fi Mix', 'Arijit Hits', 'Top Pop', 'Retro Indian'].map((cat, idx) => (
-                  <div 
-                    key={idx} 
-                    className="shortcut-card glass-panel"
-                    onClick={() => {
-                      window.location.hash = 'search';
-                      handleCategoryClick(cat);
-                    }}
-                  >
-                    <div className="shortcut-icon-container">
-                      <Music size={18} className="shortcut-icon" />
-                    </div>
-                    <span>{cat}</span>
+            {/* If homeFilter is All or Music, show Shortcuts and Featured for You */}
+            {(homeFilter === 'all' || homeFilter === 'music') && (
+              <>
+                {/* Quick shortcuts */}
+                <div className="shortcuts-grid">
+                  <h2>Quick Discoveries</h2>
+                  <div className="shortcuts-container">
+                    {[
+                      { name: 'Lo-Fi Mix', query: 'Lofi Chill', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.25)', color: '#a78bfa' },
+                      { name: 'Arijit Hits', query: 'Arijit Singh Hits', bg: 'rgba(0, 229, 255, 0.12)', border: 'rgba(0, 229, 255, 0.25)', color: '#00e5ff' },
+                      { name: 'Top Pop', query: 'Pop Hits', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f43f5e' },
+                      { name: 'Retro Indian', query: 'Kishore Kumar Classics', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)', color: '#fb923c' }
+                    ].map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="shortcut-card"
+                        style={{ 
+                          background: item.bg, 
+                          borderColor: item.border,
+                          borderWidth: '1px',
+                          borderStyle: 'solid'
+                        }}
+                        onClick={() => {
+                          window.location.hash = 'search';
+                          handleCategoryClick(item.query);
+                        }}
+                      >
+                        <div className="shortcut-icon-container" style={{ background: 'rgba(255,255,255,0.05)', color: item.color }}>
+                          <Music size={18} />
+                        </div>
+                        <span>{item.name}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Horizontal scrollable Featured row */}
+                <div className="featured-section">
+                  <h2>Featured for You</h2>
+                  {homeFeaturedLoading ? (
+                    <div className="main-loading">
+                      <div className="bounce-loader">
+                        <div></div><div></div><div></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="featured-cards-scroll">
+                      {homeFeatured.map(track => (
+                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeFeatured)}>
+                          <div className="featured-card-cover-container">
+                            <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
+                            <button className="featured-card-play-btn" title="Play">
+                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                            </button>
+                          </div>
+                          <span className="featured-card-title">{track.name}</span>
+                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Podcasts Section */}
+            {homeFilter === 'podcasts' && (
+              <div className="podcasts-section">
+                <h2>Trending Podcasts & Shows</h2>
+                {podcastsLoading ? (
+                  <div className="main-loading">
+                    <div className="bounce-loader">
+                      <div></div><div></div><div></div>
+                    </div>
+                  </div>
+                ) : podcasts.length > 0 ? (
+                  <div className="featured-cards-scroll">
+                    {podcasts.map(track => (
+                      <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, podcasts)}>
+                        <div className="featured-card-cover-container" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                          <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
+                          <button className="featured-card-play-btn" title="Play">
+                            <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                          </button>
+                        </div>
+                        <span className="featured-card-title">{track.name}</span>
+                        <span className="featured-card-artist">Episode · Tunely Podcasts</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-results">No podcasts available right now.</div>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Trending Section */}
-            <div className="trending-section">
-              <h2>Trending Today</h2>
-              {homeLoading ? (
+            <div className="trending-section" style={{ marginTop: '24px' }}>
+              <h2>{homeFilter === 'podcasts' ? 'Podcast Episodes' : 'Trending Today'}</h2>
+              {homeLoading || (homeFilter === 'podcasts' && podcastsLoading) ? (
                 <div className="main-loading">
                   <div className="bounce-loader">
                     <div></div><div></div><div></div>
@@ -254,14 +441,14 @@ export default function MainContent({
                 </div>
               ) : (
                 <div className="song-list-table">
-                  {homeTrending.map((track, idx) => (
+                  {(homeFilter === 'podcasts' ? podcasts : homeTrending).map((track, idx) => (
                     <SongRow 
                       key={track.id} 
                       track={track} 
                       index={idx}
                       customPlaylists={customPlaylists}
                       setCustomPlaylists={setCustomPlaylists}
-                      playlistTracks={homeTrending}
+                      playlistTracks={homeFilter === 'podcasts' ? podcasts : homeTrending}
                     />
                   ))}
                 </div>
@@ -269,6 +456,7 @@ export default function MainContent({
             </div>
           </div>
         )}
+
 
         {/* VIEW 2: SEARCH */}
         {currentView === 'search' && (
@@ -348,7 +536,9 @@ export default function MainContent({
                           <img 
                             src={searchResults.songs[0].image?.[2]?.url || searchResults.songs[0].image?.[1]?.url} 
                             alt={searchResults.songs[0].name} 
-                            className="top-result-cover" 
+                            className="top-result-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <span className="top-result-name">{searchResults.songs[0].name}</span>
                           <div className="top-result-artist">
@@ -588,6 +778,82 @@ export default function MainContent({
           </div>
         )}
 
+        {/* VIEW 6: LIBRARY */}
+        {currentView === 'library' && (
+          <div className="view-library">
+            {/* Filter pills */}
+            <div className="library-filter-pills">
+              <button className="lib-pill active">Playlists</button>
+              <button className="lib-pill">Albums</button>
+            </div>
+
+            {/* Custom Playlists */}
+            {customPlaylists.length > 0 && (
+              <>
+                <h3 className="lib-section-title">My Playlists</h3>
+                {customPlaylists.map(playlist => (
+                  <div
+                    key={playlist.id}
+                    className="lib-item"
+                    onClick={() => { window.location.hash = `custom-${playlist.id}`; }}
+                  >
+                    <div className="lib-item-art custom-art">
+                      <Music size={20} />
+                    </div>
+                    <div className="lib-item-meta">
+                      <span className="lib-item-name">{playlist.name}</span>
+                      <span className="lib-item-sub">Playlist · {playlist.songs?.length || 0} songs</span>
+                    </div>
+                    <button
+                      className="lib-delete-btn"
+                      title="Delete playlist"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to delete the playlist "${playlist.name}"?`)) {
+                          const updated = customPlaylists.filter(p => p.id !== playlist.id);
+                          setCustomPlaylists(updated);
+                          localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                        }
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Featured Playlists */}
+            <h3 className="lib-section-title">Featured</h3>
+            {PRE_CONFIGURED_PLAYLISTS.map(playlist => (
+              <div
+                key={playlist.id}
+                className="lib-item"
+                onClick={() => { window.location.hash = `${playlist.type}-${playlist.id}`; }}
+              >
+                <div className="lib-item-art featured-art">
+                  <ListMusic size={20} />
+                </div>
+                <div className="lib-item-meta">
+                  <span className="lib-item-name">{playlist.name}</span>
+                  <span className="lib-item-sub">{playlist.type === 'album' ? 'Album' : 'Playlist'} · Tunely</span>
+                </div>
+                <ChevronLeft size={18} style={{ transform: 'rotate(180deg)', color: 'var(--text-dimmed)', flexShrink: 0 }} />
+              </div>
+            ))}
+
+            {/* Create playlist CTA if empty */}
+            {customPlaylists.length === 0 && (
+              <div className="lib-empty-cta">
+                <div className="lib-empty-icon"><Plus size={28} /></div>
+                <h3>Create your first playlist</h3>
+                <p>Tap the + button above to get started</p>
+                <button className="lib-create-btn" onClick={createNewPlaylist}>Create Playlist</button>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Embedded CSS for MainContent styling */}
@@ -609,6 +875,130 @@ export default function MainContent({
         }
 
         /* Home View Styles */
+        .mobile-greeting-wrapper {
+          display: none;
+        }
+
+        .featured-section {
+          margin-bottom: 32px;
+          text-align: left;
+        }
+
+        .featured-section h2 {
+          font-size: 20px;
+          margin-bottom: 16px;
+          color: var(--text-main);
+        }
+
+        .featured-cards-scroll {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+          scrollbar-width: none;
+        }
+
+        .featured-cards-scroll::-webkit-scrollbar {
+          display: none;
+        }
+
+        .featured-card {
+          flex: 0 0 160px;
+          display: flex;
+          flex-direction: column;
+          padding: 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid var(--border-color);
+        }
+
+        .featured-card:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(0, 229, 255, 0.25);
+          transform: translateY(-4px);
+        }
+
+        .featured-card-cover-container {
+          width: 136px;
+          height: 136px;
+          border-radius: 8px;
+          overflow: hidden;
+          position: relative;
+          margin-bottom: 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .featured-card-cover {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .featured-card-play-btn {
+          position: absolute;
+          right: 8px;
+          bottom: 8px;
+          background: var(--primary);
+          color: var(--bg-darker);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          opacity: 0;
+          transform: translateY(4px);
+          transition: all 0.2s;
+          box-shadow: 0 4px 10px rgba(0, 229, 255, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .featured-card:hover .featured-card-play-btn {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .featured-card-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-main);
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+          text-align: left;
+        }
+
+        .featured-card-artist {
+          font-size: 11px;
+          color: var(--text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+          text-align: left;
+        }
+
+        .lib-delete-btn {
+          color: var(--text-dimmed);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          transition: all 0.2s;
+          background: transparent;
+        }
+
+        .lib-delete-btn:hover {
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.1);
+        }
+
         .hero-banner {
           background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(108, 92, 231, 0.05) 50%, transparent 100%);
           border: 1px solid var(--border-color);
@@ -1256,13 +1646,97 @@ export default function MainContent({
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 8px;
             padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-            background: rgba(10, 15, 30, 0.45);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
+            background: rgba(8, 10, 18, 0.65);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border-bottom: 1px solid var(--border-color);
             z-index: 50;
             width: 100%;
+            position: sticky;
+            top: 0;
+          }
+
+          /* Avatar button */
+          .mobile-avatar-btn {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            padding: 0;
+          }
+
+          .mobile-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e53935, #c62828);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          }
+
+          /* Back button */
+          .mobile-back-btn {
+            flex-shrink: 0;
+            color: var(--text-main);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+          }
+
+          /* Filter pills (Home view) */
+          .mobile-filter-pills {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            justify-content: flex-start;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .mobile-filter-pills::-webkit-scrollbar { display: none; }
+
+          .filter-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.08);
+            color: var(--text-muted);
+            white-space: nowrap;
+            border: 1px solid transparent;
+            transition: all 0.18s;
+          }
+
+          .filter-pill.active {
+            background: var(--primary);
+            color: var(--bg-darker);
+            border-color: var(--primary);
+          }
+
+          /* Center title text */
+          .mobile-view-title {
+            flex: 1;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: var(--font-display);
+          }
+
+          /* Right icon button */
+          .mobile-icon-btn {
+            flex-shrink: 0;
+            color: var(--text-main);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
           }
 
           button, 
@@ -1270,19 +1744,6 @@ export default function MainContent({
           .category-card, 
           .top-result-card {
             touch-action: manipulation;
-          }
-
-          .menu-toggle-btn {
-            color: var(--text-main);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-          }
-
-          @media (hover: hover) {
-            .menu-toggle-btn:hover {
-              background: var(--bg-hover);
-            }
           }
 
           /* Ensure action buttons are visible and styled on mobile views */
@@ -1295,61 +1756,125 @@ export default function MainContent({
             opacity: 1;
           }
 
-          .mobile-logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-
-          .logo-icon-mini {
-            width: 16px;
-            height: 16px;
-            background-color: var(--primary);
-            border-radius: 50%;
-            position: relative;
-            box-shadow: 0 0 6px var(--primary-glow);
-          }
-
-          .logo-icon-mini::before {
-            content: '';
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            border-top: 1.5px solid var(--bg-darker);
-            border-right: 1.5px solid var(--bg-darker);
-            border-radius: 0 50% 0 0;
-            top: 5px;
-            left: 3px;
-            transform: rotate(45deg);
-          }
-
-          .mobile-logo h2 {
-            font-size: 15px;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            color: var(--text-main);
-          }
-
           .content-scroll {
-            padding: 16px 16px 120px;
+            padding: 16px 16px 160px;
+          }
+
+          .mobile-greeting-wrapper {
+            display: block;
+            margin-bottom: 20px;
+            text-align: left;
+          }
+
+          .mobile-greeting-wrapper h1 {
+            font-size: 22px;
+            font-weight: 850;
+            color: var(--text-main);
+            letter-spacing: -0.03em;
           }
 
           .hero-banner {
-            padding: 24px;
-            margin-bottom: 20px;
+            display: none !important;
           }
 
-          .hero-banner h1 {
-            font-size: 26px;
+          /* Featured scroll section on mobile */
+          .featured-section {
+            margin-bottom: 24px;
           }
 
-          .hero-banner p {
-            font-size: 13px;
-            margin-bottom: 16px;
+          .featured-cards-scroll {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            scrollbar-width: none;
+            mask-image: linear-gradient(to right, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
           }
 
+          .featured-card {
+            flex: 0 0 130px;
+            padding: 8px;
+            border-radius: 8px;
+          }
+
+          .featured-card-cover-container {
+            width: 112px;
+            height: 112px;
+            margin-bottom: 8px;
+          }
+
+          .featured-card-play-btn {
+            opacity: 1;
+            transform: translateY(0);
+            width: 30px;
+            height: 30px;
+            right: 6px;
+            bottom: 6px;
+          }
+
+          .featured-card-title {
+            font-size: 12px;
+          }
+
+          .featured-card-artist {
+            font-size: 10px;
+          }
+
+          /* Category grid full-width on mobile */
+          .categories-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .category-card {
+            height: 76px !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0 20px !important;
+          }
+
+          .category-card h3 {
+            font-size: 18px !important;
+          }
+
+          .category-overlay-icon {
+            right: 12px !important;
+            bottom: 50% !important;
+            transform: translateY(50%) rotate(15deg) scale(1.2) !important;
+            opacity: 0.25 !important;
+          }
+
+          /* Search Results stack on mobile */
+          .search-split-layout {
+            flex-direction: column !important;
+            gap: 16px !important;
+          }
+
+          .top-result-section, .songs-list-column {
+            width: 100% !important;
+            flex: none !important;
+          }
+
+          .top-result-card {
+            height: auto !important;
+            min-height: auto !important;
+            padding: 16px !important;
+          }
+
+          .top-result-cover {
+            width: 72px !important;
+            height: 72px !important;
+            margin-bottom: 12px !important;
+          }
+
+          .top-result-name {
+            font-size: 18px !important;
+          }
+
+          /* 2-column shortcut grid like Spotify */
           .shortcuts-container {
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
           }
 
@@ -1375,6 +1900,148 @@ export default function MainContent({
 
           .detail-title {
             font-size: 24px;
+          }
+
+          /* Library View */
+          .view-library {
+            text-align: left;
+          }
+
+          .library-filter-pills {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+
+          .lib-pill {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.07);
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.2s;
+          }
+
+          .lib-pill.active {
+            background: rgba(255,255,255,0.15);
+            color: var(--text-main);
+            border-color: rgba(255,255,255,0.2);
+          }
+
+          .lib-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dimmed);
+            margin-bottom: 10px;
+            margin-top: 20px;
+          }
+
+          .lib-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.15s;
+          }
+
+          .lib-item:active {
+            background: rgba(255,255,255,0.06) !important;
+          }
+
+          .lib-item-art {
+            width: 52px;
+            height: 52px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 20px;
+          }
+
+          .custom-art {
+            background: linear-gradient(135deg, rgba(0,229,255,0.2), rgba(0,229,255,0.05));
+            color: var(--primary);
+            border: 1px solid var(--border-color);
+          }
+
+          .featured-art {
+            background: linear-gradient(135deg, rgba(108,92,231,0.3), rgba(108,92,231,0.08));
+            color: #a78bfa;
+            border: 1px solid rgba(139,92,246,0.2);
+          }
+
+          .lib-item-meta {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            overflow: hidden;
+          }
+
+          .lib-item-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .lib-item-sub {
+            font-size: 12px;
+            color: var(--text-dimmed);
+          }
+
+          /* Empty library CTA */
+          .lib-empty-cta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
+            padding: 48px 20px;
+            color: var(--text-dimmed);
+          }
+
+          .lib-empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            margin-bottom: 8px;
+          }
+
+          .lib-empty-cta h3 {
+            font-size: 17px;
+            color: var(--text-main);
+          }
+
+          .lib-empty-cta p {
+            font-size: 13px;
+            max-width: 240px;
+          }
+
+          .lib-create-btn {
+            margin-top: 8px;
+            background: var(--primary);
+            color: var(--bg-darker);
+            font-weight: 700;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-size: 13px;
           }
         }
       `}</style>

@@ -25,6 +25,16 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
 
   Object.keys(params).forEach((key) => url.searchParams.append(key, String(params[key])))
 
+  const cacheKey = new Request(url.toString())
+  const cache = caches.default
+
+  // Try Cloudflare edge cache first
+  const cached = await cache.match(cacheKey)
+  if (cached) {
+    const data = await cached.json()
+    return { data: data as T, ok: true }
+  }
+
   const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
 
   const response = await fetch(url.toString(), {
@@ -37,6 +47,19 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
   })
 
   const data = await response.json()
+
+  if (response.ok) {
+    // Cache: search results for 5 min, everything else 10 min
+    const isSearch = endpoint.toString().includes('search') || endpoint.toString().includes('autocomplete')
+    const ttl = isSearch ? 300 : 600
+    const cacheResponse = new Response(JSON.stringify(data), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${ttl}, s-maxage=${ttl}`,
+      }
+    })
+    await cache.put(cacheKey, cacheResponse)
+  }
 
   return { data: data as T, ok: response.ok }
 }

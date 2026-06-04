@@ -7,24 +7,7 @@ const PRE_CONFIGURED_PLAYLISTS = [
   { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
-export default function Sidebar({ currentView, setCurrentView, selectedPlaylistId, setSelectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen }) {
-  
-  // Handles creating a new custom playlist
-  const createNewPlaylist = () => {
-    const name = prompt("Enter playlist name:", `My Playlist #${customPlaylists.length + 1}`);
-    if (!name || name.trim() === "") return;
-    
-    const newPlaylist = {
-      id: `custom_${Date.now()}`,
-      name: name.trim(),
-      type: 'custom',
-      songs: []
-    };
-    
-    const updated = [...customPlaylists, newPlaylist];
-    setCustomPlaylists(updated);
-    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-  };
+export default function Sidebar({ currentView, setCurrentView, selectedPlaylistId, setSelectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist }) {
 
   // Handles deleting a custom playlist
   const deletePlaylist = (e, playlistId) => {
