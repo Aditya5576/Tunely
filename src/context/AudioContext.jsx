@@ -52,6 +52,14 @@ export const AudioProvider = ({ children }) => {
     const meta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
     setLikedSongs(ids);
     setLikedSongsMetadata(meta);
+
+    // Set CORS headers for audio streams on all devices
+    if (audioRef.current) {
+      audioRef.current.crossOrigin = "anonymous";
+    }
+    if (preloadRef.current) {
+      preloadRef.current.crossOrigin = "anonymous";
+    }
   }, []);
 
   const toggleLikeTrack = (track) => {
@@ -76,6 +84,14 @@ export const AudioProvider = ({ children }) => {
   };
 
   const initWebAudio = () => {
+    // Detect mobile device to bypass Web Audio routing.
+    // Web Audio API routing gets suspended by iOS Safari / Android Chrome when the screen is turned off or backgrounded,
+    // which silences the playback. Bypassing it on mobile allows native background playback to work perfectly.
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      return;
+    }
+
     if (audioContextRef.current) {
       if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
@@ -601,6 +617,77 @@ export const AudioProvider = ({ children }) => {
       setLyrics(null);
     }
   }, [currentTrack]);
+
+  // Sync Media Session API metadata & playback state
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return;
+
+    try {
+      const title = currentTrack.name ? currentTrack.name.replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&') : "Unknown Track";
+      const artist = currentTrack.artists?.primary?.[0]?.name || currentTrack.subtitle || "Unknown Artist";
+      const album = currentTrack.album?.name || "Tunely";
+      
+      const artwork = currentTrack.image ? currentTrack.image.map(img => ({
+        src: img.url,
+        sizes: img.quality || '500x500',
+        type: 'image/jpeg'
+      })) : [
+        { src: '/logo.png', sizes: '512x512', type: 'image/png' }
+      ];
+
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title,
+        artist,
+        album,
+        artwork
+      });
+    } catch (e) {
+      console.warn("Failed to set Media Session metadata:", e);
+    }
+
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [currentTrack, isPlaying]);
+
+  // Handle Media Session Action Handlers
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    const actionHandlers = [
+      ['play', () => {
+        if (!isPlaying) togglePlay();
+      }],
+      ['pause', () => {
+        if (isPlaying) togglePlay();
+      }],
+      ['previoustrack', prevTrack],
+      ['nexttrack', nextTrack],
+      ['seekto', (details) => {
+        if (details.fastSeek && audioRef.current.fastSeek) {
+          audioRef.current.fastSeek(details.seekTime);
+        } else {
+          setTrackTime(details.seekTime);
+        }
+      }]
+    ];
+
+    for (const [action, handler] of actionHandlers) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (error) {
+        console.warn(`Media Session action "${action}" not supported:`, error);
+      }
+    }
+
+    return () => {
+      for (const [action] of actionHandlers) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch (error) {
+          // ignore
+        }
+      }
+    };
+  }, [queue, currentIndex, isShuffle, loopMode, isPlaying, currentTrack]);
 
   return (
     <AudioContext.Provider value={{
