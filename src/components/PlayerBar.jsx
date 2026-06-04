@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
-  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart
+  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders
 } from 'lucide-react';
 
 export default function PlayerBar() {
@@ -10,7 +10,7 @@ export default function PlayerBar() {
     isPlaying, currentTrack, currentTime, duration, volume, loopMode, isShuffle,
     isQueueVisible, isLyricsVisible, isLoadingTrack,
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
-    setIsQueueVisible, setIsLyricsVisible
+    setIsQueueVisible, setIsLyricsVisible, eqPreset, setEqPreset
   } = useAudio();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -21,6 +21,19 @@ export default function PlayerBar() {
   const [isLiked, setIsLiked] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [isEqMenuVisible, setIsEqMenuVisible] = useState(false);
+
+  // Close EQ menu when clicking outside
+  useEffect(() => {
+    if (!isEqMenuVisible) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.desktop-eq-wrapper')) {
+        setIsEqMenuVisible(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [isEqMenuVisible]);
 
   const handleTouchStart = (e) => {
     if (e.target.closest('button') || e.target.closest('input')) return;
@@ -257,7 +270,7 @@ const decodeHtml = (text) => {
         </div>
       </div>
 
-      {/* Right: Extra controls (Lyrics, Queue, Volume) */}
+      {/* Right: Extra controls (Lyrics, Queue, Equalizer, Volume) */}
       <div className="extra-controls">
         <button 
           className={`extra-btn ${isLyricsVisible ? 'active' : ''}`}
@@ -275,6 +288,63 @@ const decodeHtml = (text) => {
         >
           <ListMusic size={18} />
         </button>
+
+        <div className="desktop-eq-wrapper">
+          <button 
+            className={`extra-btn eq-toggle-btn ${isEqMenuVisible ? 'active' : ''}`}
+            onClick={() => setIsEqMenuVisible(!isEqMenuVisible)}
+            disabled={!currentTrack}
+            title="Audio Quality & Equalizer"
+          >
+            <Sliders size={16} />
+          </button>
+          
+          {isEqMenuVisible && (
+            <div className="desktop-eq-container glass-panel">
+              <div className="desktop-eq-header">
+                <span className="desktop-eq-title">Audio Profile / Voice EQ</span>
+                <span className="desktop-eq-subtitle">High-Fidelity 320kbps</span>
+              </div>
+              <div className="desktop-eq-options">
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'flat' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('flat'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">Normal (Flat)</span>
+                  <span className="option-desc">Pure studio response</span>
+                </button>
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'vocal-boost' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('vocal-boost'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">Clear Voice (Vocals)</span>
+                  <span className="option-desc">Enhanced vocals & dialogue</span>
+                </button>
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'bass-boost' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('bass-boost'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">Bass Boost</span>
+                  <span className="option-desc">Deep sub-bass power</span>
+                </button>
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'treble-boost' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('treble-boost'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">Treble Clarity</span>
+                  <span className="option-desc">Crisp highs & presence</span>
+                </button>
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'hifi' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('hifi'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">Studio Hi-Fi</span>
+                  <span className="option-desc">Dynamic full-range boost</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="volume-slider-container">
           <button className="extra-btn" onClick={handleVolumeToggle} title="Mute/Unmute">
@@ -417,6 +487,43 @@ const decodeHtml = (text) => {
             <button className={`pf-btn loop ${loopMode !== 'none' ? 'active' : ''}`} onClick={toggleLoop}>
               <Repeat size={20} />
             </button>
+          </div>
+
+          {/* HD Equalizer Presets */}
+          <div className="pf-eq-container">
+            <span className="pf-eq-title">Audio Profile / Voice EQ</span>
+            <div className="pf-eq-pills">
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'flat' ? 'active' : ''}`}
+                onClick={() => setEqPreset('flat')}
+              >
+                Normal (Flat)
+              </button>
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'vocal-boost' ? 'active' : ''}`}
+                onClick={() => setEqPreset('vocal-boost')}
+              >
+                Clear Voice (Vocals)
+              </button>
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'bass-boost' ? 'active' : ''}`}
+                onClick={() => setEqPreset('bass-boost')}
+              >
+                Bass Boost
+              </button>
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'treble-boost' ? 'active' : ''}`}
+                onClick={() => setEqPreset('treble-boost')}
+              >
+                Treble Clarity
+              </button>
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'hifi' ? 'active' : ''}`}
+                onClick={() => setEqPreset('hifi')}
+              >
+                Studio Hi-Fi
+              </button>
+            </div>
           </div>
 
           {/* Fullscreen Volume Slider */}
@@ -683,6 +790,111 @@ const decodeHtml = (text) => {
 
         .volume-slider-container input[type="range"] {
           flex: 1;
+        }
+
+        /* Desktop Equalizer Popover */
+        .desktop-eq-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .desktop-eq-container {
+          position: absolute;
+          bottom: 48px;
+          right: -60px;
+          width: 240px;
+          background: rgba(12, 12, 20, 0.96) !important;
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 229, 255, 0.15);
+          z-index: 1000;
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          animation: eq-fade-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        @keyframes eq-fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .desktop-eq-header {
+          display: flex;
+          flex-direction: column;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          padding-bottom: 8px;
+          margin-bottom: 4px;
+        }
+
+        .desktop-eq-title {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--primary);
+          text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
+        .desktop-eq-subtitle {
+          font-size: 9px;
+          color: var(--text-dimmed);
+          margin-top: 2px;
+        }
+
+        .desktop-eq-options {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .desktop-eq-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          width: 100%;
+          padding: 8px 12px;
+          border-radius: 8px;
+          background: transparent;
+          border: 1px solid transparent;
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          text-align: left;
+        }
+
+        .desktop-eq-option:hover {
+          background: rgba(255, 255, 255, 0.04);
+          color: var(--text-main);
+          border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .desktop-eq-option.active {
+          background: rgba(0, 229, 255, 0.08);
+          border-color: rgba(0, 229, 255, 0.3);
+          color: var(--primary);
+        }
+
+        .desktop-eq-option .option-name {
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .desktop-eq-option .option-desc {
+          font-size: 9px;
+          color: var(--text-dimmed);
+          margin-top: 2px;
         }
 
         /* Collapsed Mobile Player progress line */
@@ -1110,6 +1322,60 @@ const decodeHtml = (text) => {
             height: min(75vw, 340px) !important;
             max-width: none !important;
             max-height: none !important;
+          }
+
+          /* Fullscreen Equalizer UI styles */
+          .pf-eq-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 0 8px;
+            z-index: 2;
+            position: relative;
+          }
+
+          .pf-eq-title {
+            font-size: 11px;
+            color: var(--text-dimmed);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 750;
+          }
+
+          .pf-eq-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+          }
+
+          .pf-eq-pills::-webkit-scrollbar {
+            display: none;
+          }
+
+          .pf-eq-pill {
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            white-space: nowrap;
+          }
+
+          .pf-eq-pill.active {
+            background: rgba(0, 229, 255, 0.12);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
           }
 
           /* Custom Volume slider container for Fullscreen Mobile Player */

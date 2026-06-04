@@ -34,6 +34,149 @@ export const AudioProvider = ({ children }) => {
   const preloadRef = useRef(new Audio()); // For pre-buffering the next track
   const fadeIntervalRef = useRef(null);
 
+  // Equalizer states and references
+  const [eqPreset, setEqPreset] = useState('flat'); // 'flat' | 'bass-boost' | 'vocal-boost' | 'treble-boost' | 'hifi'
+  const audioContextRef = useRef(null);
+  const sourceNodeRef = useRef(null);
+  const bassFilterRef = useRef(null);
+  const midFilterRef = useRef(null);
+  const trebleFilterRef = useRef(null);
+  const compressorFilterRef = useRef(null);
+
+  const initWebAudio = () => {
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      return;
+    }
+
+    try {
+      // Allow Web Audio routing without security exceptions on saavn cdn streams
+      audioRef.current.crossOrigin = "anonymous";
+      
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const ctx = new AudioContextClass();
+      audioContextRef.current = ctx;
+
+      // Low Shelf Filter (Bass)
+      const bass = ctx.createBiquadFilter();
+      bass.type = 'lowshelf';
+      bass.frequency.value = 200;
+      bass.gain.value = 0;
+      bassFilterRef.current = bass;
+
+      // Peaking Filter (Mid/Vocal Clarity)
+      const mid = ctx.createBiquadFilter();
+      mid.type = 'peaking';
+      mid.frequency.value = 2000;
+      mid.Q.value = 1.0;
+      mid.gain.value = 0;
+      midFilterRef.current = mid;
+
+      // High Shelf Filter (Treble/Presence)
+      const treble = ctx.createBiquadFilter();
+      treble.type = 'highshelf';
+      treble.frequency.value = 8000;
+      treble.gain.value = 0;
+      trebleFilterRef.current = treble;
+
+      // Dynamics Compressor (enhances voice quality, dynamic range warmth, and stops clipping)
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
+      compressor.knee.setValueAtTime(10, ctx.currentTime);
+      compressor.ratio.setValueAtTime(3, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.01, ctx.currentTime);
+      compressor.release.setValueAtTime(0.25, ctx.currentTime);
+      compressorFilterRef.current = compressor;
+
+      // Connect HTML5 element to AudioNode pipeline
+      const source = ctx.createMediaElementSource(audioRef.current);
+      sourceNodeRef.current = source;
+
+      source.connect(bass);
+      bass.connect(mid);
+      mid.connect(treble);
+      treble.connect(compressor);
+      compressor.connect(ctx.destination);
+
+      applyEqPreset(eqPreset, bass, mid, treble, compressor);
+    } catch (e) {
+      console.warn("Failed to initialize Web Audio Equalizer (CORS / Autoplay restrictions):", e);
+    }
+  };
+
+  const applyEqPreset = (preset, bassNode = bassFilterRef.current, midNode = midFilterRef.current, trebleNode = trebleFilterRef.current, compressorNode = compressorFilterRef.current) => {
+    if (!bassNode || !midNode || !trebleNode) return;
+    const transitionTime = audioContextRef.current ? audioContextRef.current.currentTime + 0.05 : 0;
+
+    // Reset compressor to default parameters before adjusting
+    if (compressorNode) {
+      compressorNode.threshold.setValueAtTime(-12, transitionTime);
+      compressorNode.knee.setValueAtTime(10, transitionTime);
+      compressorNode.ratio.setValueAtTime(3, transitionTime);
+    }
+
+    if (preset === 'bass-boost') {
+      bassNode.gain.setValueAtTime(8, transitionTime);
+      midNode.gain.setValueAtTime(-1, transitionTime);
+      trebleNode.gain.setValueAtTime(-2, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-16, transitionTime);
+        compressorNode.ratio.setValueAtTime(5, transitionTime);
+      }
+    } else if (preset === 'vocal-boost') {
+      // Clear Vocal / voice presence boost
+      bassNode.gain.setValueAtTime(-3.5, transitionTime);
+      midNode.gain.setValueAtTime(6, transitionTime);
+      trebleNode.gain.setValueAtTime(3, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-24, transitionTime);
+        compressorNode.ratio.setValueAtTime(4, transitionTime);
+        compressorNode.knee.setValueAtTime(30, transitionTime);
+      }
+    } else if (preset === 'treble-boost') {
+      bassNode.gain.setValueAtTime(-2, transitionTime);
+      midNode.gain.setValueAtTime(0, transitionTime);
+      trebleNode.gain.setValueAtTime(7, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-12, transitionTime);
+        compressorNode.ratio.setValueAtTime(3, transitionTime);
+      }
+    } else if (preset === 'hifi') {
+      // Studio High-Fidelity Dynamic Boost
+      bassNode.gain.setValueAtTime(4, transitionTime);
+      midNode.gain.setValueAtTime(2, transitionTime);
+      trebleNode.gain.setValueAtTime(4, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-20, transitionTime);
+        compressorNode.ratio.setValueAtTime(4, transitionTime);
+        compressorNode.knee.setValueAtTime(20, transitionTime);
+      }
+    } else {
+      // Flat profile (Normal)
+      bassNode.gain.setValueAtTime(0, transitionTime);
+      midNode.gain.setValueAtTime(0, transitionTime);
+      trebleNode.gain.setValueAtTime(0, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-6, transitionTime); // minimal compression
+        compressorNode.ratio.setValueAtTime(1, transitionTime);
+      }
+    }
+  };
+
+  const changeEqPreset = (preset) => {
+    setEqPreset(preset);
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      applyEqPreset(preset);
+    }
+  };
+
   // 1. Core Functions
 
   // Function to fetch track lyrics (with fallback)
@@ -179,6 +322,7 @@ export const AudioProvider = ({ children }) => {
     }
 
     try {
+      initWebAudio();
       // Fade volume down before changing source
       fadeOutVolume(() => {
         audioRef.current.src = streamUrl;
@@ -251,6 +395,7 @@ export const AudioProvider = ({ children }) => {
     
     const streamUrl = track.downloadUrl?.[track.downloadUrl.length - 1]?.url;
     if (streamUrl) {
+      initWebAudio();
       fadeOutVolume(() => {
         audioRef.current.src = streamUrl;
         audioRef.current.load();
@@ -276,6 +421,7 @@ export const AudioProvider = ({ children }) => {
         setIsPlaying(false);
       });
     } else {
+      initWebAudio();
       audioRef.current.play()
         .then(() => {
           setIsPlaying(true);
@@ -455,7 +601,9 @@ export const AudioProvider = ({ children }) => {
       addToQueue,
       removeFromQueue,
       playQueueTrack,
-      clearQueue
+      clearQueue,
+      eqPreset,
+      setEqPreset: changeEqPreset
     }}>
       {children}
     </AudioContext.Provider>
