@@ -601,7 +601,6 @@ input[type="range"]:hover::-moz-range-thumb {
 .category-card,
 .featured-card {
   will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
