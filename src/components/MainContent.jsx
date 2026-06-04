@@ -3,7 +3,7 @@ import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Me
 import { useAudio } from '../context/AudioContext';
 import SongRow from './SongRow';
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:3000').trim();
+const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
 // In-memory cache for search results and trending data
 const searchCache = new Map();
