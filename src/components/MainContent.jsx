@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu, Plus, ChevronLeft, ListMusic, Trash2 } from 'lucide-react';
+import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import SongRow from './SongRow';
 
@@ -60,6 +60,17 @@ export default function MainContent({
   // Playlist/Album detail states
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Spotify Playlist Import states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [importStatus, setImportStatus] = useState({
+    loading: false,
+    text: '',
+    progress: 0,
+    total: 0,
+    error: null
+  });
 
   // Fetch trending songs for Home view on mount
   useEffect(() => {
@@ -254,6 +265,138 @@ export default function MainContent({
     if (e) e.preventDefault();
     if (searchQuery.trim()) {
       performSearch(searchQuery);
+    }
+  };
+
+  const handleStartImport = async () => {
+    const playlistIdMatch = spotifyUrl.match(/playlist\/([a-zA-Z0-9]+)/);
+    if (!playlistIdMatch) {
+      setImportStatus(prev => ({ ...prev, error: 'Invalid Spotify playlist link format. Make sure it contains "playlist/ID".' }));
+      return;
+    }
+    const playlistId = playlistIdMatch[1];
+    
+    setImportStatus({
+      loading: true,
+      text: 'Connecting to Spotify proxy...',
+      progress: 0,
+      total: 0,
+      error: null
+    });
+
+    try {
+      const proxyUrls = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://open.spotify.com/embed/playlist/${playlistId}`)}`,
+        `https://corsproxy.io/?${encodeURIComponent(`https://open.spotify.com/embed/playlist/${playlistId}`)}`
+      ];
+
+      let data = '';
+      let fetchSuccess = false;
+
+      for (const proxyUrl of proxyUrls) {
+        try {
+          const proxyRes = await fetch(proxyUrl);
+          if (proxyRes.ok) {
+            data = await proxyRes.text();
+            if (data.includes('__NEXT_DATA__')) {
+              fetchSuccess = true;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn("Proxy failed:", proxyUrl, e);
+        }
+      }
+
+      if (!fetchSuccess) {
+        throw new Error('Failed to retrieve Spotify playlist. Make sure the playlist is public.');
+      }
+
+      const match = data.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      if (!match) {
+        throw new Error('Could not parse Spotify playlist data structure. Spotify layout might have changed.');
+      }
+
+      const parsed = JSON.parse(match[1]);
+      const playlistData = parsed.props?.pageProps?.state?.data?.entity;
+      if (!playlistData) {
+        throw new Error('Playlist metadata not found in response.');
+      }
+
+      const playlistName = playlistData.name || 'Imported Playlist';
+      const trackList = playlistData.trackList || [];
+
+      if (trackList.length === 0) {
+        throw new Error('This playlist has no tracks, or it is private.');
+      }
+
+      setImportStatus(prev => ({
+        ...prev,
+        text: `Found ${trackList.length} tracks. Matching songs on Tunely...`,
+        total: trackList.length
+      }));
+
+      const matchedSongs = [];
+      
+      for (let i = 0; i < trackList.length; i++) {
+        const item = trackList[i];
+        const title = item.title;
+        const artist = item.subtitle || '';
+        
+        setImportStatus(prev => ({
+          ...prev,
+          text: `Matching "${title}" by ${artist}... (${i + 1}/${trackList.length})`,
+          progress: i
+        }));
+
+        try {
+          const searchQuery = `${title} ${artist}`.trim();
+          const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=5`);
+          if (searchRes.ok) {
+            const searchObj = await searchRes.json();
+            const results = searchObj.data.results || [];
+            if (results.length > 0) {
+              matchedSongs.push(results[0]);
+            }
+          }
+        } catch (err) {
+          console.error(`Error matching track ${title}:`, err);
+        }
+      }
+
+      if (matchedSongs.length === 0) {
+        throw new Error('No songs could be matched on Tunely.');
+      }
+
+      const newPlaylist = {
+        id: `custom_${Date.now()}`,
+        name: `${playlistName} (Spotify)`,
+        type: 'custom',
+        songs: matchedSongs
+      };
+
+      const updated = [...customPlaylists, newPlaylist];
+      setCustomPlaylists(updated);
+      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+
+      setImportStatus({
+        loading: false,
+        text: '',
+        progress: 0,
+        total: 0,
+        error: null
+      });
+
+      setShowImportModal(false);
+      setSpotifyUrl('');
+      
+      window.location.hash = `custom-${newPlaylist.id}`;
+    } catch (err) {
+      setImportStatus(prev => ({
+        ...prev,
+        loading: false,
+        error: err.message || 'An unknown error occurred during import.'
+      }));
     }
   };
 
@@ -816,7 +959,15 @@ export default function MainContent({
             </div>
 
             {/* Custom Playlists */}
-            <h3 className="lib-section-title">My Playlists</h3>
+            <div className="library-header-row">
+              <h3 className="lib-section-title">My Playlists</h3>
+              <div className="library-actions">
+                <button className="lib-action-btn-secondary" onClick={() => setShowImportModal(true)}>
+                  <Download size={13} style={{ marginRight: 6 }} />
+                  Import Spotify
+                </button>
+              </div>
+            </div>
             
             {/* Static Liked Songs Playlist Card */}
             <div
@@ -908,6 +1059,69 @@ export default function MainContent({
         )}
 
       </div>
+
+      {/* Spotify Import Modal */}
+      {showImportModal && (
+        <div className="import-modal-overlay" onClick={() => !importStatus.loading && setShowImportModal(false)}>
+          <div className="import-modal-content glass-panel" onClick={(e) => e.stopPropagation()}>
+            <h2>Import Spotify Playlist</h2>
+            <p className="import-description">
+              Paste a public Spotify playlist link below to search and match its songs on Tunely.
+            </p>
+            
+            {importStatus.loading ? (
+              <div className="import-loading-container">
+                <div className="import-spinner-circle"></div>
+                <div className="import-status-text">{importStatus.text}</div>
+                {importStatus.total > 0 && (
+                  <div className="import-progress-bar-container">
+                    <div className="import-progress-bar-bg">
+                      <div 
+                        className="import-progress-bar" 
+                        style={{ width: `${(importStatus.progress / importStatus.total) * 100}%` }}
+                      ></div>
+                    </div>
+                    <span className="import-progress-label">
+                      {importStatus.progress} / {importStatus.total} matched
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <input 
+                  type="text"
+                  placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+                  value={spotifyUrl}
+                  onChange={(e) => setSpotifyUrl(e.target.value)}
+                  className="import-url-input"
+                  disabled={importStatus.loading}
+                />
+                
+                {importStatus.error && (
+                  <div className="import-error-msg">{importStatus.error}</div>
+                )}
+
+                <div className="import-modal-actions">
+                  <button 
+                    className="import-btn-cancel" 
+                    onClick={() => setShowImportModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="import-btn-confirm" 
+                    onClick={handleStartImport}
+                    disabled={!spotifyUrl.trim()}
+                  >
+                    Start Import
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Embedded CSS for MainContent styling */}
       <style>{`
@@ -2181,6 +2395,226 @@ export default function MainContent({
             border-radius: 24px;
             font-size: 13px;
           }
+        }
+
+        /* Spotify Import Styles */
+        .library-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          margin-top: 16px;
+        }
+
+        .library-actions {
+          display: flex;
+          gap: 10px;
+        }
+
+        .lib-action-btn-secondary {
+          background: rgba(0, 229, 255, 0.08);
+          border: 1px solid rgba(0, 229, 255, 0.2);
+          color: var(--primary);
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          transition: all 0.2s ease;
+        }
+
+        .lib-action-btn-secondary:hover {
+          background: rgba(0, 229, 255, 0.15);
+          border-color: var(--primary);
+          box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+          transform: translateY(-1px);
+        }
+
+        .import-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(2, 3, 6, 0.85);
+          backdrop-filter: blur(10px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1100;
+          animation: fadeIn 0.25s ease;
+        }
+
+        .import-modal-content {
+          width: 95%;
+          max-width: 440px;
+          background: rgba(10, 12, 22, 0.8) !important;
+          border: 1px solid var(--border-color);
+          border-radius: 16px;
+          padding: 24px;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(0, 229, 255, 0.05);
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .import-modal-content h2 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #fff;
+          font-family: var(--font-display);
+        }
+
+        .import-description {
+          font-size: 13px;
+          color: var(--text-muted);
+          line-height: 1.5;
+          text-align: left;
+        }
+
+        .import-url-input {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 12px;
+          font-size: 14px;
+          color: #fff;
+          width: 100%;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .import-url-input:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+        }
+
+        .import-error-msg {
+          font-size: 12px;
+          color: #ff4d4d;
+          background: rgba(255, 77, 77, 0.08);
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid rgba(255, 77, 77, 0.2);
+          text-align: left;
+        }
+
+        .import-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 8px;
+        }
+
+        .import-btn-cancel {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: var(--text-main);
+          padding: 10px 18px;
+          border-radius: 30px;
+          font-size: 13px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .import-btn-cancel:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .import-btn-confirm {
+          background: linear-gradient(135deg, var(--primary) 0%, #00b0ff 100%);
+          border: none;
+          color: #05060b;
+          padding: 10px 22px;
+          border-radius: 30px;
+          font-size: 13px;
+          font-weight: 700;
+          box-shadow: 0 4px 15px rgba(0, 229, 255, 0.35);
+          transition: all 0.2s;
+        }
+
+        .import-btn-confirm:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(0, 229, 255, 0.5);
+        }
+
+        .import-btn-confirm:disabled {
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--text-dimmed);
+          box-shadow: none;
+          cursor: not-allowed;
+        }
+
+        .import-loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px 0;
+          gap: 16px;
+        }
+
+        .import-spinner-circle {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(0, 229, 255, 0.1);
+          border-radius: 50%;
+          border-top-color: var(--primary);
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .import-status-text {
+          font-size: 13px;
+          color: var(--text-main);
+          text-align: center;
+          font-weight: 500;
+        }
+
+        .import-progress-bar-container {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          margin-top: 4px;
+        }
+
+        .import-progress-bar-bg {
+          width: 100%;
+          height: 6px;
+          background: rgba(255,255,255,0.08);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+
+        .import-progress-bar {
+          height: 100%;
+          background: linear-gradient(to right, var(--primary), #00b0ff);
+          border-radius: 3px;
+          transition: width 0.3s ease;
+          box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+        }
+
+        .import-progress-label {
+          font-size: 11px;
+          color: var(--text-muted);
+          font-weight: 600;
         }
       `}</style>
     </div>
