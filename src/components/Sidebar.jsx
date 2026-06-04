@@ -1,4 +1,4 @@
-import { Home, Search, Library, Plus, Music, Trash2 } from 'lucide-react';
+import { Home, Search, Library, Plus, Music, Trash2, Heart } from 'lucide-react';
 
 const PRE_CONFIGURED_PLAYLISTS = [
   { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
@@ -71,6 +71,27 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
 
         {/* Playlists Container */}
         <div className="playlists-container">
+          {/* Static Liked Songs Playlist */}
+          <div className="playlist-group" style={{ marginBottom: '8px' }}>
+            <div 
+              className={`playlist-item ${selectedPlaylistId === 'liked' ? 'active' : ''}`}
+              onClick={() => handlePlaylistClick({ id: 'liked', type: 'custom' })}
+            >
+              <div className="playlist-icon liked-songs-icon" style={{ 
+                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.2))', 
+                color: 'var(--primary)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                border: '1px solid rgba(0, 229, 255, 0.25)',
+                boxShadow: '0 0 10px rgba(0, 229, 255, 0.15)'
+              }}>
+                <Heart size={11} fill="currentColor" />
+              </div>
+              <span className="playlist-name" style={{ fontWeight: selectedPlaylistId === 'liked' ? '600' : 'normal' }}>Liked Songs</span>
+            </div>
+          </div>
+
           {/* Custom Playlists */}
           {customPlaylists.length > 0 && (
             <div className="playlist-group">

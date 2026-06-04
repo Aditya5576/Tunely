@@ -40,7 +40,7 @@ export default function MainContent({
   setIsAccountOpen,
   createNewPlaylist
 }) {
-  const { playTrack, queue, currentIndex, isPlaying, togglePlay } = useAudio();
+  const { playTrack, queue, currentIndex, isPlaying, togglePlay, likedSongs, likedSongsMetadata, toggleLikeTrack } = useAudio();
   
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,14 +88,23 @@ export default function MainContent({
   useEffect(() => {
     if (selectedPlaylistId) {
       if (currentView === 'custom') {
-        // Custom playlist loading
-        const playlist = customPlaylists.find(p => p.id === selectedPlaylistId);
-        setDetailData(playlist);
+        if (selectedPlaylistId === 'liked') {
+          setDetailData({
+            id: 'liked',
+            name: 'Liked Songs',
+            type: 'custom',
+            songs: likedSongsMetadata
+          });
+        } else {
+          // Custom playlist loading
+          const playlist = customPlaylists.find(p => p.id === selectedPlaylistId);
+          setDetailData(playlist);
+        }
       } else {
         fetchDetailData();
       }
     }
-  }, [selectedPlaylistId, currentView, customPlaylists]);
+  }, [selectedPlaylistId, currentView, customPlaylists, likedSongsMetadata]);
 
   const fetchHomeTrending = async () => {
     // Serve from in-memory cache if fresh
@@ -757,17 +766,21 @@ export default function MainContent({
                             title="Remove from playlist"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const updated = customPlaylists.map(pl => {
-                                if (pl.id === detailData.id) {
-                                  return {
-                                    ...pl,
-                                    songs: pl.songs.filter(s => s.id !== track.id)
-                                  };
-                                }
-                                return pl;
-                              });
-                              setCustomPlaylists(updated);
-                              localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                              if (detailData.id === 'liked') {
+                                toggleLikeTrack(track);
+                              } else {
+                                const updated = customPlaylists.map(pl => {
+                                  if (pl.id === detailData.id) {
+                                    return {
+                                      ...pl,
+                                      songs: pl.songs.filter(s => s.id !== track.id)
+                                    };
+                                  }
+                                  return pl;
+                                });
+                                setCustomPlaylists(updated);
+                                localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                              }
                             }}
                           >
                             ×
@@ -803,40 +816,65 @@ export default function MainContent({
             </div>
 
             {/* Custom Playlists */}
-            {customPlaylists.length > 0 && (
-              <>
-                <h3 className="lib-section-title">My Playlists</h3>
-                {customPlaylists.map(playlist => (
-                  <div
-                    key={playlist.id}
-                    className="lib-item"
-                    onClick={() => { window.location.hash = `custom-${playlist.id}`; }}
-                  >
-                    <div className="lib-item-art custom-art">
-                      <Music size={20} />
-                    </div>
-                    <div className="lib-item-meta">
-                      <span className="lib-item-name">{playlist.name}</span>
-                      <span className="lib-item-sub">Playlist · {playlist.songs?.length || 0} songs</span>
-                    </div>
-                    <button
-                      className="lib-delete-btn"
-                      title="Delete playlist"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete the playlist "${playlist.name}"?`)) {
-                          const updated = customPlaylists.filter(p => p.id !== playlist.id);
-                          setCustomPlaylists(updated);
-                          localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-                        }
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </>
-            )}
+            <h3 className="lib-section-title">My Playlists</h3>
+            
+            {/* Static Liked Songs Playlist Card */}
+            <div
+              className="lib-item liked-songs-lib-card"
+              onClick={() => { window.location.hash = 'custom-liked'; }}
+              style={{ 
+                background: 'rgba(0, 229, 255, 0.03)',
+                border: '1px solid rgba(0, 229, 255, 0.15)',
+                borderRadius: '10px',
+                marginBottom: '12px'
+              }}
+            >
+              <div className="lib-item-art" style={{
+                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 229, 255, 0.3))',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '6px',
+                boxShadow: '0 0 10px rgba(0, 229, 255, 0.2)'
+              }}>
+                <Heart size={20} fill="currentColor" />
+              </div>
+              <div className="lib-item-meta">
+                <span className="lib-item-name" style={{ color: '#fff', fontWeight: '600' }}>Liked Songs</span>
+                <span className="lib-item-sub">Auto-populated playlist · {likedSongsMetadata.length} songs</span>
+              </div>
+            </div>
+
+            {customPlaylists.map(playlist => (
+              <div
+                key={playlist.id}
+                className="lib-item"
+                onClick={() => { window.location.hash = `custom-${playlist.id}`; }}
+              >
+                <div className="lib-item-art custom-art">
+                  <Music size={20} />
+                </div>
+                <div className="lib-item-meta">
+                  <span className="lib-item-name">{playlist.name}</span>
+                  <span className="lib-item-sub">Playlist · {playlist.songs?.length || 0} songs</span>
+                </div>
+                <button
+                  className="lib-delete-btn"
+                  title="Delete playlist"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Are you sure you want to delete the playlist "${playlist.name}"?`)) {
+                      const updated = customPlaylists.filter(p => p.id !== playlist.id);
+                      setCustomPlaylists(updated);
+                      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                    }
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
 
             {/* Featured Playlists */}
             <h3 className="lib-section-title">Featured</h3>

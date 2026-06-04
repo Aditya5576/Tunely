@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
-  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders
+  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle
 } from 'lucide-react';
 
-export default function PlayerBar() {
+export default function PlayerBar({ customPlaylists = [], setCustomPlaylists, createNewPlaylist }) {
   const {
     isPlaying, currentTrack, currentTime, duration, volume, loopMode, isShuffle,
     isQueueVisible, isLyricsVisible, isLoadingTrack,
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
-    setIsQueueVisible, setIsLyricsVisible, eqPreset, setEqPreset
+    setIsQueueVisible, setIsLyricsVisible, eqPreset, setEqPreset,
+    likedSongs, likedSongsMetadata, toggleLikeTrack
   } = useAudio();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -18,10 +19,10 @@ export default function PlayerBar() {
   const [localTime, setLocalTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [isEqMenuVisible, setIsEqMenuVisible] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   // Close EQ menu when clicking outside
   useEffect(() => {
@@ -55,25 +56,51 @@ export default function PlayerBar() {
     setTouchEnd(null);
   };
 
-  // Sync liked state when track changes
-  useEffect(() => {
-    if (!currentTrack) return;
-    const likedSongs = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
-    setIsLiked(likedSongs.some(id => id === currentTrack.id));
-  }, [currentTrack?.id]);
+  const isLiked = currentTrack && likedSongs.includes(currentTrack.id);
 
   const toggleLike = (e) => {
     e.stopPropagation();
-    if (!currentTrack) return;
-    const likedSongs = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
-    let updated;
-    if (isLiked) {
-      updated = likedSongs.filter(id => id !== currentTrack.id);
-    } else {
-      updated = [...likedSongs, currentTrack.id];
+    if (currentTrack) {
+      toggleLikeTrack(currentTrack);
     }
-    localStorage.setItem('tunely_liked_songs', JSON.stringify(updated));
-    setIsLiked(!isLiked);
+  };
+
+  const addCurrentTrackToPlaylist = (playlistId) => {
+    if (!currentTrack) return;
+    const updatedPlaylists = customPlaylists.map(playlist => {
+      if (playlist.id === playlistId) {
+        if (playlist.songs.some(s => s.id === currentTrack.id)) {
+          alert("Song is already in this playlist.");
+          return playlist;
+        }
+        return {
+          ...playlist,
+          songs: [...playlist.songs, currentTrack]
+        };
+      }
+      return playlist;
+    });
+
+    setCustomPlaylists(updatedPlaylists);
+    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updatedPlaylists));
+    setShowPlaylistModal(false);
+  };
+
+  const handleCreateNewPlaylistFromModal = () => {
+    const name = prompt("Enter playlist name:");
+    if (!name || name.trim() === "") return;
+    
+    const newPlaylist = {
+      id: `custom_${Date.now()}`,
+      name: name.trim(),
+      type: 'custom',
+      songs: [currentTrack]
+    };
+    
+    const updated = [...customPlaylists, newPlaylist];
+    setCustomPlaylists(updated);
+    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+    setShowPlaylistModal(false);
   };
 
   const getThumbnailLarge = () => {
@@ -427,21 +454,31 @@ const decodeHtml = (text) => {
             <img src={getThumbnailLarge()} alt={currentTrack?.name} className={`pf-art ${isPlaying ? 'playing' : ''}`} />
           </div>
 
-          {/* Track Details + Heart */}
+          {/* Track Details + Heart & Add to Playlist */}
           <div className="pf-details">
             <div className="pf-details-row">
               <div className="pf-details-text">
                 <span className="pf-track-name">{decodeHtml(currentTrack?.name) || 'No song selected'}</span>
                 <span className="pf-artist-name">{getArtistsString()}</span>
               </div>
-              <button 
-                className={`pf-heart-btn ${isLiked ? 'liked' : ''}`}
-                onClick={toggleLike}
-                disabled={!currentTrack}
-                title={isLiked ? 'Unlike' : 'Like'}
-              >
-                <Heart size={22} fill={isLiked ? 'currentColor' : 'none'} />
-              </button>
+              <div className="pf-actions-group">
+                <button 
+                  className={`pf-heart-btn ${isLiked ? 'liked' : ''}`}
+                  onClick={toggleLike}
+                  disabled={!currentTrack}
+                  title={isLiked ? 'Unlike' : 'Like'}
+                >
+                  <Heart size={22} fill={isLiked ? 'currentColor' : 'none'} />
+                </button>
+                <button 
+                  className="pf-add-playlist-btn"
+                  onClick={(e) => { e.stopPropagation(); setShowPlaylistModal(true); }}
+                  disabled={!currentTrack}
+                  title="Add to Playlist"
+                >
+                  <PlusCircle size={22} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -557,6 +594,42 @@ const decodeHtml = (text) => {
               <span>Queue</span>
             </button>
           </div>
+
+          {/* Playlist Selection Overlay Modal */}
+          {showPlaylistModal && (
+            <div className="pf-playlist-modal glass-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="pf-modal-header">
+                <h3>Add to Playlist</h3>
+                <button className="pf-modal-close" onClick={() => setShowPlaylistModal(false)}>×</button>
+              </div>
+              <div className="pf-modal-list">
+                {customPlaylists.length === 0 ? (
+                  <div className="pf-modal-empty">No custom playlists found</div>
+                ) : (
+                  customPlaylists.map(playlist => {
+                    const isAdded = playlist.songs.some(s => s.id === currentTrack?.id);
+                    return (
+                      <button 
+                        key={playlist.id} 
+                        className="pf-modal-item"
+                        onClick={() => addCurrentTrackToPlaylist(playlist.id)}
+                        disabled={isAdded}
+                      >
+                        <span className="pf-modal-item-name">{playlist.name}</span>
+                        <span className="pf-modal-item-count">{playlist.songs?.length || 0} songs</span>
+                        {isAdded && <span className="pf-modal-item-status">Already added</span>}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              <div className="pf-modal-actions">
+                <button className="pf-modal-create-btn" onClick={handleCreateNewPlaylistFromModal}>
+                  + Create New Playlist
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1501,6 +1574,180 @@ const decodeHtml = (text) => {
           .pf-toolbar {
             padding-top: 8px !important;
             gap: 32px !important;
+          }
+
+          /* Mobile Add to Playlist Modal */
+          .pf-playlist-modal {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(12, 12, 22, 0.98) !important;
+            border-top: 1px solid var(--border-color);
+            border-radius: 20px 20px 0 0;
+            padding: 20px 24px calc(20px + env(safe-area-inset-bottom, 0px));
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+            animation: slide-up-modal 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+          }
+
+          @keyframes slide-up-modal {
+            from {
+              transform: translate3d(0, 100%, 0);
+            }
+            to {
+              transform: translate3d(0, 0, 0);
+            }
+          }
+
+          .pf-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+
+          .pf-modal-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+          }
+
+          .pf-modal-close {
+            font-size: 24px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .pf-modal-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: none;
+          }
+          .pf-modal-list::-webkit-scrollbar {
+            display: none;
+          }
+
+          .pf-modal-empty {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-dimmed);
+            padding: 24px 0;
+          }
+
+          .pf-modal-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            text-align: left;
+            transition: all 0.2s;
+          }
+
+          .pf-modal-item:active {
+            background: rgba(0, 229, 255, 0.08);
+            border-color: rgba(0, 229, 255, 0.2);
+          }
+
+          .pf-modal-item:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .pf-modal-item-name {
+            font-size: 13px;
+            font-weight: 600;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .pf-modal-item-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-right: 12px;
+          }
+
+          .pf-modal-item-status {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--primary);
+            letter-spacing: 0.03em;
+          }
+
+          .pf-modal-actions {
+            display: flex;
+            flex-direction: column;
+            margin-top: 4px;
+          }
+
+          .pf-modal-create-btn {
+            background: rgba(0, 229, 255, 0.1);
+            border: 1px dashed rgba(0, 229, 255, 0.3);
+            color: var(--primary);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .pf-modal-create-btn:active {
+            background: rgba(0, 229, 255, 0.18);
+            border-color: var(--primary);
+          }
+
+          /* Details Row Adjustments to fit actions group */
+          .pf-details-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+          }
+
+          .pf-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+          }
+
+          .pf-add-playlist-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+          }
+
+          .pf-add-playlist-btn:active {
+            color: var(--primary);
+            background: rgba(255,255,255,0.06);
           }
         }
       `}</style>

@@ -43,6 +43,38 @@ export const AudioProvider = ({ children }) => {
   const trebleFilterRef = useRef(null);
   const compressorFilterRef = useRef(null);
 
+  const [likedSongs, setLikedSongs] = useState([]);
+  const [likedSongsMetadata, setLikedSongsMetadata] = useState([]);
+
+  // Load liked songs from localStorage on mount
+  useEffect(() => {
+    const ids = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
+    const meta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
+    setLikedSongs(ids);
+    setLikedSongsMetadata(meta);
+  }, []);
+
+  const toggleLikeTrack = (track) => {
+    if (!track) return;
+    
+    const isAlreadyLiked = likedSongs.includes(track.id);
+    let updatedIds;
+    let updatedMeta;
+
+    if (isAlreadyLiked) {
+      updatedIds = likedSongs.filter(id => id !== track.id);
+      updatedMeta = likedSongsMetadata.filter(t => t.id !== track.id);
+    } else {
+      updatedIds = [...likedSongs, track.id];
+      updatedMeta = [...likedSongsMetadata, track];
+    }
+
+    setLikedSongs(updatedIds);
+    setLikedSongsMetadata(updatedMeta);
+    localStorage.setItem('tunely_liked_songs', JSON.stringify(updatedIds));
+    localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(updatedMeta));
+  };
+
   const initWebAudio = () => {
     if (audioContextRef.current) {
       if (audioContextRef.current.state === 'suspended') {
@@ -603,7 +635,10 @@ export const AudioProvider = ({ children }) => {
       playQueueTrack,
       clearQueue,
       eqPreset,
-      setEqPreset: changeEqPreset
+      setEqPreset: changeEqPreset,
+      likedSongs,
+      likedSongsMetadata,
+      toggleLikeTrack
     }}>
       {children}
     </AudioContext.Provider>

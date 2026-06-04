@@ -219,7 +219,11 @@ function TunelyApp() {
       </div>
 
       {/* Bottom sticky pane: Global player and track sliders */}
-      <PlayerBar />
+      <PlayerBar 
+        customPlaylists={customPlaylists}
+        setCustomPlaylists={setCustomPlaylists}
+        createNewPlaylist={createNewPlaylist}
+      />
     </>
   );
 }
