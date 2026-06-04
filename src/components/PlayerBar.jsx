@@ -1138,9 +1138,12 @@ export default function PlayerBar() {
 
           .mobile-eq-indicator .eq-bar {
             width: 2px;
-            height: 2px;
+            height: 12px;
             background: var(--primary);
             border-radius: 1px;
+            transform: scaleY(0.15);
+            transform-origin: bottom;
+            will-change: transform;
           }
 
           .mobile-eq-indicator .eq-bar.animated {
@@ -1152,7 +1155,8 @@ export default function PlayerBar() {
           .mobile-eq-indicator .eq-bar.animated:nth-child(3) { animation-duration: 0.7s; animation-delay: 0.4s; }
 
           @keyframes eq-mini-bounce {
-            to { height: 12px; }
+            from { transform: scaleY(0.15); }
+            to { transform: scaleY(1); }
           }
 
           /* Grab-friendly range inputs on touch viewports */

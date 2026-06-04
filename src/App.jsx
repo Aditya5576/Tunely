@@ -13,8 +13,24 @@ function TunelyApp() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   
+  // Startup splash screen states
+  const [showSplash, setShowSplash] = useState(true);
+  const [isSplashMounted, setIsSplashMounted] = useState(true);
+
   // Custom user playlists state
   const [customPlaylists, setCustomPlaylists] = useState([]);
+
+  // Control startup splash screen fade-out and unmount
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => {
+      setShowSplash(false);
+      const unmountTimer = setTimeout(() => {
+        setIsSplashMounted(false);
+      }, 600); // 600ms matching CSS transition duration
+      return () => clearTimeout(unmountTimer);
+    }, 1500); // Keep active for 1.5s
+    return () => clearTimeout(fadeTimer);
+  }, []);
 
   // Load playlists from localStorage on startup
   useEffect(() => {
@@ -86,6 +102,25 @@ function TunelyApp() {
 
   return (
     <>
+      {isSplashMounted && (
+        <div className={`splash-screen ${!showSplash ? 'fade-out' : ''}`}>
+          <div className="splash-logo-container">
+            <div className="splash-logo-circle">
+              <span className="splash-logo-letter">A</span>
+              <div className="splash-logo-disc"></div>
+            </div>
+            <h1 className="splash-title">Tunely</h1>
+            <p className="splash-tagline">High-Fidelity Audio Player</p>
+            <div className="splash-eq-bars">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div className="splash-footer">
+            <span>Developed by Aditya Patil</span>
+          </div>
+        </div>
+      )}
+
       <div className="app-container">
         {/* Left pane: Navigation, Libraries and Custom Playlists */}
         <Sidebar 

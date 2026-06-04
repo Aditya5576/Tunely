@@ -1230,12 +1230,12 @@ export default function MainContent({
           background-size: 200% 200%;
         }
         
-        .from-pink-500 { background: linear-gradient(135deg, #ec4899, #6366f1); }
-        .from-purple-600 { background: linear-gradient(135deg, #8b5cf6, #3b82f6); }
-        .from-emerald-500 { background: linear-gradient(135deg, #10b981, #14b8a6); }
-        .from-orange-500 { background: linear-gradient(135deg, #f97316, #f43f5e); }
-        .from-yellow-500 { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .from-cyan-500 { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+        .from-pink-500 { background: linear-gradient(135deg, #3b1128 0%, #111827 100%); border: 1px solid rgba(236,72,153,0.15); }
+        .from-purple-600 { background: linear-gradient(135deg, #220f48 0%, #0c0f1d 100%); border: 1px solid rgba(139,92,246,0.15); }
+        .from-emerald-500 { background: linear-gradient(135deg, #053326 0%, #031c15 100%); border: 1px solid rgba(16,185,129,0.15); }
+        .from-orange-500 { background: linear-gradient(135deg, #4f1d0b 0%, #27060f 100%); border: 1px solid rgba(249,115,22,0.15); }
+        .from-yellow-500 { background: linear-gradient(135deg, #451e06 0%, #09090b 100%); border: 1px solid rgba(245,158,11,0.15); }
+        .from-cyan-500 { background: linear-gradient(135deg, #0f2e42 0%, #061521 100%); border: 1px solid rgba(6,182,212,0.15); }
 
         .search-results {
           text-align: left;
