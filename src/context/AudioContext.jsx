@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useAuth } from './AuthContext';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 const AudioContext = createContext(null);
@@ -15,6 +16,7 @@ const LYRICS_FALLBACK = {
 };
 
 export const AudioProvider = ({ children }) => {
+  const { isLoggedIn, authFetch } = useAuth() || {};
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -62,7 +64,37 @@ export const AudioProvider = ({ children }) => {
     }
   }, []);
 
-  const toggleLikeTrack = (track) => {
+  // Smart sync: when user logs in, compare local vs server timestamps and merge
+  useEffect(() => {
+    if (!isLoggedIn || !authFetch) return;
+
+    const syncLikedSongs = async () => {
+      try {
+        const localMeta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
+        const localUpdatedAt = localStorage.getItem('tunely_liked_songs_updated_at') || new Date(0).toISOString();
+
+        const res = await authFetch(`${API_BASE}/api/user/liked/sync`, {
+          method: 'POST',
+          body: JSON.stringify({ songs: localMeta, localUpdatedAt })
+        });
+        if (!res.ok) return;
+        const { data } = await res.json();
+        const songs = data.songs || [];
+        const ids = songs.map(s => s.id);
+        setLikedSongs(ids);
+        setLikedSongsMetadata(songs);
+        localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
+        localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
+        localStorage.setItem('tunely_liked_songs_updated_at', new Date().toISOString());
+      } catch (e) {
+        console.warn('Liked songs sync failed:', e);
+      }
+    };
+
+    syncLikedSongs();
+  }, [isLoggedIn]);
+
+  const toggleLikeTrack = async (track) => {
     if (!track) return;
     
     const isAlreadyLiked = likedSongs.includes(track.id);
@@ -77,10 +109,28 @@ export const AudioProvider = ({ children }) => {
       updatedMeta = [...likedSongsMetadata, track];
     }
 
+    const now = new Date().toISOString();
     setLikedSongs(updatedIds);
     setLikedSongsMetadata(updatedMeta);
     localStorage.setItem('tunely_liked_songs', JSON.stringify(updatedIds));
     localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(updatedMeta));
+    localStorage.setItem('tunely_liked_songs_updated_at', now);
+
+    // Sync to cloud if logged in
+    if (isLoggedIn && authFetch) {
+      try {
+        if (isAlreadyLiked) {
+          await authFetch(`${API_BASE}/api/user/liked/${track.id}`, { method: 'DELETE' });
+        } else {
+          await authFetch(`${API_BASE}/api/user/liked`, {
+            method: 'POST',
+            body: JSON.stringify({ song: track })
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to sync liked track to cloud:', e);
+      }
+    }
   };
 
   const initWebAudio = () => {

@@ -1,4 +1,5 @@
-import { Home, Search, Library, Plus, Music, Trash2, Heart } from 'lucide-react';
+import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const PRE_CONFIGURED_PLAYLISTS = [
   { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
@@ -7,7 +8,8 @@ const PRE_CONFIGURED_PLAYLISTS = [
   { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
-export default function Sidebar({ currentView, setCurrentView, selectedPlaylistId, setSelectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist }) {
+export default function Sidebar({ currentView, setCurrentView, selectedPlaylistId, setSelectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal }) {
+  const { user, isLoggedIn, logout } = useAuth() || {};
 
   // Handles deleting a custom playlist
   const deletePlaylist = (e, playlistId) => {
@@ -137,9 +139,28 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
         </div>
       </div>
 
-      {/* Developer Attribution */}
-      <div className="sidebar-footer">
-        Developed by <span className="dev-name">Aditya Patil</span>
+      {/* User Account Section */}
+      <div className="sidebar-account">
+        {isLoggedIn ? (
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">
+              {user?.name?.charAt(0).toUpperCase() || <User size={16} />}
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{user?.name}</span>
+              <span className="sidebar-user-email">{user?.email}</span>
+            </div>
+            <button className="sidebar-logout-btn" onClick={logout} title="Sign out">
+              <LogOut size={15} />
+            </button>
+          </div>
+        ) : (
+          <button className="sidebar-signin-btn" onClick={onShowAuthModal}>
+            <LogIn size={16} />
+            <span>Sign in to sync</span>
+          </button>
+        )}
+        <div className="sidebar-dev-credit">Developed by <span className="dev-name">Aditya Patil</span></div>
       </div>
 
       {/* Embedded CSS for Sidebar styling */}
@@ -366,7 +387,106 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
           letter-spacing: 0.03em;
         }
 
-        .sidebar-footer .dev-name {
+        .sidebar-account {
+          margin-top: auto;
+          padding-top: 12px;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar-user {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.04);
+          margin-bottom: 8px;
+        }
+
+        .sidebar-user-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--primary), var(--secondary));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 14px;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .sidebar-user-info {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sidebar-user-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-main);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .sidebar-user-email {
+          font-size: 10px;
+          color: var(--text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .sidebar-logout-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          transition: color 0.2s;
+          flex-shrink: 0;
+        }
+
+        .sidebar-logout-btn:hover { color: #ff6b6b; }
+
+        .sidebar-signin-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid var(--border-color);
+          background: rgba(255,255,255,0.04);
+          color: var(--text-secondary);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-bottom: 8px;
+        }
+
+        .sidebar-signin-btn:hover {
+          background: rgba(var(--primary-rgb, 139, 92, 246), 0.12);
+          color: var(--primary);
+          border-color: var(--primary);
+        }
+
+        .sidebar-dev-credit {
+          font-size: 10px;
+          color: var(--text-muted);
+          text-align: center;
+          padding: 4px 0;
+        }
+
+        .sidebar-dev-credit .dev-name {
           color: var(--primary);
           font-weight: 600;
         }

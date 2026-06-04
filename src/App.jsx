@@ -6,12 +6,15 @@ import PlayerBar from './components/PlayerBar';
 import LyricsPanel from './components/LyricsPanel';
 import QueuePanel from './components/QueuePanel';
 import { AudioProvider } from './context/AudioContext';
+import { AuthProvider } from './context/AuthContext';
+import { AuthModal } from './components/AuthModal';
 
 function TunelyApp() {
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'search' | 'playlist' | 'album' | 'custom' | 'library'
+  const [currentView, setCurrentView] = useState('home');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   
   // Startup splash screen states
   const [showSplash, setShowSplash] = useState(true);
@@ -133,6 +136,7 @@ function TunelyApp() {
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
           createNewPlaylist={createNewPlaylist}
+          onShowAuthModal={() => setShowAuthModal(true)}
         />
 
         {isSidebarOpen && (
@@ -218,6 +222,9 @@ function TunelyApp() {
         </button>
       </div>
 
+      {/* Auth Modal */}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
       {/* Bottom sticky pane: Global player and track sliders */}
       <PlayerBar 
         customPlaylists={customPlaylists}
@@ -230,8 +237,10 @@ function TunelyApp() {
 
 export default function App() {
   return (
-    <AudioProvider>
-      <TunelyApp />
-    </AudioProvider>
+    <AuthProvider>
+      <AudioProvider>
+        <TunelyApp />
+      </AudioProvider>
+    </AuthProvider>
   );
 }

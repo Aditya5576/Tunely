@@ -6,25 +6,30 @@ import { prettyJSON } from 'hono/pretty-json'
 import { Home } from './pages/home'
 import type { Routes } from '#common/types'
 import type { HTTPException } from 'hono/http-exception'
+import type { Hono } from 'hono'
 
 export class App {
   private app: OpenAPIHono
 
-  constructor(routes: Routes[]) {
+  constructor(routes: Routes[], authRouter?: Hono, userRouter?: Hono) {
     this.app = new OpenAPIHono()
 
     this.initializeGlobalMiddlewares()
-    this.initializeRoutes(routes)
+    this.initializeRoutes(routes, authRouter, userRouter)
     this.initializeSwaggerUI()
     this.initializeRouteFallback()
     this.initializeErrorHandler()
   }
 
-  private initializeRoutes(routes: Routes[]) {
+  private initializeRoutes(routes: Routes[], authRouter?: Hono, userRouter?: Hono) {
     routes.forEach((route) => {
       route.initRoutes()
       this.app.route('/api', route.controller)
     })
+
+    // Mount auth and user routes
+    if (authRouter) this.app.route('/api/auth', authRouter)
+    if (userRouter) this.app.route('/api/user', userRouter)
 
     // Spotify Playlist route using official Spotify Web API (Client Credentials flow - no user login required)
     // Token is cached in module scope per Worker instance to avoid redundant token requests.
