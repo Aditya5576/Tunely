@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, Plus, Check, Music } from 'lucide-react';
+import { Play, Pause, Plus, Check, Music, Heart } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 const decodeHtml = (text) => {
@@ -15,10 +15,12 @@ const decodeHtml = (text) => {
 };
 
 export default function SongRow({ track, index, customPlaylists, setCustomPlaylists, playlistTracks = [] }) {
-  const { currentTrack, isPlaying, playTrack } = useAudio();
+  const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const isCurrentTrack = currentTrack && currentTrack.id === track.id;
+  const isLiked = likedSongs?.includes(track.id);
+  const isHQ = track.downloadUrl && track.downloadUrl.length > 2;
 
   const handlePlayClick = () => {
     // If it's a song in a list, play it and pass the current list as the context queue
@@ -72,14 +74,34 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
     >
       {/* Index / Play Button */}
       <div className="song-index-col">
-        <span className="index-number">{index + 1}</span>
-        <button className="row-play-btn" onClick={(e) => { e.stopPropagation(); handlePlayClick(); }}>
-          {isCurrentTrack && isPlaying ? (
-            <Pause size={14} fill="currentColor" />
+        {isCurrentTrack ? (
+          isPlaying ? (
+            <>
+              <div className="row-eq-visualizer">
+                <div className="eq-bar bar1"></div>
+                <div className="eq-bar bar2"></div>
+                <div className="eq-bar bar3"></div>
+              </div>
+              <button className="row-play-btn" onClick={(e) => { e.stopPropagation(); handlePlayClick(); }}>
+                <Pause size={14} fill="currentColor" />
+              </button>
+            </>
           ) : (
-            <Play size={14} fill="currentColor" className="play-icon-offset" />
-          )}
-        </button>
+            <>
+              <span className="index-number active-index">{index + 1}</span>
+              <button className="row-play-btn" onClick={(e) => { e.stopPropagation(); handlePlayClick(); }}>
+                <Play size={14} fill="currentColor" className="play-icon-offset" />
+              </button>
+            </>
+          )
+        ) : (
+          <>
+            <span className="index-number">{index + 1}</span>
+            <button className="row-play-btn" onClick={(e) => { e.stopPropagation(); handlePlayClick(); }}>
+              <Play size={14} fill="currentColor" className="play-icon-offset" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Title & Cover */}
@@ -94,7 +116,10 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           )}
         </div>
         <div className="song-meta">
-          <span className="song-name-text">{decodeHtml(track.name)}</span>
+          <div className="song-title-line">
+            <span className="song-name-text">{decodeHtml(track.name)}</span>
+            {isHQ && <span className="hq-badge">HQ</span>}
+          </div>
           <span className="song-artist-text">{getArtistsString()}</span>
         </div>
       </div>
@@ -108,6 +133,18 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
       <div className="song-duration-col">
         <span className="duration-text">{formatDuration(track.duration)}</span>
         
+        {/* Heart / Like Button */}
+        <button 
+          className={`row-heart-btn ${isLiked ? 'liked' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleLikeTrack(track);
+          }}
+          title={isLiked ? "Unlike" : "Like"}
+        >
+          <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
+        </button>
+
         {/* Add to Playlist Popup Trigger */}
         <div className="add-to-playlist-container">
           <button 
@@ -155,15 +192,18 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           display: flex;
           align-items: center;
           padding: 8px 16px;
+          border-left: 3px solid transparent;
           border-radius: 6px;
           cursor: pointer;
-          transition: background-color 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
           touch-action: manipulation;
         }
 
         .song-row.active {
-          background-color: rgba(29, 185, 84, 0.08);
+          background-color: rgba(0, 229, 255, 0.05);
+          border-left-color: var(--primary);
+          padding-left: 13px;
         }
 
         .song-row.active .song-name-text {
@@ -179,6 +219,38 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           font-size: 14px;
         }
 
+        .row-eq-visualizer {
+          display: flex;
+          align-items: flex-end;
+          gap: 2px;
+          width: 14px;
+          height: 14px;
+          margin-left: 2px;
+        }
+
+        .eq-bar {
+          width: 2.5px;
+          height: 100%;
+          background-color: var(--primary);
+          border-radius: 1px;
+          transform-origin: bottom;
+          animation: row-eq-bounce 1s ease-in-out infinite alternate;
+        }
+
+        .bar1 { animation-delay: 0.1s; animation-duration: 0.8s; }
+        .bar2 { animation-delay: 0.3s; animation-duration: 1.1s; }
+        .bar3 { animation-delay: 0.5s; animation-duration: 0.9s; }
+
+        @keyframes row-eq-bounce {
+          0% { transform: scaleY(0.2); }
+          100% { transform: scaleY(1); }
+        }
+
+        .active-index {
+          color: var(--primary);
+          font-weight: 600;
+        }
+
         .row-play-btn {
           display: none;
           color: var(--text-main);
@@ -191,12 +263,13 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
             background-color: var(--bg-hover);
           }
 
-          .song-row:hover .index-number {
-            display: none;
+          .song-row:hover .index-number,
+          .song-row:hover .row-eq-visualizer {
+            display: none !important;
           }
 
           .song-row:hover .row-play-btn {
-            display: flex;
+            display: flex !important;
           }
         }
 
@@ -219,6 +292,13 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           overflow: hidden;
           background: rgba(255,255,255,0.05);
           flex-shrink: 0;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .song-row:hover .song-cover-container {
+          transform: scale(1.05);
+          box-shadow: 0 4px 12px var(--primary-glow);
         }
 
         .song-cover {
@@ -243,6 +323,13 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           overflow: hidden;
         }
 
+        .song-title-line {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow: hidden;
+        }
+
         .song-name-text {
           font-size: 14px;
           font-weight: 500;
@@ -250,6 +337,19 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .hq-badge {
+          font-size: 9px;
+          font-weight: 800;
+          color: #05060b;
+          background: linear-gradient(135deg, var(--primary) 0%, #00b0ff 100%);
+          padding: 1px 4px;
+          border-radius: 3px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          flex-shrink: 0;
+          box-shadow: 0 2px 5px rgba(0, 229, 255, 0.3);
         }
 
         .song-artist-text {
@@ -282,6 +382,20 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           gap: 16px;
         }
 
+        .row-heart-btn {
+          color: var(--text-muted);
+          opacity: 0;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .row-heart-btn.liked {
+          opacity: 1;
+          color: var(--primary);
+        }
+
         .row-action-btn {
           opacity: 0;
           color: var(--text-muted);
@@ -291,13 +405,21 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
         }
 
         @media (hover: hover) {
-          .song-row:hover .row-action-btn {
+          .song-row:hover .row-action-btn,
+          .song-row:hover .row-heart-btn {
             opacity: 1;
           }
 
-          .row-action-btn:hover {
+          .row-action-btn:hover,
+          .row-heart-btn:hover {
             color: var(--text-main);
             background: rgba(255,255,255,0.05);
+          }
+
+          .row-heart-btn:hover {
+            color: var(--primary);
+            background: rgba(0, 229, 255, 0.08);
+            transform: scale(1.1);
           }
         }
 
@@ -386,10 +508,11 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
             width: 30px;
           }
           .song-duration-col {
-            width: 80px;
-            gap: 10px;
+            width: 90px;
+            gap: 12px;
           }
-          .row-action-btn {
+          .row-action-btn,
+          .row-heart-btn {
             opacity: 1;
           }
         }
