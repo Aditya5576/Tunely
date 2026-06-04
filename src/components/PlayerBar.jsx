@@ -917,6 +917,7 @@ const decodeHtml = (text) => {
           left: 0;
           width: 100vw;
           height: 100vh;
+          height: 100dvh;
           background: rgba(6, 6, 9, 0.88);
           backdrop-filter: blur(35px) saturate(160%);
           -webkit-backdrop-filter: blur(35px) saturate(160%);
@@ -1316,12 +1317,54 @@ const decodeHtml = (text) => {
             margin-left: 2px;
           }
 
-          /* Fullscreen art scale */
+          /* Fullscreen mobile viewport tweaks to fit Safari edges */
+          .player-fullscreen {
+            height: 100vh !important;
+            height: 100dvh !important;
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 20px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+          }
+
+          .pf-art-container {
+            margin-bottom: 12px !important;
+            max-height: 38vh !important;
+          }
+
           .pf-art {
-            width: min(75vw, 340px) !important;
-            height: min(75vw, 340px) !important;
+            width: min(60vw, 240px) !important;
+            height: min(60vw, 240px) !important;
             max-width: none !important;
             max-height: none !important;
+          }
+
+          .pf-details {
+            margin-bottom: 10px !important;
+          }
+
+          .pf-track-name {
+            font-size: 18px !important;
+          }
+
+          .pf-artist-name {
+            font-size: 13px !important;
+          }
+
+          .pf-progress-container {
+            margin-bottom: 12px !important;
+            gap: 6px !important;
+          }
+
+          .pf-controls {
+            margin-bottom: 12px !important;
+          }
+
+          .pf-controls .pf-btn {
+            width: 38px !important;
+            height: 38px !important;
+          }
+
+          .pf-controls .pf-play-btn {
+            width: 50px !important;
+            height: 50px !important;
           }
 
           /* Fullscreen Equalizer UI styles */
@@ -1330,7 +1373,7 @@ const decodeHtml = (text) => {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 12px !important;
             padding: 0 8px;
             z-index: 2;
             position: relative;
@@ -1385,7 +1428,7 @@ const decodeHtml = (text) => {
             gap: 12px;
             width: 100%;
             padding: 0 8px;
-            margin-bottom: 24px;
+            margin-bottom: 12px !important;
             position: relative;
             z-index: 2;
           }
@@ -1453,6 +1496,11 @@ const decodeHtml = (text) => {
             height: 14px !important;
             background: var(--primary) !important;
             box-shadow: 0 2px 8px rgba(0, 229, 255, 0.5) !important;
+          }
+
+          .pf-toolbar {
+            padding-top: 8px !important;
+            gap: 32px !important;
           }
         }
       `}</style>

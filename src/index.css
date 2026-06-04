@@ -40,6 +40,7 @@ body {
   color: var(--text-main);
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -49,6 +50,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   position: relative;
@@ -192,6 +194,7 @@ input[type="range"]:hover::-moz-range-thumb {
   display: flex;
   flex: 1;
   height: calc(100vh - var(--player-height));
+  height: calc(100dvh - var(--player-height));
   width: 100vw;
   overflow: hidden;
   position: relative;
@@ -293,6 +296,7 @@ input[type="range"]:hover::-moz-range-thumb {
     width: 80vw;
     max-width: 320px;
     height: 100vh;
+    height: 100dvh;
     background: rgba(12, 14, 22, 0.97);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);

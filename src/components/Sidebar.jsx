@@ -357,6 +357,7 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
             left: 0;
             bottom: 0;
             height: 100vh;
+            height: 100dvh;
             width: 270px;
             transform: translate3d(-100%, 0, 0);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);

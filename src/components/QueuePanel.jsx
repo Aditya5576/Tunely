@@ -338,6 +338,7 @@ export default function QueuePanel() {
             right: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             z-index: 2000;
             background: rgba(10, 10, 15, 0.98);
             border-left: none;
