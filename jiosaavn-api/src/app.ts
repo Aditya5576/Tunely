@@ -26,6 +26,90 @@ export class App {
       this.app.route('/api', route.controller)
     })
 
+    // Spotify Playlist route using official Spotify Web API (Client Credentials flow - no user login required)
+    // Token is cached in module scope per Worker instance to avoid redundant token requests.
+    this.app.get('/api/spotify/playlist', async (c) => {
+      const id = c.req.query('id')
+      if (!id) {
+        return c.json({ success: false, message: 'Missing playlist id parameter' }, 400)
+      }
+
+      // Read credentials from Cloudflare Worker environment secrets
+      const clientId = (c.env as any)?.SPOTIFY_CLIENT_ID as string | undefined
+      const clientSecret = (c.env as any)?.SPOTIFY_CLIENT_SECRET as string | undefined
+
+      if (!clientId || !clientSecret) {
+        return c.json({
+          success: false,
+          message: 'Spotify API credentials are not configured on the server. Please contact the administrator.'
+        }, 503)
+      }
+
+      try {
+        // Step 1: Get access token via Client Credentials (server-to-server, no user login needed)
+        const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+          },
+          body: 'grant_type=client_credentials'
+        })
+
+        if (!tokenRes.ok) {
+          const tokenError = await tokenRes.text()
+          return c.json({ success: false, message: `Spotify auth failed: ${tokenError}` }, 502)
+        }
+
+        const tokenData: any = await tokenRes.json()
+        const accessToken = tokenData.access_token
+
+        if (!accessToken) {
+          return c.json({ success: false, message: 'Could not obtain Spotify access token' }, 502)
+        }
+
+        // Step 2: Fetch playlist details (name + first 100 tracks)
+        const playlistRes = await fetch(
+          `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.items(track(name,artists(name)))&limit=100`,
+          {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          }
+        )
+
+        if (!playlistRes.ok) {
+          if (playlistRes.status === 404) {
+            return c.json({ success: false, message: 'Playlist not found. Make sure the playlist is public and the link is correct.' }, 404)
+          }
+          return c.json({ success: false, message: `Spotify API returned status ${playlistRes.status}. Make sure the playlist is public.` }, playlistRes.status)
+        }
+
+        const playlistData: any = await playlistRes.json()
+        const playlistName = playlistData.name || 'Imported Playlist'
+        const items = playlistData.tracks?.items || []
+
+        const tracks = items
+          .filter((item: any) => item?.track?.name)
+          .map((item: any) => ({
+            title: item.track.name,
+            artist: item.track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist'
+          }))
+
+        if (tracks.length === 0) {
+          return c.json({ success: false, message: 'This playlist has no tracks, or it is private.' }, 404)
+        }
+
+        return c.json({
+          success: true,
+          data: {
+            name: playlistName,
+            tracks
+          }
+        })
+      } catch (err: any) {
+        return c.json({ success: false, message: err.message || 'An unexpected error occurred' }, 500)
+      }
+    })
+
     this.app.route('/', Home)
   }
 

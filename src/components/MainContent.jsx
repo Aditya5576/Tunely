@@ -278,53 +278,22 @@ export default function MainContent({
     
     setImportStatus({
       loading: true,
-      text: 'Connecting to Spotify proxy...',
+      text: 'Connecting to Tunely backend...',
       progress: 0,
       total: 0,
       error: null
     });
 
     try {
-      const proxyUrls = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://open.spotify.com/embed/playlist/${playlistId}`)}`,
-        `https://corsproxy.io/?${encodeURIComponent(`https://open.spotify.com/embed/playlist/${playlistId}`)}`
-      ];
-
-      let data = '';
-      let fetchSuccess = false;
-
-      for (const proxyUrl of proxyUrls) {
-        try {
-          const proxyRes = await fetch(proxyUrl);
-          if (proxyRes.ok) {
-            data = await proxyRes.text();
-            if (data.includes('__NEXT_DATA__')) {
-              fetchSuccess = true;
-              break;
-            }
-          }
-        } catch (e) {
-          console.warn("Proxy failed:", proxyUrl, e);
-        }
+      const res = await fetch(`${API_BASE}/api/spotify/playlist?id=${playlistId}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to retrieve Spotify playlist (Status ${res.status}). Make sure the playlist is public.`);
       }
 
-      if (!fetchSuccess) {
-        throw new Error('Failed to retrieve Spotify playlist. Make sure the playlist is public.');
-      }
-
-      const match = data.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-      if (!match) {
-        throw new Error('Could not parse Spotify playlist data structure. Spotify layout might have changed.');
-      }
-
-      const parsed = JSON.parse(match[1]);
-      const playlistData = parsed.props?.pageProps?.state?.data?.entity;
-      if (!playlistData) {
-        throw new Error('Playlist metadata not found in response.');
-      }
-
-      const playlistName = playlistData.name || 'Imported Playlist';
-      const trackList = playlistData.trackList || [];
+      const responseObj = await res.json();
+      const playlistName = responseObj.data?.name || 'Imported Playlist';
+      const trackList = responseObj.data?.tracks || [];
 
       if (trackList.length === 0) {
         throw new Error('This playlist has no tracks, or it is private.');
@@ -341,7 +310,7 @@ export default function MainContent({
       for (let i = 0; i < trackList.length; i++) {
         const item = trackList[i];
         const title = item.title;
-        const artist = item.subtitle || '';
+        const artist = item.artist || '';
         
         setImportStatus(prev => ({
           ...prev,
