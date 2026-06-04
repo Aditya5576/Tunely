@@ -109,11 +109,23 @@ export default function PlayerBar() {
     return currentTrack.image?.[1]?.url || currentTrack.image?.[0]?.url || '';
   };
 
+const decodeHtml = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&apos;/g, "'");
+};
+
   // Get primary artist names
   const getArtistsString = () => {
     if (!currentTrack) return '';
     if (currentTrack.artists?.primary && currentTrack.artists.primary.length > 0) {
-      return currentTrack.artists.primary.map(a => a.name).join(', ');
+      return decodeHtml(currentTrack.artists.primary.map(a => a.name).join(', '));
     }
     return 'Unknown Artist';
   };
@@ -151,7 +163,7 @@ export default function PlayerBar() {
             <div className="track-details">
               <div className="track-name-wrapper">
                 <span className={`track-name ${isLongName ? 'marquee-active' : ''}`}>
-                  {currentTrack.name}
+                  {decodeHtml(currentTrack.name)}
                 </span>
               </div>
               <span className="artist-name">{getArtistsString()}</span>
@@ -349,7 +361,7 @@ export default function PlayerBar() {
           <div className="pf-details">
             <div className="pf-details-row">
               <div className="pf-details-text">
-                <span className="pf-track-name">{currentTrack?.name || 'No song selected'}</span>
+                <span className="pf-track-name">{decodeHtml(currentTrack?.name) || 'No song selected'}</span>
                 <span className="pf-artist-name">{getArtistsString()}</span>
               </div>
               <button 

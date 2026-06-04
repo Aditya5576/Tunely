@@ -2,6 +2,18 @@ import { useState } from 'react';
 import { Play, Pause, Plus, Check, Music } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
+const decodeHtml = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&apos;/g, "'");
+};
+
 export default function SongRow({ track, index, customPlaylists, setCustomPlaylists, playlistTracks = [] }) {
   const { currentTrack, isPlaying, playTrack } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -43,9 +55,9 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
 
   const getArtistsString = () => {
     if (track.artists?.primary && track.artists.primary.length > 0) {
-      return track.artists.primary.map(a => a.name).join(', ');
+      return decodeHtml(track.artists.primary.map(a => a.name).join(', '));
     }
-    return track.artists?.all ? track.artists.all.map(a => a.name).slice(0, 2).join(', ') : 'Unknown Artist';
+    return decodeHtml(track.artists?.all ? track.artists.all.map(a => a.name).slice(0, 2).join(', ') : 'Unknown Artist');
   };
 
   const getThumbnail = () => {
@@ -74,7 +86,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
       <div className="song-title-col">
         <div className="song-cover-container">
           {getThumbnail() ? (
-            <img src={getThumbnail()} alt={track.name} className="song-cover" loading="lazy" decoding="async" />
+            <img src={getThumbnail()} alt={decodeHtml(track.name)} className="song-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="song-cover-placeholder">
               <Music size={14} />
@@ -82,14 +94,14 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           )}
         </div>
         <div className="song-meta">
-          <span className="song-name-text">{track.name}</span>
+          <span className="song-name-text">{decodeHtml(track.name)}</span>
           <span className="song-artist-text">{getArtistsString()}</span>
         </div>
       </div>
 
       {/* Album Name */}
       <div className="song-album-col">
-        <span className="album-text">{track.album?.name || 'Single'}</span>
+        <span className="album-text">{decodeHtml(track.album?.name || 'Single')}</span>
       </div>
 
       {/* Duration & Playlist Operations */}

@@ -5,6 +5,18 @@ import SongRow from './SongRow';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
+const decodeHtml = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&apos;/g, "'");
+};
+
 // In-memory cache for search results and trending data
 const searchCache = new Map();
 const homeCache = { data: null, ts: 0 };
@@ -535,15 +547,18 @@ export default function MainContent({
                         >
                           <img 
                             src={searchResults.songs[0].image?.[2]?.url || searchResults.songs[0].image?.[1]?.url} 
-                            alt={searchResults.songs[0].name} 
+                            alt={decodeHtml(searchResults.songs[0].name)} 
                             className="top-result-cover"
                             loading="lazy"
                             decoding="async"
                           />
-                          <span className="top-result-name">{searchResults.songs[0].name}</span>
-                          <div className="top-result-artist">
-                            <span>{searchResults.songs[0].artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist'}</span>
-                            <span className="top-result-tag">Song</span>
+                          <div className="top-result-info">
+                            <span className="top-result-name">{decodeHtml(searchResults.songs[0].name)}</span>
+                            <div className="top-result-artist-row">
+                              <span className="top-result-tag">Song</span>
+                              <span className="bullet">•</span>
+                              <span className="top-result-artist-name">{decodeHtml(searchResults.songs[0].artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist')}</span>
+                            </div>
                           </div>
                           <button 
                             className="top-result-play-btn" 
@@ -1301,6 +1316,13 @@ export default function MainContent({
           margin-bottom: 20px;
         }
 
+        .top-result-info {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          min-width: 0;
+        }
+
         .top-result-name {
           font-size: 22px;
           font-weight: 700;
@@ -1312,13 +1334,22 @@ export default function MainContent({
           overflow: hidden;
         }
 
-        .top-result-artist {
+        .top-result-artist-row {
           font-size: 13px;
           color: var(--text-muted);
           display: flex;
           align-items: center;
           justify-content: space-between;
           width: 100%;
+          min-width: 0;
+        }
+
+        .top-result-artist-name {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+          min-width: 0;
         }
 
         .top-result-tag {
@@ -1329,6 +1360,11 @@ export default function MainContent({
           color: var(--text-main);
           padding: 3px 10px;
           border-radius: 12px;
+          flex-shrink: 0;
+        }
+
+        .top-result-artist-row .bullet {
+          display: none;
         }
 
         .top-result-play-btn {
@@ -1857,19 +1893,83 @@ export default function MainContent({
           }
 
           .top-result-card {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            padding: 12px 14px !important;
+            gap: 14px !important;
             height: auto !important;
             min-height: auto !important;
-            padding: 16px !important;
+            position: relative;
           }
 
           .top-result-cover {
-            width: 72px !important;
-            height: 72px !important;
-            margin-bottom: 12px !important;
+            width: 56px !important;
+            height: 56px !important;
+            margin-bottom: 0 !important;
+            flex-shrink: 0;
+          }
+
+          .top-result-info {
+            flex: 1 !important;
+            min-width: 0 !important;
           }
 
           .top-result-name {
-            font-size: 18px !important;
+            font-size: 15px !important;
+            margin-bottom: 4px !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block !important;
+          }
+
+          .top-result-artist-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            font-size: 12px !important;
+            color: var(--text-muted) !important;
+            min-width: 0 !important;
+            justify-content: flex-start !important;
+          }
+
+          .top-result-artist-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+            display: block !important;
+          }
+
+          .top-result-tag {
+            font-size: 9px !important;
+            padding: 1px 6px !important;
+            border-radius: 4px !important;
+            background: rgba(255,255,255,0.08) !important;
+            color: var(--primary) !important;
+            font-weight: 700;
+            text-transform: uppercase;
+            flex-shrink: 0;
+          }
+
+          .top-result-artist-row .bullet {
+            display: inline !important;
+            color: var(--text-dimmed);
+          }
+
+          .top-result-play-btn {
+            position: static !important;
+            opacity: 1 !important;
+            transform: none !important;
+            width: 38px !important;
+            height: 38px !important;
+            flex-shrink: 0;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            margin-left: auto;
           }
 
           /* 2-column shortcut grid like Spotify */
