@@ -174,6 +174,8 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
           background: rgba(10, 10, 15, 0.7);
           padding: 24px 16px;
           z-index: 10;
+          overflow: hidden;
+          box-sizing: border-box;
         }
 
         .sidebar-header {
@@ -251,6 +253,7 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
           flex-direction: column;
           flex: 1;
           min-height: 0;
+          overflow: hidden;
         }
 
         .library-header {
@@ -388,8 +391,9 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
         }
 
         .sidebar-account {
-          margin-top: auto;
+          flex-shrink: 0;
           padding-top: 12px;
+          margin-top: 8px;
           border-top: 1px solid var(--border-color);
         }
 
