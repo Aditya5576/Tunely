@@ -1285,7 +1285,6 @@ const decodeHtml = (text) => {
             bottom: calc(56px + env(safe-area-inset-bottom, 0px));
             left: 8px;
             right: 8px;
-            width: calc(100vw - 16px);
             display: flex;
             align-items: center;
             z-index: 200;
@@ -1311,7 +1310,6 @@ const decodeHtml = (text) => {
             z-index: 201;
             border-radius: 1px;
             overflow: hidden;
-            width: calc(100vw - 16px);
           }
 
           .mobile-progress-line {
@@ -1394,23 +1392,27 @@ const decodeHtml = (text) => {
           .player-fullscreen {
             height: 100vh !important;
             height: 100dvh !important;
-            padding: calc(12px + env(safe-area-inset-top, 0px)) 20px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+            padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
           }
 
           .pf-art-container {
-            margin-bottom: 12px !important;
-            max-height: 38vh !important;
+            margin-bottom: 8px !important;
+            max-height: 30vh !important;
+            flex: 1;
           }
 
           .pf-art {
-            width: min(60vw, 240px) !important;
-            height: min(60vw, 240px) !important;
+            width: min(50vw, 200px) !important;
+            height: min(50vw, 200px) !important;
             max-width: none !important;
             max-height: none !important;
           }
 
           .pf-details {
-            margin-bottom: 10px !important;
+            margin-bottom: 8px !important;
           }
 
           .pf-track-name {
@@ -1422,12 +1424,12 @@ const decodeHtml = (text) => {
           }
 
           .pf-progress-container {
-            margin-bottom: 12px !important;
+            margin-bottom: 8px !important;
             gap: 6px !important;
           }
 
           .pf-controls {
-            margin-bottom: 12px !important;
+            margin-bottom: 8px !important;
           }
 
           .pf-controls .pf-btn {
@@ -1446,7 +1448,7 @@ const decodeHtml = (text) => {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            margin-bottom: 12px !important;
+            margin-bottom: 8px !important;
             padding: 0 8px;
             z-index: 2;
             position: relative;
@@ -1501,7 +1503,7 @@ const decodeHtml = (text) => {
             gap: 12px;
             width: 100%;
             padding: 0 8px;
-            margin-bottom: 12px !important;
+            margin-bottom: 8px !important;
             position: relative;
             z-index: 2;
           }

@@ -83,6 +83,12 @@ function TunelyApp() {
     }
   }, [isLoggedIn, isLoading]);
 
+  // Keep ref of customPlaylists to avoid re-triggering polling interval on state change
+  const customPlaylistsRef = useRef(customPlaylists);
+  useEffect(() => {
+    customPlaylistsRef.current = customPlaylists;
+  }, [customPlaylists]);
+
   // Smart sync for custom playlists on login/load
   useEffect(() => {
     if (isLoading) return; // Wait for session restore
@@ -116,6 +122,66 @@ function TunelyApp() {
     };
 
     syncPlaylists();
+  }, [isLoggedIn, isLoading, authFetch]);
+
+  // Live Sync / Periodic Polling for Playlists
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isLoggedIn || !authFetch) return;
+
+    let intervalId;
+
+    const performLiveSync = async () => {
+      // Only sync if the tab/window is visible/focused
+      if (document.visibilityState !== 'visible') return;
+
+      try {
+        const localPlaylists = JSON.parse(localStorage.getItem('spotify_custom_playlists') || '[]');
+        const localUpdatedAt = localStorage.getItem('tunely_custom_playlists_updated_at') || new Date(0).toISOString();
+
+        // Check if there are unsynced local changes in flight before overwriting
+        const currentStr = JSON.stringify(customPlaylistsRef.current);
+        if (lastSyncedPlaylistsRef.current !== null && currentStr !== lastSyncedPlaylistsRef.current) {
+          // Local changes are currently syncing to server, skip this tick
+          return;
+        }
+
+        const res = await authFetch(`${API_BASE}/api/user/playlists/sync`, {
+          method: 'POST',
+          body: JSON.stringify({ playlists: localPlaylists, localUpdatedAt })
+        });
+        if (!res.ok) return;
+        const { data } = await res.json();
+
+        if (data && data.source === 'server') {
+          // Server has newer/updated playlists, update local state
+          _setCustomPlaylists(data.playlists);
+          lastSyncedPlaylistsRef.current = JSON.stringify(data.playlists);
+          localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
+          localStorage.setItem('tunely_custom_playlists_updated_at', new Date().toISOString());
+        } else if (data && data.source === 'local') {
+          // Local was newer, server has updated itself, update ref
+          lastSyncedPlaylistsRef.current = JSON.stringify(localPlaylists);
+        }
+      } catch (e) {
+        console.warn('Custom playlists live sync failed:', e);
+      }
+    };
+
+    // Poll every 10 seconds
+    intervalId = setInterval(performLiveSync, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        performLiveSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isLoggedIn, isLoading, authFetch]);
 
   // Incremental Sync for local changes (creates, updates, deletes)

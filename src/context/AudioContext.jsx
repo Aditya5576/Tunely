@@ -111,6 +111,63 @@ export const AudioProvider = ({ children }) => {
     syncLikedSongs();
   }, [isLoggedIn, isLoading]);
 
+  // Live Sync / Periodic Polling for Liked Songs
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isLoggedIn || !authFetch) return;
+
+    let intervalId;
+
+    const performLikedSongsSync = async () => {
+      if (document.visibilityState !== 'visible') return;
+
+      try {
+        const localMeta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
+        const localUpdatedAt = localStorage.getItem('tunely_liked_songs_updated_at') || new Date(0).toISOString();
+
+        const res = await authFetch(`${API_BASE}/api/user/liked/sync`, {
+          method: 'POST',
+          body: JSON.stringify({ songs: localMeta, localUpdatedAt })
+        });
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (data) {
+          const songs = data.songs || [];
+          const ids = songs.map(s => s.id);
+          
+          // Check if there's an actual difference to avoid unnecessary state updates
+          const storedIds = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
+          const isSame = storedIds.length === ids.length && storedIds.every((id, idx) => id === ids[idx]);
+          
+          if (!isSame || data.source === 'server') {
+            setLikedSongs(ids);
+            setLikedSongsMetadata(songs);
+            localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
+            localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
+            localStorage.setItem('tunely_liked_songs_updated_at', new Date().toISOString());
+          }
+        }
+      } catch (e) {
+        console.warn('Liked songs live sync failed:', e);
+      }
+    };
+
+    // Poll every 10 seconds
+    intervalId = setInterval(performLikedSongsSync, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        performLikedSongsSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isLoggedIn, isLoading, authFetch]);
+
   const toggleLikeTrack = async (track) => {
     if (!track) return;
     

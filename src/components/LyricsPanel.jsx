@@ -173,8 +173,9 @@ export default function LyricsPanel() {
           .lyrics-panel {
             position: fixed;
             top: 0;
+            left: 0;
             right: 0;
-            width: 100vw;
+            width: 100%;
             height: 100vh;
             height: 100dvh;
             z-index: 2000;
