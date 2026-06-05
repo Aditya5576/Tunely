@@ -90,7 +90,13 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
   const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
 
-  if (localTs > serverTs && localSongs.length > 0) {
+  // Check if server is empty for this user (handles first-sync cold starts)
+  const serverCountRow = await db.prepare(
+    'SELECT COUNT(1) as count FROM liked_songs WHERE user_id = ?'
+  ).bind(userId).first() as any
+  const serverCount = serverCountRow?.count || 0
+
+  if ((localTs > serverTs || serverCount === 0) && localSongs.length > 0) {
     // Local is newer — upload all local songs to server
     const stmt = db.prepare(
       `INSERT INTO liked_songs (user_id, song_id, song_data, created_at)
@@ -232,7 +238,13 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
   const serverTs = latestRow?.latest ? new Date(latestRow.latest).getTime() : 0
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
 
-  if (localTs > serverTs && localPlaylists.length > 0) {
+  // Check if server is empty for this user (handles first-sync cold starts)
+  const serverCountRow = await db.prepare(
+    'SELECT COUNT(1) as count FROM playlists WHERE user_id = ?'
+  ).bind(userId).first() as any
+  const serverCount = serverCountRow?.count || 0
+
+  if ((localTs > serverTs || serverCount === 0) && localPlaylists.length > 0) {
     // Local is newer — upsert all local playlists to server
     const stmt = db.prepare(
       `INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at)
