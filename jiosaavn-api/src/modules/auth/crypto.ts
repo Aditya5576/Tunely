@@ -51,7 +51,7 @@ export const verifyPassword = async (password: string, storedHash: string, salt:
 export const generateToken = (): string => crypto.randomUUID();
 
 /** Generate a prefixed UUID user ID */
-export const generateUserId = (): string => `usr_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+export const generateUserId = (): string => `usr_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
 
 /** Generate a prefixed UUID playlist ID */
-export const generatePlaylistId = (): string => `pl_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+export const generatePlaylistId = (): string => `pl_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;

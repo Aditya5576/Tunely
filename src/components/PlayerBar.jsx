@@ -5,13 +5,13 @@ import {
   Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle
 } from 'lucide-react';
 
-export default function PlayerBar({ customPlaylists = [], setCustomPlaylists, createNewPlaylist }) {
+export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) {
   const {
     isPlaying, currentTrack, currentTime, duration, volume, loopMode, isShuffle,
     isQueueVisible, isLyricsVisible, isLoadingTrack,
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
     setIsQueueVisible, setIsLyricsVisible, eqPreset, setEqPreset,
-    likedSongs, likedSongsMetadata, toggleLikeTrack
+    likedSongs, toggleLikeTrack
   } = useAudio();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -111,6 +111,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists, cr
   // Sync local time state with current time when not scrubbing manually
   useEffect(() => {
     if (!isDragging) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setLocalTime(currentTime);
     }
   }, [currentTime, isDragging]);

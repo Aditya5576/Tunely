@@ -40,7 +40,7 @@ export class App {
       }
 
       // Clean ID from any trailing dots, spaces, or query parameters
-      id = id.replace(/[^a-zA-Z0-9]/g, '')
+      id = id.replaceAll(/[^a-z0-9]/gi, '')
 
       // Try Option 1: Public Embed Scraper (No credentials required, bypasses Developer API limits/Premium rules)
       try {
@@ -77,8 +77,8 @@ export class App {
             }
           }
         }
-      } catch (embedErr) {
-        console.error('Embed parsing failed, falling back to official API:', embedErr)
+      } catch (error) {
+        console.error('Embed parsing failed, falling back to official API:', error)
       }
 
       // Try Option 2: Fall back to official Spotify Web API using Client Credentials flow
@@ -98,7 +98,7 @@ export class App {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+            'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
           },
           body: 'grant_type=client_credentials'
         })
@@ -158,8 +158,8 @@ export class App {
             tracks
           }
         })
-      } catch (err: any) {
-        return c.json({ success: false, message: err.message || 'An unexpected error occurred' }, 500)
+      } catch (error: any) {
+        return c.json({ success: false, message: error.message || 'An unexpected error occurred' }, 500)
       }
     })
 

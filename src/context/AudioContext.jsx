@@ -45,16 +45,23 @@ export const AudioProvider = ({ children }) => {
   const trebleFilterRef = useRef(null);
   const compressorFilterRef = useRef(null);
 
-  const [likedSongs, setLikedSongs] = useState([]);
-  const [likedSongsMetadata, setLikedSongsMetadata] = useState([]);
+  const [likedSongs, setLikedSongs] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [likedSongsMetadata, setLikedSongsMetadata] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   // Load liked songs from localStorage on mount
   useEffect(() => {
-    const ids = JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
-    const meta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
-    setLikedSongs(ids);
-    setLikedSongsMetadata(meta);
-
     // Set CORS headers for audio streams on all devices
     if (audioRef.current) {
       audioRef.current.crossOrigin = "anonymous";
@@ -69,6 +76,7 @@ export const AudioProvider = ({ children }) => {
     if (isLoading) return; // Wait for session restore before acting
     if (!isLoggedIn) {
       // ── LOGOUT ─── clear in-memory state so UI shows clean guest view
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setLikedSongs([]);
       setLikedSongsMetadata([]);
       if (audioRef.current) {
@@ -109,7 +117,7 @@ export const AudioProvider = ({ children }) => {
     };
 
     syncLikedSongs();
-  }, [isLoggedIn, isLoading]);
+  }, [isLoggedIn, isLoading, authFetch]);
 
   // Live Sync / Periodic Polling for Liked Songs
   useEffect(() => {
@@ -154,8 +162,8 @@ export const AudioProvider = ({ children }) => {
       }
     };
 
-    // Poll every 10 seconds
-    intervalId = setInterval(performLikedSongsSync, 10000);
+    // Poll every 30 seconds
+    intervalId = setInterval(performLikedSongsSync, 30000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -714,6 +722,7 @@ export const AudioProvider = ({ children }) => {
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, loopMode, isShuffle]);
 
   // Adjust volume smoothly
@@ -726,6 +735,7 @@ export const AudioProvider = ({ children }) => {
   // Sync lyrics when currentTrack changes
   useEffect(() => {
     if (currentTrack) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       fetchLyrics(currentTrack.id);
     } else {
       setLyrics(null);
@@ -796,11 +806,12 @@ export const AudioProvider = ({ children }) => {
       for (const [action] of actionHandlers) {
         try {
           navigator.mediaSession.setActionHandler(action, null);
-        } catch (error) {
+        } catch {
           // ignore
         }
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, isShuffle, loopMode, isPlaying, currentTrack]);
 
   return (

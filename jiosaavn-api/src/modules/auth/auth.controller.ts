@@ -23,7 +23,7 @@ authController.post('/register', async (c) => {
   if (!email || !name || !password) {
     return c.json({ success: false, message: 'Email, name and password are required' }, 400)
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email)) {
     return c.json({ success: false, message: 'Invalid email address' }, 400)
   }
   if (password.length < 6) {

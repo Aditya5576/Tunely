@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
+import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
@@ -32,16 +32,13 @@ const PRE_CONFIGURED_PLAYLISTS = [
 
 export default function MainContent({ 
   currentView, 
-  setCurrentView, 
   selectedPlaylistId, 
-  setSelectedPlaylistId,
   customPlaylists,
   setCustomPlaylists,
-  setIsSidebarOpen,
   setIsAccountOpen,
   createNewPlaylist
 }) {
-  const { playTrack, queue, currentIndex, isPlaying, togglePlay, likedSongs, likedSongsMetadata, toggleLikeTrack } = useAudio();
+  const { playTrack, likedSongsMetadata, toggleLikeTrack } = useAudio();
   const { user } = useAuth() || {};
   
   // Search states
@@ -85,6 +82,7 @@ export default function MainContent({
     if (homeFilter === 'podcasts') {
       fetchPodcasts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeFilter]);
 
   // Focus search input when view changes to search
@@ -117,6 +115,7 @@ export default function MainContent({
         fetchDetailData();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlaylistId, currentView, customPlaylists, likedSongsMetadata]);
 
   const fetchHomeTrending = async () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, Search, ListMusic, User, X, Info, Settings, Music, LogOut } from 'lucide-react';
+import { Home, Search, ListMusic, User, X, Info, Settings, Music, Palette } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
@@ -9,6 +9,9 @@ import { AudioProvider } from './context/AudioContext';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
+import ThemeModal from './components/ThemeModal';
+
+const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
 function TunelyApp() {
   const { user, logout, isLoggedIn, isLoading, authFetch } = useAuth() || {};
@@ -22,11 +25,54 @@ function TunelyApp() {
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashMounted, setIsSplashMounted] = useState(true);
 
-  const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
+  // Dynamic Theme states
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [activeTheme, _setActiveTheme] = useState(() => {
+    return localStorage.getItem('tunely_theme') || 'default';
+  });
+
+  const changeTheme = (themeId) => {
+    document.body.classList.remove('theme-cyberpunk', 'theme-nordic', 'theme-rose', 'theme-solar');
+    if (themeId !== 'default') {
+      document.body.classList.add(`theme-${themeId}`);
+    }
+    localStorage.setItem('tunely_theme', themeId);
+    _setActiveTheme(themeId);
+  };
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('tunely_theme');
+    if (savedTheme && savedTheme !== 'default') {
+      document.body.classList.add(`theme-${savedTheme}`);
+    }
+  }, []);
 
   // Custom user playlists state
-  const [customPlaylists, _setCustomPlaylists] = useState([]);
-  const lastSyncedPlaylistsRef = useRef(null);
+  const [customPlaylists, _setCustomPlaylists] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spotify_custom_playlists');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse custom playlists from localStorage:", e);
+    }
+    return [];
+  });
+
+  const lastSyncedPlaylistsRef = useRef((() => {
+    try {
+      const saved = localStorage.getItem('spotify_custom_playlists');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return '[]';
+  })());
 
   // Wrapper around state to update localStorage and set updated_at timestamp
   const setCustomPlaylists = (newPlaylistsOrFn) => {
@@ -50,33 +96,11 @@ function TunelyApp() {
     return () => clearTimeout(fadeTimer);
   }, []);
 
-  // Load playlists from localStorage on startup
-  useEffect(() => {
-    const saved = localStorage.getItem('spotify_custom_playlists');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          _setCustomPlaylists(parsed);
-          lastSyncedPlaylistsRef.current = saved;
-        } else {
-          _setCustomPlaylists([]);
-          lastSyncedPlaylistsRef.current = '[]';
-        }
-      } catch (e) {
-        console.error("Failed to parse custom playlists from localStorage:", e);
-        _setCustomPlaylists([]);
-        lastSyncedPlaylistsRef.current = '[]';
-      }
-    } else {
-      lastSyncedPlaylistsRef.current = '[]';
-    }
-  }, []);
-
   // On logout: clear playlists from view and reset navigation to home
   useEffect(() => {
     if (isLoading) return; // Wait for session restore before acting
     if (!isLoggedIn) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setCustomPlaylists([]);
       setSelectedPlaylistId(null);
       window.location.hash = 'home';
@@ -174,8 +198,8 @@ function TunelyApp() {
       }
     };
 
-    // Poll every 10 seconds
-    intervalId = setInterval(performLiveSync, 10000);
+    // Poll every 30 seconds
+    intervalId = setInterval(performLiveSync, 30000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -346,6 +370,7 @@ function TunelyApp() {
               setIsSidebarOpen={setIsSidebarOpen}
               createNewPlaylist={createNewPlaylist}
               onShowAuthModal={() => setShowAuthModal(true)}
+              onShowThemeModal={() => setShowThemeModal(true)}
             />
 
             {isSidebarOpen && (
@@ -399,6 +424,10 @@ function TunelyApp() {
                     <User size={18} />
                     <span>View profile</span>
                   </div>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowThemeModal(true); }}>
+                    <Palette size={18} />
+                    <span>Switch Theme</span>
+                  </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
                     <Info size={18} />
                     <span>What's new</span>
@@ -419,6 +448,10 @@ function TunelyApp() {
                   <div className="drawer-item drawer-item-highlight" onClick={() => { setIsAccountOpen(false); setShowAuthModal(true); }}>
                     <User size={18} />
                     <span>Sign in / Create account</span>
+                  </div>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowThemeModal(true); }}>
+                    <Palette size={18} />
+                    <span>Switch Theme</span>
                   </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
                     <Info size={18} />
@@ -463,6 +496,15 @@ function TunelyApp() {
 
           {/* Auth Modal — optional (user-triggered) */}
           {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
+          {/* Theme Switcher Modal */}
+          {showThemeModal && (
+            <ThemeModal 
+              onClose={() => setShowThemeModal(false)} 
+              activeTheme={activeTheme} 
+              onChangeTheme={changeTheme} 
+            />
+          )}
 
           {/* Bottom sticky pane: Global player and track sliders */}
           <PlayerBar 

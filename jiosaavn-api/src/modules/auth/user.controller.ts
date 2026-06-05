@@ -98,7 +98,8 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
   // Get overall update timestamp from KV to accurately track deletions
   let serverUpdatedAt = kv ? await kv.get(`user:${userId}:liked_updated_at`) : null
-  if (!serverUpdatedAt) {
+  const isKvMissing = !serverUpdatedAt
+  if (isKvMissing) {
     const latestRow = await db.prepare(
       'SELECT MAX(created_at) as latest FROM liked_songs WHERE user_id = ?'
     ).bind(userId).first() as any
@@ -144,7 +145,7 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
   }).filter(Boolean)
 
   // Initialize KV if missing
-  if (serverUpdatedAt && kv) {
+  if (serverUpdatedAt && kv && isKvMissing) {
     await kv.put(`user:${userId}:liked_updated_at`, serverUpdatedAt)
   }
 
@@ -232,8 +233,7 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
   if (body.name !== undefined) { fields.push('name = ?'); values.push(body.name.trim()) }
   if (body.songs !== undefined) { fields.push('songs = ?'); values.push(JSON.stringify(body.songs)) }
   fields.push('updated_at = ?')
-  values.push(nowStr)
-  values.push(playlistId, userId)
+  values.push(nowStr, playlistId, userId)
 
   await db.prepare(`UPDATE playlists SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`).bind(...values).run()
 
@@ -284,7 +284,8 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
   // Get overall update timestamp from KV to accurately track deletions
   let serverUpdatedAt = kv ? await kv.get(`user:${userId}:playlists_updated_at`) : null
-  if (!serverUpdatedAt) {
+  const isKvMissing = !serverUpdatedAt
+  if (isKvMissing) {
     const latestRow = await db.prepare(
       'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
     ).bind(userId).first() as any
@@ -335,7 +336,7 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
   }))
 
   // Initialize KV if missing
-  if (serverUpdatedAt && kv) {
+  if (serverUpdatedAt && kv && isKvMissing) {
     await kv.put(`user:${userId}:playlists_updated_at`, serverUpdatedAt)
   }
 

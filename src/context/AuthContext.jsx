@@ -7,46 +7,33 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);       // { id, email, name }
-  const [token, setToken] = useState(null);     // Bearer token string
-  const [isLoading, setIsLoading] = useState(true); // true while restoring session
-
-  // Restore session from localStorage on mount
-  useEffect(() => {
+  const [token, setToken] = useState(() => {
     try {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
-        const { token: savedToken, user: savedUser } = JSON.parse(raw);
-        if (savedToken && savedUser) {
-          setToken(savedToken);
-          setUser(savedUser);
-          // Verify token is still valid in background
-          verifySession(savedToken);
-        }
+        const parsed = JSON.parse(raw);
+        return parsed.token || null;
       }
     } catch {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }
-    setIsLoading(false);
-  }, []);
+    return null;
+  });
 
-  const verifySession = async (t) => {
+  const [user, setUser] = useState(() => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${t}` }
-      });
-      if (!res.ok) {
-        // Token expired or invalid — clear session silently
-        clearSession();
-      } else {
-        const { data } = await res.json();
-        setUser(data);
-        persistSession(t, data);
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed.user || null;
       }
     } catch {
-      // Network error — keep existing session, will re-verify next time
+      // ignore
     }
-  };
+    return null;
+  });
+
+  const [isLoading, setIsLoading] = useState(true); // true while restoring session
 
   const persistSession = (t, u) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
@@ -63,6 +50,33 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('spotify_custom_playlists');
     localStorage.removeItem('tunely_custom_playlists_updated_at');
   };
+
+  const verifySession = useCallback(async (t) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${t}` }
+      });
+      if (!res.ok) {
+        // Token expired or invalid — clear session silently
+        clearSession();
+      } else {
+        const { data } = await res.json();
+        setUser(data);
+        persistSession(t, data);
+      }
+    } catch {
+      // Network error — keep existing session, will re-verify next time
+    }
+  }, []);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    if (token) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      verifySession(token);
+    }
+    setIsLoading(false);
+  }, [token, verifySession]);
 
   /** Register a new account. Returns { success, error } */
   const register = async (email, name, password) => {

@@ -1,4 +1,4 @@
-import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, User } from 'lucide-react';
+import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, User, Palette } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const PRE_CONFIGURED_PLAYLISTS = [
@@ -8,7 +8,7 @@ const PRE_CONFIGURED_PLAYLISTS = [
   { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
-export default function Sidebar({ currentView, setCurrentView, selectedPlaylistId, setSelectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal }) {
+export default function Sidebar({ currentView, selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal }) {
   const { user, isLoggedIn, logout } = useAuth() || {};
 
   // Handles deleting a custom playlist
@@ -22,6 +22,7 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
     
     // If the deleted playlist was selected, reset view to home
     if (selectedPlaylistId === playlistId) {
+      /* eslint-disable-next-line react-hooks/immutability */
       window.location.hash = 'home';
       if (setIsSidebarOpen) setIsSidebarOpen(false);
     }
@@ -56,6 +57,13 @@ export default function Sidebar({ currentView, setCurrentView, selectedPlaylistI
         >
           <Search size={20} />
           <span>Search</span>
+        </button>
+        <button 
+          className="nav-item"
+          onClick={() => { if (onShowThemeModal) onShowThemeModal(); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+        >
+          <Palette size={20} />
+          <span>Switch Theme</span>
         </button>
       </div>
 
