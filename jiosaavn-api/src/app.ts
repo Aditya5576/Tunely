@@ -31,15 +31,57 @@ export class App {
     if (authRouter) this.app.route('/api/auth', authRouter)
     if (userRouter) this.app.route('/api/user', userRouter)
 
-    // Spotify Playlist route using official Spotify Web API (Client Credentials flow - no user login required)
+    // Spotify Playlist route using official Spotify Web API or fallback public embed parser
     // Token is cached in module scope per Worker instance to avoid redundant token requests.
     this.app.get('/api/spotify/playlist', async (c) => {
-      const id = c.req.query('id')
+      let id = c.req.query('id')
       if (!id) {
         return c.json({ success: false, message: 'Missing playlist id parameter' }, 400)
       }
 
-      // Read credentials from Cloudflare Worker environment secrets
+      // Clean ID from any trailing dots, spaces, or query parameters
+      id = id.replace(/[^a-zA-Z0-9]/g, '')
+
+      // Try Option 1: Public Embed Scraper (No credentials required, bypasses Developer API limits/Premium rules)
+      try {
+        const embedRes = await fetch(`https://open.spotify.com/embed/playlist/${id}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
+          }
+        })
+
+        if (embedRes.ok) {
+          const html = await embedRes.text()
+          const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
+          if (match) {
+            const parsed = JSON.parse(match[1])
+            const stateData = parsed.props?.pageProps?.state?.data
+            if (stateData && stateData.entity) {
+              const playlistName = stateData.entity.name || 'Imported Playlist'
+              const trackList = stateData.entity.trackList || []
+              if (trackList.length > 0) {
+                const tracks = trackList.map((t: any) => ({
+                  title: t.title || 'Unknown Song',
+                  artist: t.subtitle || 'Unknown Artist'
+                }))
+                return c.json({
+                  success: true,
+                  data: {
+                    name: playlistName,
+                    tracks
+                  }
+                })
+              }
+            }
+          }
+        }
+      } catch (embedErr) {
+        console.error('Embed parsing failed, falling back to official API:', embedErr)
+      }
+
+      // Try Option 2: Fall back to official Spotify Web API using Client Credentials flow
       const clientId = (c.env as any)?.SPOTIFY_CLIENT_ID as string | undefined
       const clientSecret = (c.env as any)?.SPOTIFY_CLIENT_SECRET as string | undefined
 
@@ -85,7 +127,13 @@ export class App {
           if (playlistRes.status === 404) {
             return c.json({ success: false, message: 'Playlist not found. Make sure the playlist is public and the link is correct.' }, 404)
           }
-          return c.json({ success: false, message: `Spotify API returned status ${playlistRes.status}. Make sure the playlist is public.` }, playlistRes.status)
+          if (playlistRes.status === 403) {
+            return c.json({
+              success: false,
+              message: 'Spotify API returned status 403. This developer app requires a Spotify Premium subscription for the owner. Make sure your playlist link is correct and try again.'
+            }, 403)
+          }
+          return c.json({ success: false, message: `Spotify API returned status ${playlistRes.status}. Make sure the playlist is public.` }, playlistRes.status as any)
         }
 
         const playlistData: any = await playlistRes.json()

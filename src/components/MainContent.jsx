@@ -278,6 +278,14 @@ export default function MainContent({
     }
     const playlistId = playlistIdMatch[1];
     
+    if (playlistId.length < 22) {
+      setImportStatus(prev => ({
+        ...prev,
+        error: `The playlist ID appears to be truncated (only ${playlistId.length} characters instead of 22). Please copy the full link from Spotify.`
+      }));
+      return;
+    }
+    
     setImportStatus({
       loading: true,
       text: 'Connecting to Tunely backend...',
