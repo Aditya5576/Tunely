@@ -61,6 +61,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tunely_liked_songs_metadata');
     localStorage.removeItem('tunely_liked_songs_updated_at');
     localStorage.removeItem('spotify_custom_playlists');
+    localStorage.removeItem('tunely_custom_playlists_updated_at');
   };
 
   /** Register a new account. Returns { success, error } */
