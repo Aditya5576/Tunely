@@ -41,11 +41,18 @@ userController.post('/liked', authMiddleware, async (c) => {
   if (!song?.id) return c.json({ success: false, message: 'Song data with id is required' }, 400)
 
   const db = (c.env as any).DB as D1Database
+  const nowStr = new Date().toISOString()
   await db.prepare(
     `INSERT INTO liked_songs (user_id, song_id, song_data, created_at)
      VALUES (?, ?, ?, ?)
      ON CONFLICT(user_id, song_id) DO UPDATE SET song_data = excluded.song_data`
-  ).bind(userId, song.id, JSON.stringify(song), new Date().toISOString()).run()
+  ).bind(userId, song.id, JSON.stringify(song), nowStr).run()
+
+  // Track overall liked songs update time in KV to prevent sync deletions
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(`user:${userId}:liked_updated_at`, nowStr)
+  }
 
   return c.json({ success: true, message: 'Song liked' })
 })
@@ -60,6 +67,13 @@ userController.delete('/liked/:songId', authMiddleware, async (c) => {
   const db = (c.env as any).DB as D1Database
 
   await db.prepare('DELETE FROM liked_songs WHERE user_id = ? AND song_id = ?').bind(userId, songId).run()
+
+  // Update KV timestamp to track deletion
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(`user:${userId}:liked_updated_at`, new Date().toISOString())
+  }
+
   return c.json({ success: true, message: 'Song unliked' })
 })
 
@@ -80,13 +94,17 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
   const { songs: localSongs = [], localUpdatedAt } = body
   const db = (c.env as any).DB as D1Database
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
-  // Get the latest server entry timestamp
-  const latestRow = await db.prepare(
-    'SELECT MAX(created_at) as latest FROM liked_songs WHERE user_id = ?'
-  ).bind(userId).first() as any
+  // Get overall update timestamp from KV to accurately track deletions
+  let serverUpdatedAt = kv ? await kv.get(`user:${userId}:liked_updated_at`) : null
+  if (!serverUpdatedAt) {
+    const latestRow = await db.prepare(
+      'SELECT MAX(created_at) as latest FROM liked_songs WHERE user_id = ?'
+    ).bind(userId).first() as any
+    serverUpdatedAt = latestRow?.latest || null
+  }
 
-  const serverUpdatedAt = latestRow?.latest || null
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
   const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
 
@@ -107,7 +125,13 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
       stmt.bind(userId, song.id, JSON.stringify(song), localUpdatedAt || new Date().toISOString())
     )
     await db.batch(batch)
-    return c.json({ success: true, data: { source: 'local', songs: localSongs } })
+
+    const newTs = localUpdatedAt || new Date().toISOString()
+    if (kv) {
+      await kv.put(`user:${userId}:liked_updated_at`, newTs)
+    }
+
+    return c.json({ success: true, data: { source: 'local', songs: localSongs, serverUpdatedAt: newTs } })
   }
 
   // Server is newer or equal — return server data
@@ -119,7 +143,12 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
     try { return JSON.parse(r.song_data) } catch { return null }
   }).filter(Boolean)
 
-  return c.json({ success: true, data: { source: 'server', songs: serverSongs } })
+  // Initialize KV if missing
+  if (serverUpdatedAt && kv) {
+    await kv.put(`user:${userId}:liked_updated_at`, serverUpdatedAt)
+  }
+
+  return c.json({ success: true, data: { source: 'server', songs: serverSongs, serverUpdatedAt } })
 })
 
 // ─── PLAYLISTS ────────────────────────────────────────────────────────────────
@@ -171,6 +200,12 @@ userController.post('/playlists', authMiddleware, async (c) => {
     'INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(id, userId, name.trim(), JSON.stringify(songs), now, now).run()
 
+  // Track overall playlists update time in KV to prevent sync deletions
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(`user:${userId}:playlists_updated_at`, now)
+  }
+
   return c.json({ success: true, data: { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' } }, 201)
 })
 
@@ -191,15 +226,23 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
   const existing = await db.prepare('SELECT id FROM playlists WHERE id = ? AND user_id = ?').bind(playlistId, userId).first()
   if (!existing) return c.json({ success: false, message: 'Playlist not found' }, 404)
 
+  const nowStr = new Date().toISOString()
   const fields: string[] = []
   const values: any[] = []
   if (body.name !== undefined) { fields.push('name = ?'); values.push(body.name.trim()) }
   if (body.songs !== undefined) { fields.push('songs = ?'); values.push(JSON.stringify(body.songs)) }
   fields.push('updated_at = ?')
-  values.push(new Date().toISOString())
+  values.push(nowStr)
   values.push(playlistId, userId)
 
   await db.prepare(`UPDATE playlists SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`).bind(...values).run()
+
+  // Update KV timestamp
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(`user:${userId}:playlists_updated_at`, nowStr)
+  }
+
   return c.json({ success: true, message: 'Playlist updated' })
 })
 
@@ -213,6 +256,13 @@ userController.delete('/playlists/:id', authMiddleware, async (c) => {
   const db = (c.env as any).DB as D1Database
 
   await db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?').bind(playlistId, userId).run()
+
+  // Update KV timestamp to track deletion
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(`user:${userId}:playlists_updated_at`, new Date().toISOString())
+  }
+
   return c.json({ success: true, message: 'Playlist deleted' })
 })
 
@@ -230,12 +280,18 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
   const { playlists: localPlaylists = [], localUpdatedAt } = body
   const db = (c.env as any).DB as D1Database
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
-  const latestRow = await db.prepare(
-    'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
-  ).bind(userId).first() as any
+  // Get overall update timestamp from KV to accurately track deletions
+  let serverUpdatedAt = kv ? await kv.get(`user:${userId}:playlists_updated_at`) : null
+  if (!serverUpdatedAt) {
+    const latestRow = await db.prepare(
+      'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
+    ).bind(userId).first() as any
+    serverUpdatedAt = latestRow?.latest || null
+  }
 
-  const serverTs = latestRow?.latest ? new Date(latestRow.latest).getTime() : 0
+  const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
 
   // Check if server is empty for this user (handles first-sync cold starts)
@@ -255,7 +311,13 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
       stmt.bind(pl.id, userId, pl.name, JSON.stringify(pl.songs || []), localUpdatedAt || new Date().toISOString(), pl.createdAt || localUpdatedAt || new Date().toISOString())
     )
     await db.batch(batch)
-    return c.json({ success: true, data: { source: 'local', playlists: localPlaylists } })
+
+    const newTs = localUpdatedAt || new Date().toISOString()
+    if (kv) {
+      await kv.put(`user:${userId}:playlists_updated_at`, newTs)
+    }
+
+    return c.json({ success: true, data: { source: 'local', playlists: localPlaylists, serverUpdatedAt: newTs } })
   }
 
   // Server is newer or equal — return server playlists
@@ -272,5 +334,10 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
     type: 'custom'
   }))
 
-  return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists } })
+  // Initialize KV if missing
+  if (serverUpdatedAt && kv) {
+    await kv.put(`user:${userId}:playlists_updated_at`, serverUpdatedAt)
+  }
+
+  return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists, serverUpdatedAt } })
 })

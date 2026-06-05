@@ -140,6 +140,9 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
             e.stopPropagation();
             toggleLikeTrack(track);
           }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
           title={isLiked ? "Unlike" : "Like"}
         >
           <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
@@ -153,13 +156,20 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
               e.stopPropagation();
               setIsDropdownOpen(!isDropdownOpen);
             }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
             title="Add to playlist"
           >
             <Plus size={16} />
           </button>
 
           {isDropdownOpen && (
-            <div className="playlist-dropdown glass-panel">
+            <div 
+              className="playlist-dropdown glass-panel"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               <span className="dropdown-header">Add to Playlist</span>
               {customPlaylists.length === 0 ? (
                 <span className="dropdown-empty">No playlists created</span>
@@ -172,6 +182,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
                         key={p.id} 
                         className="dropdown-item"
                         onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
+                        onTouchStart={(e) => { e.stopPropagation(); }}
                         disabled={alreadyAdded}
                       >
                         <span>{p.name}</span>

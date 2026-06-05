@@ -111,10 +111,13 @@ function TunelyApp() {
           _setCustomPlaylists(data.playlists);
           lastSyncedPlaylistsRef.current = JSON.stringify(data.playlists);
           localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
-          localStorage.setItem('tunely_custom_playlists_updated_at', new Date().toISOString());
+          localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt || new Date().toISOString());
         } else if (data.source === 'local') {
           // Local was newer, server has updated itself, update ref
           lastSyncedPlaylistsRef.current = JSON.stringify(localPlaylists);
+          if (data.serverUpdatedAt) {
+            localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt);
+          }
         }
       } catch (e) {
         console.warn('Custom playlists initial sync failed:', e);
@@ -158,10 +161,13 @@ function TunelyApp() {
           _setCustomPlaylists(data.playlists);
           lastSyncedPlaylistsRef.current = JSON.stringify(data.playlists);
           localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
-          localStorage.setItem('tunely_custom_playlists_updated_at', new Date().toISOString());
+          localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt || new Date().toISOString());
         } else if (data && data.source === 'local') {
           // Local was newer, server has updated itself, update ref
           lastSyncedPlaylistsRef.current = JSON.stringify(localPlaylists);
+          if (data.serverUpdatedAt) {
+            localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt);
+          }
         }
       } catch (e) {
         console.warn('Custom playlists live sync failed:', e);

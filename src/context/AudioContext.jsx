@@ -102,7 +102,7 @@ export const AudioProvider = ({ children }) => {
         setLikedSongsMetadata(songs);
         localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
         localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
-        localStorage.setItem('tunely_liked_songs_updated_at', new Date().toISOString());
+        localStorage.setItem('tunely_liked_songs_updated_at', data.serverUpdatedAt || new Date().toISOString());
       } catch (e) {
         console.warn('Liked songs sync failed:', e);
       }
@@ -144,7 +144,9 @@ export const AudioProvider = ({ children }) => {
             setLikedSongsMetadata(songs);
             localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
             localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
-            localStorage.setItem('tunely_liked_songs_updated_at', new Date().toISOString());
+            localStorage.setItem('tunely_liked_songs_updated_at', data.serverUpdatedAt || new Date().toISOString());
+          } else if (data.source === 'local' && data.serverUpdatedAt) {
+            localStorage.setItem('tunely_liked_songs_updated_at', data.serverUpdatedAt);
           }
         }
       } catch (e) {
