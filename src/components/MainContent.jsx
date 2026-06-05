@@ -1274,7 +1274,7 @@ export default function MainContent({
 
         .hero-banner h1 {
           font-size: 42px;
-          font-weight: 850;
+          font-weight: 700;
           margin-bottom: 12px;
           line-height: 1.1;
         }
@@ -1707,7 +1707,7 @@ export default function MainContent({
 
         .detail-title {
           font-size: 38px;
-          font-weight: 800;
+          font-weight: 700;
           line-height: 1.1;
           margin-bottom: 12px;
           color: #fff;
@@ -2036,7 +2036,7 @@ export default function MainContent({
 
           .mobile-greeting-wrapper h1 {
             font-size: 22px;
-            font-weight: 850;
+            font-weight: 700;
             color: var(--text-main);
             letter-spacing: -0.03em;
           }

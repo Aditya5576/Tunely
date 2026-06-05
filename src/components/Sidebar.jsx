@@ -217,10 +217,11 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
         }
 
         .sidebar-header h2 {
-          font-size: 22px;
-          font-weight: 800;
+          font-family: var(--font-serif);
+          font-size: 24px;
+          font-weight: 600;
           color: var(--text-main);
-          letter-spacing: -0.04em;
+          letter-spacing: -0.02em;
         }
 
         .sidebar-header .dot {
