@@ -405,7 +405,7 @@ function TunelyApp() {
               <div className="profile-badge-large" style={{
                 background: user ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'
               }}>
-                {user?.name?.charAt(0).toUpperCase() || 'G'}
+                {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
               </div>
               <div className="profile-details-large">
                 <h3>{user ? user.name : 'Guest'}</h3>

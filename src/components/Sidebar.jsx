@@ -1,4 +1,4 @@
-import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, User, Palette } from 'lucide-react';
+import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, Palette } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const PRE_CONFIGURED_PLAYLISTS = [
@@ -152,7 +152,7 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
         {isLoggedIn ? (
           <div className="sidebar-user">
             <div className="sidebar-user-avatar">
-              {user?.name?.charAt(0).toUpperCase() || <User size={16} />}
+              {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
             </div>
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">{user?.name}</span>

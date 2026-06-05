@@ -408,7 +408,9 @@ export default function MainContent({
           </button>
         ) : (
           <button className="mobile-avatar-btn" onClick={() => setIsAccountOpen && setIsAccountOpen(true)} title="Profile">
-            <div className="mobile-avatar">A</div>
+            <div className="mobile-avatar" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
+              {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
+            </div>
           </button>
         )}
 
