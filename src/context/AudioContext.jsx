@@ -16,7 +16,7 @@ const LYRICS_FALLBACK = {
 };
 
 export const AudioProvider = ({ children }) => {
-  const { isLoggedIn, authFetch } = useAuth() || {};
+  const { isLoggedIn, isLoading, authFetch } = useAuth() || {};
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -66,10 +66,19 @@ export const AudioProvider = ({ children }) => {
 
   // React to login/logout changes
   useEffect(() => {
+    if (isLoading) return; // Wait for session restore before acting
     if (!isLoggedIn) {
-      // ── LOGOUT ─── clear in-memory state immediately so UI shows clean guest view
+      // ── LOGOUT ─── clear in-memory state so UI shows clean guest view
       setLikedSongs([]);
       setLikedSongsMetadata([]);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      setIsPlaying(false);
+      setCurrentTrack(null);
+      setQueue([]);
+      setCurrentIndex(-1);
       return;
     }
 
@@ -100,7 +109,7 @@ export const AudioProvider = ({ children }) => {
     };
 
     syncLikedSongs();
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isLoading]);
 
   const toggleLikeTrack = async (track) => {
     if (!track) return;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search as SearchIcon, Play, Music, Clock, User, Heart, Compass, Eye, Menu, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
@@ -41,6 +42,7 @@ export default function MainContent({
   createNewPlaylist
 }) {
   const { playTrack, queue, currentIndex, isPlaying, togglePlay, likedSongs, likedSongsMetadata, toggleLikeTrack } = useAudio();
+  const { user } = useAuth() || {};
   
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -447,7 +449,7 @@ export default function MainContent({
           <div className="view-home">
             {/* Mobile Greeting (hidden on desktop via CSS, styled beautiful on mobile) */}
             <div className="mobile-greeting-wrapper">
-              <h1>{getGreeting()}, Aditya 👋</h1>
+              <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
             </div>
 
             {/* Hero banner - visible on desktop, hidden on mobile */}

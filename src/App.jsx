@@ -11,7 +11,7 @@ import { useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 
 function TunelyApp() {
-  const { user, logout, isLoggedIn } = useAuth() || {};
+  const { user, logout, isLoggedIn, isLoading } = useAuth() || {};
   const [currentView, setCurrentView] = useState('home');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -51,12 +51,13 @@ function TunelyApp() {
 
   // On logout: clear playlists from view and reset navigation to home
   useEffect(() => {
+    if (isLoading) return; // Wait for session restore before acting
     if (!isLoggedIn) {
       setCustomPlaylists([]);
       setSelectedPlaylistId(null);
       window.location.hash = 'home';
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isLoading]);
 
   // Hash-based routing event listener for Safari Back/Forward button support (stops 404s)
   useEffect(() => {
@@ -113,6 +114,33 @@ function TunelyApp() {
     setCustomPlaylists(updated);
     localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
   };
+
+  // If user is not logged in and session has loaded, render only the forced login page
+  if (!isLoggedIn && !isLoading) {
+    return (
+      <>
+        {isSplashMounted && (
+          <div className={`splash-screen ${!showSplash ? 'fade-out' : ''}`}>
+            <div className="splash-logo-container">
+              <div className="splash-logo-circle">
+                <Music className="splash-music-icon" size={38} />
+                <div className="splash-logo-disc"></div>
+              </div>
+              <h1 className="splash-title">Tunely</h1>
+              <p className="splash-tagline">Premium High-Fidelity Audio</p>
+              <div className="splash-loader-bar">
+                <div className="splash-loader-progress"></div>
+              </div>
+            </div>
+            <div className="splash-footer">
+              <span>Developed by Aditya Patil</span>
+            </div>
+          </div>
+        )}
+        <AuthModal onClose={() => {}} required={true} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -263,8 +291,10 @@ function TunelyApp() {
         </button>
       </div>
 
-      {/* Auth Modal */}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {/* Auth Modal — optional (user-triggered) */}
+      {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
+
 
       {/* Bottom sticky pane: Global player and track sliders */}
       <PlayerBar 

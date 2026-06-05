@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export const AuthModal = ({ onClose }) => {
+export const AuthModal = ({ onClose, required = false }) => {
   const { login, register } = useAuth();
   const [tab, setTab] = useState('login'); // 'login' | 'register'
   const [name, setName] = useState('');
@@ -33,14 +33,14 @@ export const AuthModal = ({ onClose }) => {
   };
 
   return (
-    <div className="auth-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`auth-modal-overlay ${required ? 'forced-login-screen' : ''}`} onClick={(e) => { if (!required && e.target === e.currentTarget) onClose(); }}>
       <div className="auth-modal">
         {/* Header */}
         <div className="auth-modal-header">
           <div className="auth-logo">🎵</div>
-          <h2>{tab === 'login' ? 'Welcome back' : 'Join Tunely'}</h2>
-          <p>{tab === 'login' ? 'Sign in to sync your music across devices' : 'Create an account to sync your liked songs and playlists'}</p>
-          <button className="auth-close-btn" onClick={onClose}>✕</button>
+          <h2>{tab === 'login' ? 'Welcome to Tunely' : 'Create your account'}</h2>
+          <p>{required ? 'Sign in or create an account to continue' : tab === 'login' ? 'Sign in to sync your music across devices' : 'Create an account to sync your liked songs and playlists'}</p>
+          {!required && <button className="auth-close-btn" onClick={onClose}>✕</button>}
         </div>
 
         {/* Tab switcher */}
@@ -113,10 +113,7 @@ export const AuthModal = ({ onClose }) => {
           {error && <div className="auth-error">⚠️ {error}</div>}
 
           <button type="submit" className="auth-submit-btn" disabled={loading}>
-            {loading
-              ? <span className="auth-spinner" />
-              : tab === 'login' ? 'Sign In' : 'Create Account'
-            }
+            {loading ? <span className="auth-spinner" /> : (tab === 'login' ? 'Sign In' : 'Create Account')}
           </button>
         </form>
 
@@ -127,9 +124,11 @@ export const AuthModal = ({ onClose }) => {
             : <>Already have an account? <button className="auth-link" onClick={() => { setTab('login'); setError(''); }}>Sign in</button></>
           }
         </p>
-        <p className="auth-footer-note auth-footer-sub">
-          Without an account, Tunely still works — your data is just saved to this browser only.
-        </p>
+        {!required && (
+          <p className="auth-footer-note auth-footer-sub">
+            Without an account, Tunely still works — your data is just saved to this browser only.
+          </p>
+        )}
 
         <style>{`
       .auth-modal-overlay {
@@ -144,6 +143,23 @@ export const AuthModal = ({ onClose }) => {
         justify-content: center;
         padding: 16px;
         animation: authFadeIn 0.2s ease;
+      }
+
+      .auth-modal-overlay.forced-login-screen {
+        background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.12), transparent 50%),
+                    radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.1), transparent 50%),
+                    #09090e;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        z-index: 10000;
+      }
+
+      .forced-login-screen .auth-modal {
+        background: rgba(18, 18, 28, 0.6) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
       }
 
       @keyframes authFadeIn {
