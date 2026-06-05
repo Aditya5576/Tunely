@@ -415,6 +415,27 @@ input[type="range"]:hover::-moz-range-thumb {
     background: rgba(255,255,255,0.06);
   }
 
+  .drawer-item-highlight {
+    color: var(--primary);
+    background: rgba(0, 229, 255, 0.06);
+    border-radius: 10px;
+    margin: 0 12px;
+    padding: 14px 12px;
+    font-weight: 600;
+  }
+
+  .drawer-item-highlight:active {
+    background: rgba(0, 229, 255, 0.14);
+  }
+
+  .drawer-item-danger {
+    color: #ff6b6b;
+  }
+
+  .drawer-item-danger:active {
+    background: rgba(255, 107, 107, 0.08);
+  }
+
   .drawer-footer {
     padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--border-color);

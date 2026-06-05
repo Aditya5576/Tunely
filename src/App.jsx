@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Search, ListMusic, User, X, Info, Settings, Music } from 'lucide-react';
+import { Home, Search, ListMusic, User, X, Info, Settings, Music, LogOut } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
@@ -7,9 +7,11 @@ import LyricsPanel from './components/LyricsPanel';
 import QueuePanel from './components/QueuePanel';
 import { AudioProvider } from './context/AudioContext';
 import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 
 function TunelyApp() {
+  const { user, logout } = useAuth() || {};
   const [currentView, setCurrentView] = useState('home');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -168,10 +170,14 @@ function TunelyApp() {
       {/* Account Menu Drawer on Mobile */}
       <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
         <div className="drawer-header">
-          <div className="profile-badge-large">A</div>
+          <div className="profile-badge-large" style={{
+            background: user ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'
+          }}>
+            {user ? user.name.charAt(0).toUpperCase() : 'G'}
+          </div>
           <div className="profile-details-large">
-            <h3>Aditya</h3>
-            <span className="view-profile-link">View profile</span>
+            <h3>{user ? user.name : 'Guest'}</h3>
+            <span className="view-profile-link">{user ? user.email : 'Not signed in'}</span>
           </div>
           <button className="close-drawer-btn" onClick={() => setIsAccountOpen(false)}>
             <X size={24} />
@@ -179,18 +185,44 @@ function TunelyApp() {
         </div>
         <div className="drawer-divider"></div>
         <div className="drawer-content">
-          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Account switching is not available in guest mode."); }}>
-            <User size={18} />
-            <span>Add account</span>
-          </div>
-          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
-            <Info size={18} />
-            <span>What's new</span>
-          </div>
-          <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Settings configuration coming soon!"); }}>
-            <Settings size={18} />
-            <span>Settings and privacy</span>
-          </div>
+          {user ? (
+            /* Logged in state */
+            <>
+              <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert(`Logged in as ${user.email}\nMember since ${new Date(user.createdAt || Date.now()).toLocaleDateString()}`); }}>
+                <User size={18} />
+                <span>View profile</span>
+              </div>
+              <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
+                <Info size={18} />
+                <span>What's new</span>
+              </div>
+              <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Settings configuration coming soon!"); }}>
+                <Settings size={18} />
+                <span>Settings and privacy</span>
+              </div>
+              <div className="drawer-divider" style={{ margin: '8px 0' }}></div>
+              <div className="drawer-item drawer-item-danger" onClick={() => { setIsAccountOpen(false); logout(); }}>
+                <Music size={18} />
+                <span>Sign out</span>
+              </div>
+            </>
+          ) : (
+            /* Guest state */
+            <>
+              <div className="drawer-item drawer-item-highlight" onClick={() => { setIsAccountOpen(false); setShowAuthModal(true); }}>
+                <User size={18} />
+                <span>Sign in / Create account</span>
+              </div>
+              <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("You are on the latest version of Tunely!"); }}>
+                <Info size={18} />
+                <span>What's new</span>
+              </div>
+              <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert("Settings configuration coming soon!"); }}>
+                <Settings size={18} />
+                <span>Settings and privacy</span>
+              </div>
+            </>
+          )}
         </div>
         <div className="drawer-footer">
           <span className="app-version">Tunely Mobile v1.0</span>
