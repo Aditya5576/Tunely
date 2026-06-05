@@ -11,7 +11,7 @@ import { useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 
 function TunelyApp() {
-  const { user, logout } = useAuth() || {};
+  const { user, logout, isLoggedIn } = useAuth() || {};
   const [currentView, setCurrentView] = useState('home');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -48,6 +48,15 @@ function TunelyApp() {
       }
     }
   }, []);
+
+  // On logout: clear playlists from view and reset navigation to home
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setCustomPlaylists([]);
+      setSelectedPlaylistId(null);
+      window.location.hash = 'home';
+    }
+  }, [isLoggedIn]);
 
   // Hash-based routing event listener for Safari Back/Forward button support (stops 404s)
   useEffect(() => {

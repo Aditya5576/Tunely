@@ -55,7 +55,12 @@ export const AuthProvider = ({ children }) => {
   const clearSession = () => {
     setToken(null);
     setUser(null);
+    // Clear all user-specific localStorage keys so next person sees a clean state
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem('tunely_liked_songs');
+    localStorage.removeItem('tunely_liked_songs_metadata');
+    localStorage.removeItem('tunely_liked_songs_updated_at');
+    localStorage.removeItem('spotify_custom_playlists');
   };
 
   /** Register a new account. Returns { success, error } */

@@ -64,9 +64,17 @@ export const AudioProvider = ({ children }) => {
     }
   }, []);
 
-  // Smart sync: when user logs in, compare local vs server timestamps and merge
+  // React to login/logout changes
   useEffect(() => {
-    if (!isLoggedIn || !authFetch) return;
+    if (!isLoggedIn) {
+      // ── LOGOUT ─── clear in-memory state immediately so UI shows clean guest view
+      setLikedSongs([]);
+      setLikedSongsMetadata([]);
+      return;
+    }
+
+    // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
+    if (!authFetch) return;
 
     const syncLikedSongs = async () => {
       try {
@@ -291,32 +299,20 @@ export const AudioProvider = ({ children }) => {
     setLyrics(null);
 
     try {
-      // Attempting lyrics endpoints
-      const urls = [
-        `${API_BASE}/api/songs/${trackId}/lyrics`,
-        `${API_BASE}/api/lyrics?id=${trackId}`
-      ];
-      
-      let lyricsText = null;
-      for (const url of urls) {
-        const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (response.ok) {
-          const resObj = await response.json();
-          if (resObj.success && resObj.data && resObj.data.lyrics) {
-            lyricsText = resObj.data.lyrics;
-            break;
-          }
+      // Only call the valid JioSaavn lyrics endpoint
+      const response = await fetch(`${API_BASE}/api/songs/${trackId}/lyrics`);
+      if (response.ok) {
+        const resObj = await response.json();
+        if (resObj.success && resObj.data && resObj.data.lyrics) {
+          setLyrics(resObj.data.lyrics);
+          setIsLoadingLyrics(false);
+          return;
         }
       }
-
-      if (lyricsText) {
-        setLyrics(lyricsText);
-      } else {
-        // Generative/placeholder lyrics for premium design completeness
-        setLyrics(`[Instrumental Intro]\n\n(Lyrics not found for this song)\n\nEnjoy the smooth streaming on Tunely!\n\n[Chorus]\nMusic plays smoothly...\nNo lag, no glitch...\nAlways repeating the beat...\n\n[Outro]`);
-      }
+      // Graceful fallback — no error shown in network tab for missing lyrics
+      setLyrics(`[Instrumental]\n\n(Lyrics not available for this track)\n\nEnjoy the stream on Tunely! 🎵`);
     } catch {
-      setLyrics(`(Unable to load lyrics at this moment)\nEnjoy the high quality stream!`);
+      setLyrics(`(Unable to load lyrics)\nEnjoy the high quality stream!`);
     } finally {
       setIsLoadingLyrics(false);
     }
