@@ -11,7 +11,7 @@ import { useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 
 function TunelyApp() {
-  const { user, logout, isLoggedIn, isLoading } = useAuth() || {};
+  const { user, logout, isLoggedIn, isLoading, authFetch } = useAuth() || {};
   const [currentView, setCurrentView] = useState('home');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -56,10 +56,17 @@ function TunelyApp() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        _setCustomPlaylists(parsed);
-        lastSyncedPlaylistsRef.current = saved;
+        if (Array.isArray(parsed)) {
+          _setCustomPlaylists(parsed);
+          lastSyncedPlaylistsRef.current = saved;
+        } else {
+          _setCustomPlaylists([]);
+          lastSyncedPlaylistsRef.current = '[]';
+        }
       } catch (e) {
         console.error("Failed to parse custom playlists from localStorage:", e);
+        _setCustomPlaylists([]);
+        lastSyncedPlaylistsRef.current = '[]';
       }
     } else {
       lastSyncedPlaylistsRef.current = '[]';
@@ -122,7 +129,16 @@ function TunelyApp() {
     const currentStr = JSON.stringify(customPlaylists);
     if (currentStr === lastSyncedPlaylistsRef.current) return;
 
-    const prev = JSON.parse(lastSyncedPlaylistsRef.current);
+    let prev;
+    try {
+      prev = JSON.parse(lastSyncedPlaylistsRef.current);
+    } catch (e) {
+      console.error("Failed to parse lastSyncedPlaylistsRef:", e);
+      lastSyncedPlaylistsRef.current = currentStr;
+      return;
+    }
+    if (!Array.isArray(prev)) return;
+
     lastSyncedPlaylistsRef.current = currentStr; // Prevent duplicate triggers
 
     const syncChanges = async () => {
@@ -292,7 +308,7 @@ function TunelyApp() {
               <div className="profile-badge-large" style={{
                 background: user ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'
               }}>
-                {user ? user.name.charAt(0).toUpperCase() : 'G'}
+                {user?.name?.charAt(0).toUpperCase() || 'G'}
               </div>
               <div className="profile-details-large">
                 <h3>{user ? user.name : 'Guest'}</h3>
