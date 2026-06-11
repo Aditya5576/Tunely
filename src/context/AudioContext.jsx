@@ -230,7 +230,8 @@ export const AudioProvider = ({ children }) => {
       return;
     }
 
-    if (audioContextRef.current) {
+    // Only bypass if the context is successfully created and we have our node references populated
+    if (audioContextRef.current && sourceNodeRef.current && subBassFilterRef.current) {
       if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
@@ -245,14 +246,12 @@ export const AudioProvider = ({ children }) => {
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
-      audioContextRef.current = ctx;
 
       // 1. Sub-Bass Filter (60 Hz, lowshelf)
       const subBass = ctx.createBiquadFilter();
       subBass.type = 'lowshelf';
       subBass.frequency.value = 60;
       subBass.gain.value = 0;
-      subBassFilterRef.current = subBass;
 
       // 2. Bass Filter (180 Hz, peaking)
       const bass = ctx.createBiquadFilter();
@@ -260,7 +259,6 @@ export const AudioProvider = ({ children }) => {
       bass.frequency.value = 180;
       bass.Q.value = 1.0;
       bass.gain.value = 0;
-      bassFilterRef.current = bass;
 
       // 3. Midrange Filter (1000 Hz, peaking)
       const mid = ctx.createBiquadFilter();
@@ -268,7 +266,6 @@ export const AudioProvider = ({ children }) => {
       mid.frequency.value = 1000;
       mid.Q.value = 1.0;
       mid.gain.value = 0;
-      midFilterRef.current = mid;
 
       // 4. Presence Filter (3500 Hz, peaking)
       const presence = ctx.createBiquadFilter();
@@ -276,7 +273,6 @@ export const AudioProvider = ({ children }) => {
       presence.frequency.value = 3500;
       presence.Q.value = 1.2;
       presence.gain.value = 0;
-      presenceFilterRef.current = presence;
 
       // 5. Treble Filter (8000 Hz, peaking)
       const treble = ctx.createBiquadFilter();
@@ -284,14 +280,12 @@ export const AudioProvider = ({ children }) => {
       treble.frequency.value = 8000;
       treble.Q.value = 1.2;
       treble.gain.value = 0;
-      trebleFilterRef.current = treble;
 
       // 6. Air Filter (16000 Hz, highshelf)
       const air = ctx.createBiquadFilter();
       air.type = 'highshelf';
       air.frequency.value = 16000;
       air.gain.value = 0;
-      airFilterRef.current = air;
 
       // 7. Haas Effect Spatializer Setup
       // Splitter routes Left and Right channels separately
@@ -301,22 +295,19 @@ export const AudioProvider = ({ children }) => {
       // Right channel DelayNode to offset phase for 3D width
       const spatialDelay = ctx.createDelay(0.1);
       spatialDelay.delayTime.value = 0.0;
-      pannerNodeRef.current = spatialDelay; // Store DelayNode in pannerNodeRef to satisfy refs and linter
 
       // 8. Dynamics Compressor
       const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
-      compressor.knee.setValueAtTime(10, ctx.currentTime);
-      compressor.ratio.setValueAtTime(3, ctx.currentTime);
+      compressor.threshold.setValueAtTime(-14, ctx.currentTime);
+      compressor.knee.setValueAtTime(15, ctx.currentTime);
+      compressor.ratio.setValueAtTime(2.5, ctx.currentTime);
       compressor.attack.setValueAtTime(0.01, ctx.currentTime);
       compressor.release.setValueAtTime(0.25, ctx.currentTime);
-      compressorFilterRef.current = compressor;
 
-      // Connect source to BiquadFilter chain
+      // Create MediaElementAudioSourceNode
       const source = ctx.createMediaElementSource(audioRef.current);
-      sourceNodeRef.current = source;
 
-      // Connect filters in series
+      // Connect nodes in series
       source.connect(subBass);
       subBass.connect(bass);
       bass.connect(mid);
@@ -340,9 +331,22 @@ export const AudioProvider = ({ children }) => {
       // Connect compressor to audio output destination
       compressor.connect(ctx.destination);
 
+      // Populate refs ONLY if the connection chain built successfully without throwing errors
+      subBassFilterRef.current = subBass;
+      bassFilterRef.current = bass;
+      midFilterRef.current = mid;
+      presenceFilterRef.current = presence;
+      trebleFilterRef.current = treble;
+      airFilterRef.current = air;
+      pannerNodeRef.current = spatialDelay;
+      compressorFilterRef.current = compressor;
+      sourceNodeRef.current = source;
+      audioContextRef.current = ctx;
+
       applyEqPreset(eqPreset, subBass, bass, mid, presence, treble, air, spatialDelay, compressor);
+      console.log("Tunely EQ: Web Audio Pipeline successfully initialized.");
     } catch (e) {
-      console.warn("Failed to initialize Web Audio Equalizer (CORS / Autoplay restrictions):", e);
+      console.error("Failed to initialize Web Audio Equalizer (CORS / Autoplay restrictions / double mount):", e);
     }
   };
 
