@@ -836,8 +836,8 @@ export default function MainContent({
                               <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                             </button>
                           </div>
-                          <span className="featured-card-title">{track.name}</span>
-                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
                         </div>
                       ))}
                     </div>
@@ -892,8 +892,8 @@ export default function MainContent({
                               <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                             </button>
                           </div>
-                          <span className="featured-card-title">{track.name}</span>
-                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
                         </div>
                       ))}
                     </div>
@@ -919,8 +919,8 @@ export default function MainContent({
                               <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                             </button>
                           </div>
-                          <span className="featured-card-title">{track.name}</span>
-                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
                         </div>
                       ))}
                     </div>
@@ -946,8 +946,8 @@ export default function MainContent({
                               <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                             </button>
                           </div>
-                          <span className="featured-card-title">{track.name}</span>
-                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
                         </div>
                       ))}
                     </div>
@@ -973,8 +973,8 @@ export default function MainContent({
                               <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                             </button>
                           </div>
-                          <span className="featured-card-title">{track.name}</span>
-                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
                         </div>
                       ))}
                     </div>
@@ -1792,6 +1792,7 @@ export default function MainContent({
 
         .featured-card {
           flex: 0 0 160px;
+          min-width: 0; /* Prevents long text from pushing flexbox widths */
           display: flex;
           flex-direction: column;
           padding: 12px;
@@ -1810,8 +1811,8 @@ export default function MainContent({
         }
 
         .featured-card-cover-container {
-          width: 136px;
-          height: 136px;
+          width: 100%;
+          aspect-ratio: 1 / 1;
           border-radius: 8px;
           overflow: hidden;
           position: relative;
@@ -2719,8 +2720,6 @@ export default function MainContent({
           }
 
           .featured-card-cover-container {
-            width: 112px;
-            height: 112px;
             margin-bottom: 8px;
           }
 
