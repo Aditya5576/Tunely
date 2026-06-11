@@ -36,19 +36,17 @@ export const AudioProvider = ({ children }) => {
   const preloadRef = useRef(new Audio()); // For pre-buffering the next track
   const fadeIntervalRef = useRef(null);
   const volumeRef = useRef(volume);
-
-  // Equalizer states and references
-  const [eqPreset, setEqPreset] = useState('flat'); // 'flat' | 'bass-boost' | 'vocal-boost' | 'treble-boost' | 'hifi' | 'spatial'
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
-  const subBassFilterRef = useRef(null);
-  const bassFilterRef = useRef(null);
-  const midFilterRef = useRef(null);
-  const presenceFilterRef = useRef(null);
-  const trebleFilterRef = useRef(null);
-  const airFilterRef = useRef(null);
-  const pannerNodeRef = useRef(null);
-  const compressorFilterRef = useRef(null);
+  // Audio Quality State
+  const [audioQuality, setAudioQualityState] = useState(() => {
+    return localStorage.getItem('tunely_audio_quality') || '320kbps';
+  });
+
+  // Sleep Timer States & Refs
+  const [sleepTimer, setSleepTimer] = useState(null); // value in minutes
+  const [sleepTimeLeft, setSleepTimeLeft] = useState(null); // value in seconds
+  const sleepTimerRef = useRef(null);
 
   const [likedSongs, setLikedSongs] = useState(() => {
     try {
@@ -223,16 +221,14 @@ export const AudioProvider = ({ children }) => {
   };
 
   const initWebAudio = () => {
-    // Detect mobile device to bypass Web Audio routing.
-    // Web Audio API routing gets suspended by iOS Safari / Android Chrome when the screen is turned off or backgrounded,
-    // which silences the playback. Bypassing it on mobile allows native background playback to work perfectly.
+    // Strictly bypass Web Audio on mobile to avoid background audio mute bugs on iOS/Android
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
       return;
     }
 
-    // Only bypass if the context is successfully created and we have our node references populated
-    if (audioContextRef.current && sourceNodeRef.current && subBassFilterRef.current) {
+    // Prevent double initialization
+    if (audioContextRef.current) {
       if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
@@ -240,239 +236,98 @@ export const AudioProvider = ({ children }) => {
     }
 
     try {
-      // Allow Web Audio routing without security exceptions on saavn cdn streams
-      audioRef.current.crossOrigin = "anonymous";
-      
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
 
-      // 1. Sub-Bass Filter (60 Hz, lowshelf)
-      const subBass = ctx.createBiquadFilter();
-      subBass.type = 'lowshelf';
-      subBass.frequency.value = 60;
-      subBass.gain.value = 0;
+      // Create a premium 3-band parametric enhancer
+      // 1. Warm Sub-Bass/Punch (80 Hz, peaking, +2.5dB)
+      const bassFilter = ctx.createBiquadFilter();
+      bassFilter.type = 'peaking';
+      bassFilter.frequency.value = 80;
+      bassFilter.Q.value = 0.8;
+      bassFilter.gain.value = 2.5;
 
-      // 2. Bass Filter (180 Hz, peaking)
-      const bass = ctx.createBiquadFilter();
-      bass.type = 'peaking';
-      bass.frequency.value = 180;
-      bass.Q.value = 1.0;
-      bass.gain.value = 0;
+      // 2. Crystal Vocal Presence (3000 Hz, peaking, +2.0dB)
+      const presenceFilter = ctx.createBiquadFilter();
+      presenceFilter.type = 'peaking';
+      presenceFilter.frequency.value = 3000;
+      presenceFilter.Q.value = 1.0;
+      presenceFilter.gain.value = 2.0;
 
-      // 3. Midrange Filter (1000 Hz, peaking)
-      const mid = ctx.createBiquadFilter();
-      mid.type = 'peaking';
-      mid.frequency.value = 1000;
-      mid.Q.value = 1.0;
-      mid.gain.value = 0;
+      // 3. High-End Studio Air/Sparkle (15000 Hz, highshelf, +2.5dB)
+      const airFilter = ctx.createBiquadFilter();
+      airFilter.type = 'highshelf';
+      airFilter.frequency.value = 15000;
+      airFilter.gain.value = 2.5;
 
-      // 4. Presence Filter (3500 Hz, peaking)
-      const presence = ctx.createBiquadFilter();
-      presence.type = 'peaking';
-      presence.frequency.value = 3500;
-      presence.Q.value = 1.2;
-      presence.gain.value = 0;
-
-      // 5. Treble Filter (8000 Hz, peaking)
-      const treble = ctx.createBiquadFilter();
-      treble.type = 'peaking';
-      treble.frequency.value = 8000;
-      treble.Q.value = 1.2;
-      treble.gain.value = 0;
-
-      // 6. Air Filter (16000 Hz, highshelf)
-      const air = ctx.createBiquadFilter();
-      air.type = 'highshelf';
-      air.frequency.value = 16000;
-      air.gain.value = 0;
-
-      // 7. Haas Effect Spatializer Setup
-      // Splitter routes Left and Right channels separately
-      const splitter = ctx.createChannelSplitter(2);
-      const merger = ctx.createChannelMerger(2);
-      
-      // Right channel DelayNode to offset phase for 3D width
-      const spatialDelay = ctx.createDelay(0.1);
-      spatialDelay.delayTime.value = 0.0;
-
-      // 8. Dynamics Compressor
+      // 4. Dynamics Compressor & Limiter to prevent clipping and glue the sound
       const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-14, ctx.currentTime);
-      compressor.knee.setValueAtTime(15, ctx.currentTime);
-      compressor.ratio.setValueAtTime(2.5, ctx.currentTime);
+      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
+      compressor.knee.setValueAtTime(12, ctx.currentTime);
+      compressor.ratio.setValueAtTime(2.0, ctx.currentTime);
       compressor.attack.setValueAtTime(0.01, ctx.currentTime);
       compressor.release.setValueAtTime(0.25, ctx.currentTime);
 
-      // Create MediaElementAudioSourceNode
       const source = ctx.createMediaElementSource(audioRef.current);
 
-      // Connect nodes in series
-      source.connect(subBass);
-      subBass.connect(bass);
-      bass.connect(mid);
-      mid.connect(presence);
-      presence.connect(treble);
-      treble.connect(air);
-
-      // Connect 6-band EQ output to Haas Spatializer splitter
-      air.connect(splitter);
-
-      // Left channel connected directly (no delay)
-      splitter.connect(merger, 0, 0);
-
-      // Right channel connected through delay node
-      splitter.connect(spatialDelay, 1);
-      spatialDelay.connect(merger, 0, 1);
-
-      // Connect merger output to Dynamics Compressor
-      merger.connect(compressor);
-
-      // Connect compressor to audio output destination
+      // Connect: source -> bass -> presence -> air -> compressor -> speakers
+      source.connect(bassFilter);
+      bassFilter.connect(presenceFilter);
+      presenceFilter.connect(airFilter);
+      airFilter.connect(compressor);
       compressor.connect(ctx.destination);
 
-      // Populate refs ONLY if the connection chain built successfully without throwing errors
-      subBassFilterRef.current = subBass;
-      bassFilterRef.current = bass;
-      midFilterRef.current = mid;
-      presenceFilterRef.current = presence;
-      trebleFilterRef.current = treble;
-      airFilterRef.current = air;
-      pannerNodeRef.current = spatialDelay;
-      compressorFilterRef.current = compressor;
       sourceNodeRef.current = source;
       audioContextRef.current = ctx;
-
-      applyEqPreset(eqPreset, subBass, bass, mid, presence, treble, air, spatialDelay, compressor);
-      console.log("Tunely EQ: Web Audio Pipeline successfully initialized.");
+      console.log("Tunely Hi-Fi Enhancer: Web Audio dynamic processing active on Desktop.");
     } catch (e) {
-      console.error("Failed to initialize Web Audio Equalizer (CORS / Autoplay restrictions / double mount):", e);
+      console.warn("Failed to initialize desktop Web Audio enhancer:", e);
     }
   };
 
-  const applyEqPreset = (
-    preset, 
-    subBassNode = subBassFilterRef.current,
-    bassNode = bassFilterRef.current, 
-    midNode = midFilterRef.current, 
-    presenceNode = presenceFilterRef.current,
-    trebleNode = trebleFilterRef.current, 
-    airNode = airFilterRef.current,
-    delayNode = pannerNodeRef.current,
-    compressorNode = compressorFilterRef.current
-  ) => {
-    // If the nodes are not loaded yet (e.g. early startup/mobile bypass), log and return gracefully
-    if (!subBassNode || !bassNode || !midNode || !presenceNode || !trebleNode || !airNode) {
-      console.log("Tunely EQ: applyEqPreset bypassed (nodes not initialized or mobile browser bypass)");
-      return;
+  const getStreamUrlByQuality = (track, quality) => {
+    if (!track || !track.downloadUrl || track.downloadUrl.length === 0) return null;
+    const target = track.downloadUrl.find(item => item.quality === quality);
+    if (target) return target.url;
+
+    // Fallbacks if target quality is not available
+    if (quality === '320kbps') {
+      const backup160 = track.downloadUrl.find(item => item.quality === '160kbps');
+      if (backup160) return backup160.url;
     }
-    const transitionTime = audioContextRef.current ? audioContextRef.current.currentTime + 0.05 : 0;
-
-    console.log(`Tunely EQ: Applying preset '${preset}' gently to avoid harshness and distortion...`);
-
-    // Reset compressor to default parameters before adjusting
-    if (compressorNode) {
-      compressorNode.threshold.setValueAtTime(-14, transitionTime);
-      compressorNode.knee.setValueAtTime(15, transitionTime);
-      compressorNode.ratio.setValueAtTime(2.5, transitionTime);
+    if (quality === '160kbps' || quality === '320kbps') {
+      const backup96 = track.downloadUrl.find(item => item.quality === '96kbps');
+      if (backup96) return backup96.url;
     }
+    return track.downloadUrl[track.downloadUrl.length - 1]?.url;
+  };
 
-    // Reset delay time to 0 by default
-    if (delayNode) {
-      delayNode.delayTime.setValueAtTime(0.0, transitionTime);
-    }
-
-    if (preset === 'bass-boost') {
-      // Gentle bass lift to prevent loud digital clipping
-      subBassNode.gain.setValueAtTime(4.0, transitionTime);
-      bassNode.gain.setValueAtTime(2.5, transitionTime);
-      midNode.gain.setValueAtTime(0, transitionTime);
-      presenceNode.gain.setValueAtTime(-1.5, transitionTime);
-      trebleNode.gain.setValueAtTime(-0.5, transitionTime);
-      airNode.gain.setValueAtTime(1.0, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-18, transitionTime);
-        compressorNode.ratio.setValueAtTime(3.0, transitionTime);
-      }
-    } else if (preset === 'vocal-boost') {
-      // Clear, warm voice profile without harsh/tinny mid-high boosts
-      subBassNode.gain.setValueAtTime(-2.0, transitionTime);
-      bassNode.gain.setValueAtTime(-1.0, transitionTime);
-      midNode.gain.setValueAtTime(1.5, transitionTime);
-      presenceNode.gain.setValueAtTime(2.0, transitionTime);
-      trebleNode.gain.setValueAtTime(1.0, transitionTime);
-      airNode.gain.setValueAtTime(1.5, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-20, transitionTime);
-        compressorNode.ratio.setValueAtTime(2.8, transitionTime);
-        compressorNode.knee.setValueAtTime(20, transitionTime);
-      }
-    } else if (preset === 'treble-boost') {
-      // Crisp treble clarity, soft on sibilance
-      subBassNode.gain.setValueAtTime(-1.0, transitionTime);
-      bassNode.gain.setValueAtTime(0.0, transitionTime);
-      midNode.gain.setValueAtTime(0.5, transitionTime);
-      presenceNode.gain.setValueAtTime(1.5, transitionTime);
-      trebleNode.gain.setValueAtTime(3.0, transitionTime);
-      airNode.gain.setValueAtTime(3.5, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-12, transitionTime);
-        compressorNode.ratio.setValueAtTime(2.0, transitionTime);
-      }
-    } else if (preset === 'hifi') {
-      // Premium studio audiophile balanced Smiley curve
-      subBassNode.gain.setValueAtTime(2.5, transitionTime);
-      bassNode.gain.setValueAtTime(1.5, transitionTime);
-      midNode.gain.setValueAtTime(0.0, transitionTime);
-      presenceNode.gain.setValueAtTime(1.0, transitionTime);
-      trebleNode.gain.setValueAtTime(1.5, transitionTime);
-      airNode.gain.setValueAtTime(2.0, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-16, transitionTime);
-        compressorNode.ratio.setValueAtTime(2.5, transitionTime);
-        compressorNode.knee.setValueAtTime(15, transitionTime);
-      }
-    } else if (preset === 'spatial') {
-      // 3D surround wide staging, balanced response
-      subBassNode.gain.setValueAtTime(2.0, transitionTime);
-      bassNode.gain.setValueAtTime(1.0, transitionTime);
-      midNode.gain.setValueAtTime(0.0, transitionTime);
-      presenceNode.gain.setValueAtTime(1.5, transitionTime);
-      trebleNode.gain.setValueAtTime(2.0, transitionTime);
-      airNode.gain.setValueAtTime(3.0, transitionTime);
-      if (delayNode) {
-        delayNode.delayTime.setValueAtTime(0.02, transitionTime); // 20ms Haas separation
-      }
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-14, transitionTime);
-        compressorNode.ratio.setValueAtTime(2.5, transitionTime);
-        compressorNode.knee.setValueAtTime(15, transitionTime);
-      }
-    } else {
-      // Normal flat profile
-      subBassNode.gain.setValueAtTime(0, transitionTime);
-      bassNode.gain.setValueAtTime(0, transitionTime);
-      midNode.gain.setValueAtTime(0, transitionTime);
-      presenceNode.gain.setValueAtTime(0, transitionTime);
-      trebleNode.gain.setValueAtTime(0, transitionTime);
-      airNode.gain.setValueAtTime(0, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-8, transitionTime);
-        compressorNode.ratio.setValueAtTime(1.6, transitionTime);
+  const setAudioQuality = (quality) => {
+    setAudioQualityState(quality);
+    localStorage.setItem('tunely_audio_quality', quality);
+    
+    // Switch live track stream quality if playing
+    if (currentTrack && audioRef.current) {
+      const streamUrl = getStreamUrlByQuality(currentTrack, quality);
+      if (streamUrl && audioRef.current.src !== streamUrl) {
+        const wasPlaying = isPlaying;
+        const savedTime = audioRef.current.currentTime;
+        
+        initWebAudio();
+        audioRef.current.src = streamUrl;
+        audioRef.current.load();
+        audioRef.current.currentTime = savedTime;
+        
+        if (wasPlaying) {
+          audioRef.current.play().catch(e => console.error("Error switching quality stream playback:", e));
+        }
       }
     }
   };
 
-  const changeEqPreset = (preset) => {
-    setEqPreset(preset);
-    if (audioContextRef.current) {
-      if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
-      }
-      applyEqPreset(preset);
-    }
-  };
+
 
   // 1. Core Functions
 
@@ -546,8 +401,7 @@ export const AudioProvider = ({ children }) => {
     const nextIdx = getNextIndex();
     if (nextIdx !== -1 && queue[nextIdx]) {
       const nextSong = queue[nextIdx];
-      // Get highest quality URL available
-      const streamUrl = nextSong.downloadUrl?.[nextSong.downloadUrl.length - 1]?.url;
+      const streamUrl = getStreamUrlByQuality(nextSong, audioQuality);
       if (streamUrl && preloadRef.current.src !== streamUrl) {
         preloadRef.current.src = streamUrl;
         preloadRef.current.preload = "auto";
@@ -601,7 +455,7 @@ export const AudioProvider = ({ children }) => {
     setCurrentTrack(track);
     setIsLoadingTrack(true);
 
-    const streamUrl = track.downloadUrl?.[track.downloadUrl.length - 1]?.url;
+    const streamUrl = getStreamUrlByQuality(track, audioQuality);
     if (!streamUrl) {
       console.error("No valid stream URL found for track", track);
       setIsLoadingTrack(false);
@@ -680,7 +534,7 @@ export const AudioProvider = ({ children }) => {
     setCurrentIndex(newIndex);
     setCurrentTrack(track);
     
-    const streamUrl = track.downloadUrl?.[track.downloadUrl.length - 1]?.url;
+    const streamUrl = getStreamUrlByQuality(track, audioQuality);
     if (streamUrl) {
       initWebAudio();
       fadeOutVolume(() => {
@@ -916,6 +770,7 @@ export const AudioProvider = ({ children }) => {
 
     const actionHandlers = [
       ['play', () => {
+        initWebAudio();
         audioRef.current.play().catch(e => console.error("MediaSession play failed:", e));
       }],
       ['pause', () => {
@@ -952,6 +807,57 @@ export const AudioProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, isShuffle, loopMode, isPlaying, currentTrack]);
 
+  // Sleep Timer countdown logic (placed at the bottom to ensure fadeOutVolume is declared)
+  useEffect(() => {
+    if (sleepTimerRef.current) {
+      clearInterval(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
+
+    if (sleepTimer === null) {
+      if (sleepTimeLeft !== null) {
+        Promise.resolve().then(() => {
+          setSleepTimeLeft(null);
+        });
+      }
+      return;
+    }
+
+    const totalSeconds = sleepTimer * 60;
+    Promise.resolve().then(() => {
+      setSleepTimeLeft(totalSeconds);
+    });
+
+    const interval = setInterval(() => {
+      setSleepTimeLeft(prev => {
+        if (prev === null) {
+          clearInterval(interval);
+          return null;
+        }
+        if (prev <= 1) {
+          clearInterval(interval);
+          setSleepTimer(null);
+          fadeOutVolume(() => {
+            audioRef.current.pause();
+            setIsPlaying(false);
+            audioRef.current.volume = volumeRef.current;
+          });
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    sleepTimerRef.current = interval;
+
+    return () => {
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sleepTimer]);
+
   return (
     <AudioContext.Provider value={{
       isPlaying,
@@ -982,8 +888,11 @@ export const AudioProvider = ({ children }) => {
       removeFromQueue,
       playQueueTrack,
       clearQueue,
-      eqPreset,
-      setEqPreset: changeEqPreset,
+      audioQuality,
+      setAudioQuality,
+      sleepTimer,
+      setSleepTimer,
+      sleepTimeLeft,
       likedSongs,
       likedSongsMetadata,
       toggleLikeTrack

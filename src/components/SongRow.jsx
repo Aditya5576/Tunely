@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, Plus, Check, Music, Heart } from 'lucide-react';
+import { Play, Pause, Plus, Check, Music, Heart, X } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 const decodeHtml = (text) => {
@@ -14,7 +14,15 @@ const decodeHtml = (text) => {
     .replace(/&apos;/g, "'");
 };
 
-export default function SongRow({ track, index, customPlaylists, setCustomPlaylists, playlistTracks = [] }) {
+export default function SongRow({ 
+  track, 
+  index, 
+  customPlaylists, 
+  setCustomPlaylists, 
+  playlistTracks = [],
+  showRemove = false,
+  onRemove = null
+}) {
   const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -148,53 +156,70 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
         </button>
 
-        {/* Add to Playlist Popup Trigger */}
-        <div className="add-to-playlist-container">
+        {showRemove ? (
+          /* Remove from playlist button */
           <button 
-            className="row-action-btn"
+            className="row-action-btn remove-btn"
             onClick={(e) => {
               e.stopPropagation();
-              setIsDropdownOpen(!isDropdownOpen);
+              if (onRemove) onRemove();
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
             }}
-            title="Add to playlist"
+            title="Remove from playlist"
           >
-            <Plus size={16} />
+            <X size={15} />
           </button>
-
-          {isDropdownOpen && (
-            <div 
-              className="playlist-dropdown glass-panel"
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
+        ) : (
+          /* Add to Playlist Popup Trigger */
+          <div className="add-to-playlist-container">
+            <button 
+              className="row-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDropdownOpen(!isDropdownOpen);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              title="Add to playlist"
             >
-              <span className="dropdown-header">Add to Playlist</span>
-              {customPlaylists.length === 0 ? (
-                <span className="dropdown-empty">No playlists created</span>
-              ) : (
-                <div className="dropdown-list">
-                  {customPlaylists.map(p => {
-                    const alreadyAdded = p.songs.some(s => s.id === track.id);
-                    return (
-                      <button 
-                        key={p.id} 
-                        className="dropdown-item"
-                        onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
-                        onTouchStart={(e) => { e.stopPropagation(); }}
-                        disabled={alreadyAdded}
-                      >
-                        <span>{p.name}</span>
-                        {alreadyAdded && <Check size={14} className="check-icon" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              <Plus size={16} />
+            </button>
+
+            {isDropdownOpen && (
+              <div 
+                className="playlist-dropdown glass-panel"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
+                <span className="dropdown-header">Add to Playlist</span>
+                {customPlaylists.length === 0 ? (
+                  <span className="dropdown-empty">No playlists created</span>
+                ) : (
+                  <div className="dropdown-list">
+                    {customPlaylists.map(p => {
+                      const alreadyAdded = p.songs.some(s => s.id === track.id);
+                      return (
+                        <button 
+                          key={p.id} 
+                          className="dropdown-item"
+                          onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
+                          onTouchStart={(e) => { e.stopPropagation(); }}
+                          disabled={alreadyAdded}
+                        >
+                          <span>{p.name}</span>
+                          {alreadyAdded && <Check size={14} className="check-icon" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Embedded CSS for SongRow styling */}
@@ -294,6 +319,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           align-items: center;
           gap: 12px;
           overflow: hidden;
+          min-width: 0;
         }
 
         .song-cover-container {
@@ -332,6 +358,8 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           flex-direction: column;
           gap: 2px;
           overflow: hidden;
+          min-width: 0;
+          flex-grow: 1;
         }
 
         .song-title-line {
@@ -348,6 +376,7 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          min-width: 0;
         }
 
         .hq-badge {
@@ -425,6 +454,11 @@ export default function SongRow({ track, index, customPlaylists, setCustomPlayli
           .row-heart-btn:hover {
             color: var(--text-main);
             background: rgba(255,255,255,0.05);
+          }
+
+          .row-action-btn.remove-btn:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
           }
 
           .row-heart-btn:hover {

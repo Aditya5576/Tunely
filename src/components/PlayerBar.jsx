@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
-  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle
+  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle, Clock
 } from 'lucide-react';
 
 export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) {
@@ -10,7 +10,8 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     isPlaying, currentTrack, currentTime, duration, volume, loopMode, isShuffle,
     isQueueVisible, isLyricsVisible, isLoadingTrack,
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
-    setIsQueueVisible, setIsLyricsVisible, eqPreset, setEqPreset,
+    setIsQueueVisible, setIsLyricsVisible,
+    audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
     likedSongs, toggleLikeTrack
   } = useAudio();
 
@@ -21,20 +22,24 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
   const [isExpanded, setIsExpanded] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-  const [isEqMenuVisible, setIsEqMenuVisible] = useState(false);
+  const [isQualityMenuVisible, setIsQualityMenuVisible] = useState(false);
+  const [isTimerMenuVisible, setIsTimerMenuVisible] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
-  // Close EQ menu when clicking outside
+  // Close Quality and Sleep Timer menus when clicking outside
   useEffect(() => {
-    if (!isEqMenuVisible) return;
+    if (!isQualityMenuVisible && !isTimerMenuVisible) return;
     const handleOutsideClick = (e) => {
-      if (!e.target.closest('.desktop-eq-wrapper')) {
-        setIsEqMenuVisible(false);
+      if (isQualityMenuVisible && !e.target.closest('.desktop-quality-wrapper')) {
+        setIsQualityMenuVisible(false);
+      }
+      if (isTimerMenuVisible && !e.target.closest('.desktop-timer-wrapper')) {
+        setIsTimerMenuVisible(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
     return () => document.removeEventListener('click', handleOutsideClick);
-  }, [isEqMenuVisible]);
+  }, [isQualityMenuVisible, isTimerMenuVisible]);
 
   const handleTouchStart = (e) => {
     if (e.target.closest('button') || e.target.closest('input')) return;
@@ -141,6 +146,13 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const formatTimerLeft = (seconds) => {
+    if (seconds === null || isNaN(seconds)) return '';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   // Get track thumbnail
@@ -317,64 +329,114 @@ const decodeHtml = (text) => {
           <ListMusic size={18} />
         </button>
 
-        <div className="desktop-eq-wrapper">
+        {/* Audio Quality Selector */}
+        <div className="desktop-quality-wrapper">
           <button 
-            className={`extra-btn eq-toggle-btn ${isEqMenuVisible ? 'active' : ''}`}
-            onClick={() => setIsEqMenuVisible(!isEqMenuVisible)}
+            className={`extra-btn quality-toggle-btn ${isQualityMenuVisible ? 'active' : ''}`}
+            onClick={() => {
+              setIsQualityMenuVisible(!isQualityMenuVisible);
+              setIsTimerMenuVisible(false);
+            }}
             disabled={!currentTrack}
-            title="Audio Quality & Equalizer"
+            title={`Streaming Quality: ${audioQuality === '320kbps' ? 'Hi-Fi Lossless' : audioQuality === '160kbps' ? 'High Quality' : 'Data Saver'}`}
           >
             <Sliders size={16} />
           </button>
           
-          {isEqMenuVisible && (
-            <div className="desktop-eq-container glass-panel">
-              <div className="desktop-eq-header">
-                <span className="desktop-eq-title">Audio Profile / Voice EQ</span>
-                <span className="desktop-eq-subtitle">High-Fidelity 320kbps</span>
+          {isQualityMenuVisible && (
+            <div className="desktop-quality-container glass-panel">
+              <div className="desktop-quality-header">
+                <span className="desktop-quality-title">Streaming Quality</span>
+                <span className="desktop-quality-subtitle">Seamless live switching</span>
               </div>
-              <div className="desktop-eq-options">
+              <div className="desktop-quality-options">
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'flat' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('flat'); setIsEqMenuVisible(false); }}
+                  className={`desktop-quality-option ${audioQuality === '320kbps' ? 'active' : ''}`}
+                  onClick={() => { setAudioQuality('320kbps'); setIsQualityMenuVisible(false); }}
                 >
-                  <span className="option-name">Normal (Flat)</span>
-                  <span className="option-desc">Pure studio response</span>
+                  <span className="option-name">Hi-Fi Lossless (320 kbps)</span>
+                  <span className="option-desc">Audiophile-grade studio sound</span>
                 </button>
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'vocal-boost' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('vocal-boost'); setIsEqMenuVisible(false); }}
+                  className={`desktop-quality-option ${audioQuality === '160kbps' ? 'active' : ''}`}
+                  onClick={() => { setAudioQuality('160kbps'); setIsQualityMenuVisible(false); }}
                 >
-                  <span className="option-name">Clear Voice (Vocals)</span>
-                  <span className="option-desc">Enhanced vocals & dialogue</span>
+                  <span className="option-name">High Quality (160 kbps)</span>
+                  <span className="option-desc">Excellent balance of detail & data</span>
                 </button>
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'bass-boost' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('bass-boost'); setIsEqMenuVisible(false); }}
+                  className={`desktop-quality-option ${audioQuality === '96kbps' ? 'active' : ''}`}
+                  onClick={() => { setAudioQuality('96kbps'); setIsQualityMenuVisible(false); }}
                 >
-                  <span className="option-name">Bass Boost</span>
-                  <span className="option-desc">Deep sub-bass power</span>
+                  <span className="option-name">Data Saver (96 kbps)</span>
+                  <span className="option-desc">Optimized for low bandwidth</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sleep Timer */}
+        <div className="desktop-timer-wrapper">
+          <button 
+            className={`extra-btn timer-toggle-btn ${sleepTimer !== null ? 'active' : ''} ${isTimerMenuVisible ? 'active' : ''}`}
+            onClick={() => {
+              setIsTimerMenuVisible(!isTimerMenuVisible);
+              setIsQualityMenuVisible(false);
+            }}
+            title={sleepTimer ? `Sleep Timer active: ${formatTimerLeft(sleepTimeLeft)}` : "Set Sleep Timer"}
+            style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: sleepTimer ? 'auto' : '32px', padding: sleepTimer ? '0 10px' : '0', borderRadius: '16px', gap: '4px' }}
+          >
+            <Clock size={16} />
+            {sleepTimer !== null && (
+              <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.02em' }}>
+                {formatTimerLeft(sleepTimeLeft)}
+              </span>
+            )}
+          </button>
+          
+          {isTimerMenuVisible && (
+            <div className="desktop-timer-container glass-panel">
+              <div className="desktop-timer-header">
+                <span className="desktop-timer-title">Sleep Timer</span>
+                <span className="desktop-timer-subtitle">Fades out music and pauses</span>
+              </div>
+              <div className="desktop-timer-options">
+                <button 
+                  className={`desktop-timer-option ${sleepTimer === null ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(null); setIsTimerMenuVisible(false); }}
+                >
+                  <span className="option-name">Timer Off</span>
                 </button>
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'treble-boost' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('treble-boost'); setIsEqMenuVisible(false); }}
+                  className={`desktop-timer-option ${sleepTimer === 5 ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(5); setIsTimerMenuVisible(false); }}
                 >
-                  <span className="option-name">Treble Clarity</span>
-                  <span className="option-desc">Crisp highs & presence</span>
+                  <span className="option-name">5 Minutes</span>
                 </button>
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'hifi' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('hifi'); setIsEqMenuVisible(false); }}
+                  className={`desktop-timer-option ${sleepTimer === 15 ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(15); setIsTimerMenuVisible(false); }}
                 >
-                  <span className="option-name">Studio Hi-Fi</span>
-                  <span className="option-desc">Dynamic full-range boost</span>
+                  <span className="option-name">15 Minutes</span>
                 </button>
                 <button 
-                  className={`desktop-eq-option ${eqPreset === 'spatial' ? 'active' : ''}`}
-                  onClick={() => { setEqPreset('spatial'); setIsEqMenuVisible(false); }}
+                  className={`desktop-timer-option ${sleepTimer === 30 ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(30); setIsTimerMenuVisible(false); }}
                 >
-                  <span className="option-name">3D Spatial (Surround)</span>
-                  <span className="option-desc">Immersive wide soundstage</span>
+                  <span className="option-name">30 Minutes</span>
+                </button>
+                <button 
+                  className={`desktop-timer-option ${sleepTimer === 45 ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(45); setIsTimerMenuVisible(false); }}
+                >
+                  <span className="option-name">45 Minutes</span>
+                </button>
+                <button 
+                  className={`desktop-timer-option ${sleepTimer === 60 ? 'active' : ''}`}
+                  onClick={() => { setSleepTimer(60); setIsTimerMenuVisible(false); }}
+                >
+                  <span className="option-name">60 Minutes</span>
                 </button>
               </div>
             </div>
@@ -535,44 +597,72 @@ const decodeHtml = (text) => {
           </div>
 
           {/* HD Equalizer Presets */}
-          <div className="pf-eq-container">
-            <span className="pf-eq-title">Audio Profile / Voice EQ</span>
-            <div className="pf-eq-pills">
+          {/* Audio Quality Selection */}
+          <div className="pf-quality-container">
+            <span className="pf-quality-title">Stream Quality</span>
+            <div className="pf-quality-pills">
               <button 
-                className={`pf-eq-pill ${eqPreset === 'flat' ? 'active' : ''}`}
-                onClick={() => setEqPreset('flat')}
+                className={`pf-quality-pill ${audioQuality === '320kbps' ? 'active' : ''}`}
+                onClick={() => setAudioQuality('320kbps')}
               >
-                Normal (Flat)
+                Lossless (320k)
               </button>
               <button 
-                className={`pf-eq-pill ${eqPreset === 'vocal-boost' ? 'active' : ''}`}
-                onClick={() => setEqPreset('vocal-boost')}
+                className={`pf-quality-pill ${audioQuality === '160kbps' ? 'active' : ''}`}
+                onClick={() => setAudioQuality('160kbps')}
               >
-                Clear Voice (Vocals)
+                High (160k)
               </button>
               <button 
-                className={`pf-eq-pill ${eqPreset === 'bass-boost' ? 'active' : ''}`}
-                onClick={() => setEqPreset('bass-boost')}
+                className={`pf-quality-pill ${audioQuality === '96kbps' ? 'active' : ''}`}
+                onClick={() => setAudioQuality('96kbps')}
               >
-                Bass Boost
+                Saver (96k)
+              </button>
+            </div>
+          </div>
+
+          {/* Sleep Timer Selection */}
+          <div className="pf-timer-container">
+            <span className="pf-timer-title">
+              Sleep Timer {sleepTimeLeft !== null && `(${formatTimerLeft(sleepTimeLeft)})`}
+            </span>
+            <div className="pf-timer-pills">
+              <button 
+                className={`pf-timer-pill ${sleepTimer === null ? 'active' : ''}`}
+                onClick={() => setSleepTimer(null)}
+              >
+                Off
               </button>
               <button 
-                className={`pf-eq-pill ${eqPreset === 'treble-boost' ? 'active' : ''}`}
-                onClick={() => setEqPreset('treble-boost')}
+                className={`pf-timer-pill ${sleepTimer === 5 ? 'active' : ''}`}
+                onClick={() => setSleepTimer(5)}
               >
-                Treble Clarity
+                5m
               </button>
               <button 
-                className={`pf-eq-pill ${eqPreset === 'hifi' ? 'active' : ''}`}
-                onClick={() => setEqPreset('hifi')}
+                className={`pf-timer-pill ${sleepTimer === 15 ? 'active' : ''}`}
+                onClick={() => setSleepTimer(15)}
               >
-                Studio Hi-Fi
+                15m
               </button>
               <button 
-                className={`pf-eq-pill ${eqPreset === 'spatial' ? 'active' : ''}`}
-                onClick={() => setEqPreset('spatial')}
+                className={`pf-timer-pill ${sleepTimer === 30 ? 'active' : ''}`}
+                onClick={() => setSleepTimer(30)}
               >
-                3D Spatial
+                30m
+              </button>
+              <button 
+                className={`pf-timer-pill ${sleepTimer === 45 ? 'active' : ''}`}
+                onClick={() => setSleepTimer(45)}
+              >
+                45m
+              </button>
+              <button 
+                className={`pf-timer-pill ${sleepTimer === 60 ? 'active' : ''}`}
+                onClick={() => setSleepTimer(60)}
+              >
+                60m
               </button>
             </div>
           </div>
@@ -886,15 +976,15 @@ const decodeHtml = (text) => {
           flex: 1;
         }
 
-        /* Desktop Equalizer Popover */
-        .desktop-eq-wrapper {
+        /* Desktop Quality & Timer Popovers */
+        .desktop-quality-wrapper, .desktop-timer-wrapper {
           position: relative;
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .desktop-eq-container {
+        .desktop-quality-container, .desktop-timer-container {
           position: absolute;
           bottom: 48px;
           right: -60px;
@@ -910,10 +1000,10 @@ const decodeHtml = (text) => {
           z-index: 1000;
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          animation: eq-fade-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+          animation: popover-fade-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        @keyframes eq-fade-in {
+        @keyframes popover-fade-in {
           from {
             opacity: 0;
             transform: translateY(10px) scale(0.95);
@@ -924,7 +1014,7 @@ const decodeHtml = (text) => {
           }
         }
 
-        .desktop-eq-header {
+        .desktop-quality-header, .desktop-timer-header {
           display: flex;
           flex-direction: column;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -932,7 +1022,7 @@ const decodeHtml = (text) => {
           margin-bottom: 4px;
         }
 
-        .desktop-eq-title {
+        .desktop-quality-title, .desktop-timer-title {
           font-size: 11px;
           font-weight: 700;
           text-transform: uppercase;
@@ -941,19 +1031,19 @@ const decodeHtml = (text) => {
           text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
         }
 
-        .desktop-eq-subtitle {
+        .desktop-quality-subtitle, .desktop-timer-subtitle {
           font-size: 9px;
           color: var(--text-dimmed);
           margin-top: 2px;
         }
 
-        .desktop-eq-options {
+        .desktop-quality-options, .desktop-timer-options {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
 
-        .desktop-eq-option {
+        .desktop-quality-option, .desktop-timer-option {
           display: flex;
           flex-direction: column;
           align-items: flex-start;
@@ -968,24 +1058,24 @@ const decodeHtml = (text) => {
           text-align: left;
         }
 
-        .desktop-eq-option:hover {
+        .desktop-quality-option:hover, .desktop-timer-option:hover {
           background: rgba(255, 255, 255, 0.04);
           color: var(--text-main);
           border-color: rgba(255, 255, 255, 0.08);
         }
 
-        .desktop-eq-option.active {
+        .desktop-quality-option.active, .desktop-timer-option.active {
           background: rgba(0, 229, 255, 0.08);
           border-color: rgba(0, 229, 255, 0.3);
           color: var(--primary);
         }
 
-        .desktop-eq-option .option-name {
+        .desktop-quality-option .option-name, .desktop-timer-option .option-name {
           font-size: 12px;
           font-weight: 600;
         }
 
-        .desktop-eq-option .option-desc {
+        .desktop-quality-option .option-desc, .desktop-timer-option .option-desc {
           font-size: 9px;
           color: var(--text-dimmed);
           margin-top: 2px;
@@ -1463,8 +1553,8 @@ const decodeHtml = (text) => {
             height: 50px !important;
           }
 
-          /* Fullscreen Equalizer UI styles */
-          .pf-eq-container {
+          /* Fullscreen Quality & Timer UI styles */
+          .pf-quality-container, .pf-timer-container {
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -1475,7 +1565,7 @@ const decodeHtml = (text) => {
             position: relative;
           }
 
-          .pf-eq-title {
+          .pf-quality-title, .pf-timer-title {
             font-size: 11px;
             color: var(--text-dimmed);
             text-transform: uppercase;
@@ -1483,7 +1573,7 @@ const decodeHtml = (text) => {
             font-weight: 750;
           }
 
-          .pf-eq-pills {
+          .pf-quality-pills, .pf-timer-pills {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1493,11 +1583,11 @@ const decodeHtml = (text) => {
             scrollbar-width: none;
           }
 
-          .pf-eq-pills::-webkit-scrollbar {
+          .pf-quality-pills::-webkit-scrollbar, .pf-timer-pills::-webkit-scrollbar {
             display: none;
           }
 
-          .pf-eq-pill {
+          .pf-quality-pill, .pf-timer-pill {
             padding: 6px 14px;
             font-size: 11px;
             font-weight: 600;
@@ -1510,7 +1600,7 @@ const decodeHtml = (text) => {
             white-space: nowrap;
           }
 
-          .pf-eq-pill.active {
+          .pf-quality-pill.active, .pf-timer-pill.active {
             background: rgba(0, 229, 255, 0.12);
             border-color: var(--primary);
             color: var(--primary);

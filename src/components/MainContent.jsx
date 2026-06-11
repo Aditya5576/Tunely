@@ -875,24 +875,19 @@ export default function MainContent({
                   <div className="tracklist-body">
                     {detailData.songs && detailData.songs.length > 0 ? (
                       detailData.songs.map((track, idx) => (
-                        <div key={track.id} className="custom-track-row-wrapper">
-                          <SongRow 
-                            track={track} 
-                            index={idx}
-                            customPlaylists={customPlaylists}
-                            setCustomPlaylists={setCustomPlaylists}
-                            playlistTracks={detailData.songs}
-                          />
-                          {/* Remove button specifically for Custom Playlists */}
-                          <button 
-                            className="remove-song-custom-btn"
-                            title="Remove from playlist"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (detailData.id === 'liked') {
-                                toggleLikeTrack(track);
-                              } else {
-                                const updated = customPlaylists.map(pl => {
+                        <SongRow 
+                          key={track.id} 
+                          track={track} 
+                          index={idx}
+                          customPlaylists={customPlaylists}
+                          setCustomPlaylists={setCustomPlaylists}
+                          playlistTracks={detailData.songs}
+                          showRemove={true}
+                          onRemove={() => {
+                            if (detailData.id === 'liked') {
+                              toggleLikeTrack(track);
+                            } else {
+                              const updated = customPlaylists.map(pl => {
                                   if (pl.id === detailData.id) {
                                     return {
                                       ...pl,
@@ -900,15 +895,12 @@ export default function MainContent({
                                     };
                                   }
                                   return pl;
-                                });
-                                setCustomPlaylists(updated);
-                                localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-                              }
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
+                              });
+                              setCustomPlaylists(updated);
+                              localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                            }
+                          }}
+                        />
                       ))
                     ) : (
                       <div className="empty-tracklist-placeholder">
@@ -1806,34 +1798,6 @@ export default function MainContent({
           flex: 1;
         }
 
-        .remove-song-custom-btn {
-          position: absolute;
-          right: 120px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 24px;
-          height: 24px;
-          color: var(--text-dimmed);
-          font-size: 18px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          opacity: 0;
-        }
-
-        @media (hover: hover) {
-          .custom-track-row-wrapper:hover .remove-song-custom-btn {
-            opacity: 1;
-          }
-
-          .remove-song-custom-btn:hover {
-            color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
-          }
-        }
-
         .empty-tracklist-placeholder {
           display: flex;
           flex-direction: column;
@@ -2020,9 +1984,7 @@ export default function MainContent({
             transform: translateY(0);
           }
 
-          .remove-song-custom-btn {
-            opacity: 1;
-          }
+
 
           .content-scroll {
             padding: 16px 16px 160px;
