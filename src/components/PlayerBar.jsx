@@ -369,6 +369,13 @@ const decodeHtml = (text) => {
                   <span className="option-name">Studio Hi-Fi</span>
                   <span className="option-desc">Dynamic full-range boost</span>
                 </button>
+                <button 
+                  className={`desktop-eq-option ${eqPreset === 'spatial' ? 'active' : ''}`}
+                  onClick={() => { setEqPreset('spatial'); setIsEqMenuVisible(false); }}
+                >
+                  <span className="option-name">3D Spatial (Surround)</span>
+                  <span className="option-desc">Immersive wide soundstage</span>
+                </button>
               </div>
             </div>
           )}
@@ -560,6 +567,12 @@ const decodeHtml = (text) => {
                 onClick={() => setEqPreset('hifi')}
               >
                 Studio Hi-Fi
+              </button>
+              <button 
+                className={`pf-eq-pill ${eqPreset === 'spatial' ? 'active' : ''}`}
+                onClick={() => setEqPreset('spatial')}
+              >
+                3D Spatial
               </button>
             </div>
           </div>
