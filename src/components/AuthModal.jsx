@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const AuthModal = ({ onClose, required = false }) => {
-  const { login, register } = useAuth();
+  const { login, register, loginAsGuest } = useAuth();
   const [tab, setTab] = useState('login'); // 'login' | 'register'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -116,6 +116,11 @@ export const AuthModal = ({ onClose, required = false }) => {
             {loading ? <span className="auth-spinner" /> : (tab === 'login' ? 'Sign In' : 'Create Account')}
           </button>
         </form>
+
+        <div className="auth-separator"><span>or</span></div>
+        <button type="button" className="auth-guest-btn" onClick={() => { loginAsGuest(); onClose(); }}>
+          Continue as Guest
+        </button>
 
         {/* Footer note */}
         <p className="auth-footer-note">
@@ -388,6 +393,52 @@ export const AuthModal = ({ onClose, required = false }) => {
         font-weight: 600;
         padding: 0;
         text-decoration: underline;
+      }
+
+      .auth-separator {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 16px 0;
+        color: var(--text-dimmed);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .auth-separator::before,
+      .auth-separator::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .auth-separator::before {
+        margin-right: .5em;
+      }
+      .auth-separator::after {
+        margin-left: .5em;
+      }
+
+      .auth-guest-btn {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 12px;
+        color: var(--text-main);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      .auth-guest-btn:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        transform: translateY(-1px);
       }
 
       @media (max-width: 480px) {

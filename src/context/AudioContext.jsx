@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -16,7 +17,7 @@ const LYRICS_FALLBACK = {
 };
 
 export const AudioProvider = ({ children }) => {
-  const { isLoggedIn, isLoading, authFetch } = useAuth() || {};
+  const { user, isLoggedIn, isLoading, authFetch } = useAuth() || {};
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -40,8 +41,29 @@ export const AudioProvider = ({ children }) => {
   const sourceNodeRef = useRef(null);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
-    return localStorage.getItem('tunely_audio_quality') || '320kbps';
+    return localStorage.getItem('tunely_audio_quality') || '160kbps';
   });
+
+  const [recentlyPlayed, setRecentlyPlayed] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tunely_recently_played') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // Effect to record recently played tracks automatically when current track changes
+  useEffect(() => {
+    if (currentTrack) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      setRecentlyPlayed(prev => {
+        const filtered = prev.filter(t => t.id !== currentTrack.id);
+        const updated = [currentTrack, ...filtered].slice(0, 12);
+        localStorage.setItem('tunely_recently_played', JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [currentTrack]);
 
   // Sleep Timer States & Refs
   const [sleepTimer, setSleepTimer] = useState(null); // value in minutes
@@ -94,6 +116,7 @@ export const AudioProvider = ({ children }) => {
     }
 
     // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
+    if (user?.isGuest) return;
     if (!authFetch) return;
 
     const syncLikedSongs = async () => {
@@ -120,7 +143,7 @@ export const AudioProvider = ({ children }) => {
     };
 
     syncLikedSongs();
-  }, [isLoggedIn, isLoading, authFetch]);
+  }, [isLoggedIn, isLoading, authFetch, user]);
 
   // Live Sync / Periodic Polling for Liked Songs
   useEffect(() => {
@@ -185,6 +208,12 @@ export const AudioProvider = ({ children }) => {
     if (!track) return;
     
     const isAlreadyLiked = likedSongs.includes(track.id);
+    
+    if (!isAlreadyLiked && user?.isGuest && likedSongs.length >= 10) {
+      alert("Guest Mode Limitation: Liked Songs are limited to 10 tracks in Guest Mode. Please register or sign in to like unlimited songs.");
+      return;
+    }
+
     let updatedIds;
     let updatedMeta;
 
@@ -203,8 +232,8 @@ export const AudioProvider = ({ children }) => {
     localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(updatedMeta));
     localStorage.setItem('tunely_liked_songs_updated_at', now);
 
-    // Sync to cloud if logged in
-    if (isLoggedIn && authFetch) {
+    // Sync to cloud if logged in (and not guest)
+    if (isLoggedIn && authFetch && !user?.isGuest) {
       try {
         if (isAlreadyLiked) {
           await authFetch(`${API_BASE}/api/user/liked/${track.id}`, { method: 'DELETE' });
@@ -288,16 +317,20 @@ export const AudioProvider = ({ children }) => {
   };
 
   const getStreamUrlByQuality = (track, quality) => {
+    let activeQuality = quality;
+    if (user?.isGuest && activeQuality === '320kbps') {
+      activeQuality = '160kbps';
+    }
     if (!track || !track.downloadUrl || track.downloadUrl.length === 0) return null;
-    const target = track.downloadUrl.find(item => item.quality === quality);
+    const target = track.downloadUrl.find(item => item.quality === activeQuality);
     if (target) return target.url;
 
     // Fallbacks if target quality is not available
-    if (quality === '320kbps') {
+    if (activeQuality === '320kbps') {
       const backup160 = track.downloadUrl.find(item => item.quality === '160kbps');
       if (backup160) return backup160.url;
     }
-    if (quality === '160kbps' || quality === '320kbps') {
+    if (activeQuality === '160kbps' || activeQuality === '320kbps') {
       const backup96 = track.downloadUrl.find(item => item.quality === '96kbps');
       if (backup96) return backup96.url;
     }
@@ -305,6 +338,10 @@ export const AudioProvider = ({ children }) => {
   };
 
   const setAudioQuality = (quality) => {
+    if (quality === '320kbps' && user?.isGuest) {
+      alert("Guest Mode Limitation: Lossless 320kbps streaming is only available for registered users. Please sign in or register to enable high-fidelity audio.");
+      return;
+    }
     setAudioQualityState(quality);
     localStorage.setItem('tunely_audio_quality', quality);
     
@@ -895,7 +932,8 @@ export const AudioProvider = ({ children }) => {
       sleepTimeLeft,
       likedSongs,
       likedSongsMetadata,
-      toggleLikeTrack
+      toggleLikeTrack,
+      recentlyPlayed
     }}>
       {children}
     </AudioContext.Provider>

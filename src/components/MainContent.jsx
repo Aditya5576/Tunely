@@ -23,11 +23,214 @@ const searchCache = new Map();
 const homeCache = { data: null, ts: 0 };
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+const MOCK_PODCAST_SHOWS = [
+  {
+    id: 'podcast_joe_rogan',
+    name: 'The Joe Rogan Experience',
+    publisher: 'Joe Rogan',
+    type: 'podcast-show',
+    image: [
+      { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=150&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=300&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=600&auto=format&fit=crop' }
+    ],
+    description: 'The official podcast of comedian Joe Rogan. Deep-dive, unfiltered conversations featuring scientists, writers, artists, and experts from all walks of life.',
+    episodes: [
+      {
+        id: 'pod_ep_rogan_1',
+        name: '#2155 - Elon Musk (AI, Mars & Tesla Future)',
+        artists: { primary: [{ name: 'Joe Rogan' }], all: [{ name: 'Joe Rogan' }, { name: 'Elon Musk' }] },
+        duration: 10800,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=300&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=600&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://traffic.libsyn.com/secure/intellectualinvestor/Quality_Check_Sample.mp3' },
+          { quality: '160kbps', url: 'https://traffic.libsyn.com/secure/intellectualinvestor/Quality_Check_Sample.mp3' },
+          { quality: '320kbps', url: 'https://traffic.libsyn.com/secure/intellectualinvestor/Quality_Check_Sample.mp3' }
+        ],
+        album: { name: 'The Joe Rogan Experience' },
+        releaseDate: 'June 10, 2026',
+        description: 'Elon Musk returns to the podcast to discuss artificial intelligence, humanoid Tesla robots, the timeline for colonizing Mars, and updates on SpaceX Starship.'
+      },
+      {
+        id: 'pod_ep_rogan_2',
+        name: '#2148 - Duncan Trussell (Cosmic Simulation)',
+        artists: { primary: [{ name: 'Joe Rogan' }], all: [{ name: 'Joe Rogan' }, { name: 'Duncan Trussell' }] },
+        duration: 7200,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=300&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=600&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' }
+        ],
+        album: { name: 'The Joe Rogan Experience' },
+        releaseDate: 'May 28, 2026',
+        description: 'Duncan Trussell joins Joe to explore meditation, simulation theory, the convergence of technology and spirituality, and the future of creative arts.'
+      }
+    ]
+  },
+  {
+    id: 'podcast_ted',
+    name: 'TED Talks Daily',
+    publisher: 'TED',
+    type: 'podcast-show',
+    image: [
+      { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=150&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=300&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=600&auto=format&fit=crop' }
+    ],
+    description: 'Every weekday, TED Talks Daily brings you the latest talks in audio format from the world\'s leading thinkers, researchers, and creators.',
+    episodes: [
+      {
+        id: 'pod_ep_ted_1',
+        name: 'Why Sleep is Your Superpower',
+        artists: { primary: [{ name: 'TED' }], all: [{ name: 'TED' }, { name: 'Dr. Matt Walker' }] },
+        duration: 1140,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=300&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' }
+        ],
+        album: { name: 'TED Talks Daily' },
+        releaseDate: 'June 9, 2026',
+        description: 'Sleep scientist Dr. Matt Walker details the biological necessity of sleep, how it enhances cognitive ability, regulates immune response, and shields against chronic disease.'
+      },
+      {
+        id: 'pod_ep_ted_2',
+        name: 'Three Secrets to Building Real Confidence',
+        artists: { primary: [{ name: 'TED' }], all: [{ name: 'TED' }, { name: 'Brittany Packnett' }] },
+        duration: 840,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1526256262170-660b29feb4cd?q=80&w=300&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' }
+        ],
+        album: { name: 'TED Talks Daily' },
+        releaseDate: 'June 2, 2026',
+        description: 'Brittany Packnett shares her personal journey and outlines three core pillars to cultivate true confidence, turning your potential into power.'
+      }
+    ]
+  },
+  {
+    id: 'podcast_lex',
+    name: 'Lex Fridman Podcast',
+    publisher: 'Lex Fridman',
+    type: 'podcast-show',
+    image: [
+      { url: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?q=80&w=150&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?q=80&w=300&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?q=80&w=600&auto=format&fit=crop' }
+    ],
+    description: 'Conversations about science, technology, history, philosophy, and the nature of intelligence, consciousness, love, and power.',
+    episodes: [
+      {
+        id: 'pod_ep_lex_1',
+        name: '#410 - Sam Altman: OpenAI, GPT-5 and AGI',
+        artists: { primary: [{ name: 'Lex Fridman' }], all: [{ name: 'Lex Fridman' }, { name: 'Sam Altman' }] },
+        duration: 8100,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?q=80&w=300&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' }
+        ],
+        album: { name: 'Lex Fridman Podcast' },
+        releaseDate: 'June 5, 2026',
+        description: 'Sam Altman, CEO of OpenAI, discusses the development trajectory of GPT-5, the safety parameters required for AGI, and internal board transitions.'
+      }
+    ]
+  },
+  {
+    id: 'podcast_huberman',
+    name: 'Huberman Lab',
+    publisher: 'Dr. Andrew Huberman',
+    type: 'podcast-show',
+    image: [
+      { url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=150&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=300&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=600&auto=format&fit=crop' }
+    ],
+    description: 'Dr. Andrew Huberman discusses science and science-based tools for everyday life, focusing on brain health, neurobiology, and cognitive function.',
+    episodes: [
+      {
+        id: 'pod_ep_huber_1',
+        name: 'Master Your Sleep & Wake Up Energized',
+        artists: { primary: [{ name: 'Andrew Huberman' }], all: [{ name: 'Andrew Huberman' }] },
+        duration: 7600,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=300&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3' }
+        ],
+        album: { name: 'Huberman Lab' },
+        releaseDate: 'May 20, 2026',
+        description: 'Dr. Huberman explains the neurological mechanics of circadian rhythm, light viewing schedules, and natural supplements to optimize deep sleep.'
+      }
+    ]
+  },
+  {
+    id: 'podcast_sywk',
+    name: 'Stuff You Should Know',
+    publisher: 'iHeartPodcasts',
+    type: 'podcast-show',
+    image: [
+      { url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=150&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=300&auto=format&fit=crop' },
+      { url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=600&auto=format&fit=crop' }
+    ],
+    description: 'Join Josh and Chuck as they explore the fascinating mechanics behind everyday things, history, and scientific wonders.',
+    episodes: [
+      {
+        id: 'pod_ep_sywk_1',
+        name: 'How Gravity Works (And Why We Still Don\'t Know)',
+        artists: { primary: [{ name: 'Stuff You Should Know' }], all: [{ name: 'Josh Clark' }, { name: 'Chuck Bryant' }] },
+        duration: 2700,
+        image: [
+          { url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=150&auto=format&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=300&auto=format&fit=crop' }
+        ],
+        downloadUrl: [
+          { quality: '96kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3' },
+          { quality: '160kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3' },
+          { quality: '320kbps', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3' }
+        ],
+        album: { name: 'Stuff You Should Know' },
+        releaseDate: 'June 7, 2026',
+        description: 'Josh and Chuck dive deep into classical gravity, Einstein\'s space-time warping theory, and the current challenges of quantum gravity.'
+      }
+    ]
+  }
+];
+
+const ALL_MOCK_EPISODES = MOCK_PODCAST_SHOWS.flatMap(show => show.episodes);
+
 const PRE_CONFIGURED_PLAYLISTS = [
-  { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist', description: 'Relaxing beats for focus' },
-  { id: '83313988', name: 'Top Hindi Hits', type: 'playlist', description: 'Best of Bollywood' },
-  { id: '1108582', name: 'Global Top 50', type: 'playlist', description: 'Worldwide chart-toppers' },
-  { id: '69996470', name: 'AiSh, Vol. 4', type: 'album', description: 'Featured album' }
+  { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
+  { id: '83313988', name: 'Top Hindi Hits', type: 'playlist' },
+  { id: '1108582', name: 'Global Top 50', type: 'playlist' },
+  { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
 export default function MainContent({ 
@@ -38,7 +241,7 @@ export default function MainContent({
   setIsAccountOpen,
   createNewPlaylist
 }) {
-  const { playTrack, likedSongsMetadata, toggleLikeTrack } = useAudio();
+  const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed } = useAudio();
   const { user } = useAuth() || {};
   
   // Search states
@@ -52,8 +255,12 @@ export default function MainContent({
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeFeatured, setHomeFeatured] = useState([]);
   const [homeFeaturedLoading, setHomeFeaturedLoading] = useState(true);
-  const [podcasts, setPodcasts] = useState([]);
-  const [podcastsLoading, setPodcastsLoading] = useState(false);
+  const [homeNewReleases, setHomeNewReleases] = useState([]);
+  const [homeNewReleasesLoading, setHomeNewReleasesLoading] = useState(true);
+  const [homeChill, setHomeChill] = useState([]);
+  const [homeChillLoading, setHomeChillLoading] = useState(true);
+  const [homeWorkout, setHomeWorkout] = useState([]);
+  const [homeWorkoutLoading, setHomeWorkoutLoading] = useState(true);
   const [homeFilter, setHomeFilter] = useState('all'); // 'all' | 'music' | 'podcasts'
 
   // Playlist/Album detail states
@@ -71,19 +278,15 @@ export default function MainContent({
     error: null
   });
 
-  // Fetch trending songs for Home view on mount
+  // Fetch all Home view sections concurrently on mount
   useEffect(() => {
     fetchHomeTrending();
     fetchHomeFeatured();
+    fetchHomeNewReleases();
+    fetchHomeChill();
+    fetchHomeWorkout();
   }, []);
 
-  // Fetch podcasts when filter changes to podcasts
-  useEffect(() => {
-    if (homeFilter === 'podcasts') {
-      fetchPodcasts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeFilter]);
 
   // Focus search input when view changes to search
   useEffect(() => {
@@ -157,19 +360,48 @@ export default function MainContent({
     }
   };
 
-  const fetchPodcasts = async () => {
-    if (podcasts.length > 0) return;
-    setPodcastsLoading(true);
+  const fetchHomeNewReleases = async () => {
+    setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Podcast%20Story&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Latest%20Hits%202026&limit=6`);
       if (res.ok) {
         const obj = await res.json();
-        setPodcasts(obj.data.results || []);
+        setHomeNewReleases(obj.data.results || []);
       }
     } catch (e) {
-      console.error("Error loading podcasts:", e);
+      console.error("Error loading new releases:", e);
     } finally {
-      setPodcastsLoading(false);
+      setHomeNewReleasesLoading(false);
+    }
+  };
+
+  const fetchHomeChill = async () => {
+    setHomeChillLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Chill%20Acoustic&limit=6`);
+      if (res.ok) {
+        const obj = await res.json();
+        setHomeChill(obj.data.results || []);
+      }
+    } catch (e) {
+      console.error("Error loading chill tracks:", e);
+    } finally {
+      setHomeChillLoading(false);
+    }
+  };
+
+  const fetchHomeWorkout = async () => {
+    setHomeWorkoutLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Workout%20Cardio&limit=6`);
+      if (res.ok) {
+        const obj = await res.json();
+        setHomeWorkout(obj.data.results || []);
+      }
+    } catch (e) {
+      console.error("Error loading workout tracks:", e);
+    } finally {
+      setHomeWorkoutLoading(false);
     }
   };
 
@@ -177,6 +409,12 @@ export default function MainContent({
     setDetailLoading(true);
     setDetailData(null);
     try {
+      if (currentView === 'podcast-show') {
+        const show = MOCK_PODCAST_SHOWS.find(s => s.id === selectedPlaylistId);
+        setDetailData(show || null);
+        setDetailLoading(false);
+        return;
+      }
       const typePath = currentView === 'album' ? 'albums' : 'playlists';
       const url = `${API_BASE}/api/${typePath}?id=${selectedPlaylistId}`;
       const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -270,6 +508,13 @@ export default function MainContent({
   };
 
   const handleStartImport = async () => {
+    if (user?.isGuest) {
+      alert("Guest Mode Limitation: Spotify Playlist Import is a premium feature. Please sign in or register to import playlists.");
+      setShowImportModal(false);
+      setSpotifyUrl('');
+      return;
+    }
+
     const playlistIdMatch = spotifyUrl.match(/playlist\/([a-zA-Z0-9]+)/);
     if (!playlistIdMatch) {
       setImportStatus(prev => ({ ...prev, error: 'Invalid Spotify playlist link format. Make sure it contains "playlist/ID".' }));
@@ -315,30 +560,39 @@ export default function MainContent({
       }));
 
       const matchedSongs = [];
+      const batchSize = 6;
       
-      for (let i = 0; i < trackList.length; i++) {
-        const item = trackList[i];
-        const title = item.title;
-        const artist = item.artist || '';
+      for (let i = 0; i < trackList.length; i += batchSize) {
+        const batch = trackList.slice(i, i + batchSize);
         
         setImportStatus(prev => ({
           ...prev,
-          text: `Matching "${title}" by ${artist}... (${i + 1}/${trackList.length})`,
+          text: `Matching tracks ${i + 1} to ${Math.min(i + batchSize, trackList.length)} of ${trackList.length}...`,
           progress: i
         }));
 
-        try {
-          const searchQuery = `${title} ${artist}`.trim();
-          const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=5`);
-          if (searchRes.ok) {
-            const searchObj = await searchRes.json();
-            const results = searchObj.data.results || [];
-            if (results.length > 0) {
-              matchedSongs.push(results[0]);
+        const promises = batch.map(async (item) => {
+          const title = item.title;
+          const artist = item.artist || '';
+          try {
+            const searchQuery = `${title} ${artist}`.trim();
+            const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=3`);
+            if (searchRes.ok) {
+              const searchObj = await searchRes.json();
+              const results = searchObj.data.results || [];
+              if (results.length > 0) {
+                return results[0];
+              }
             }
+          } catch (err) {
+            console.error(`Error matching track ${title}:`, err);
           }
-        } catch (err) {
-          console.error(`Error matching track ${title}:`, err);
+          return null;
+        });
+
+        const results = await Promise.all(promises);
+        for (const song of results) {
+          if (song) matchedSongs.push(song);
         }
       }
 
@@ -395,6 +649,44 @@ export default function MainContent({
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const getGreetingShortcuts = () => {
+    const hr = new Date().getHours();
+    if (hr < 12) {
+      return [
+        { name: 'Morning Acoustic', query: 'Morning Acoustic', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.25)', color: '#fbbf24' },
+        { name: 'Lo-Fi Chill', query: 'Lofi Chill', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.25)', color: '#a78bfa' },
+        { name: 'Devotional Hits', query: 'Bhajan Classics', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)', color: '#10b981' },
+        { name: 'Zen Meditation', query: 'Zen Sleep', bg: 'rgba(0, 229, 255, 0.12)', border: 'rgba(0, 229, 255, 0.25)', color: '#00e5ff' }
+      ];
+    } else if (hr < 17) {
+      return [
+        { name: 'Bollywood Hits', query: 'Bollywood Hits', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f43f5e' },
+        { name: 'Arijit Hits', query: 'Arijit Singh Hits', bg: 'rgba(0, 229, 255, 0.12)', border: 'rgba(0, 229, 255, 0.25)', color: '#00e5ff' },
+        { name: 'Deep Focus', query: 'Study Ambient', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.25)', color: '#a78bfa' },
+        { name: 'Instrumental', query: 'Instrumental Hits', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)', color: '#fb923c' }
+      ];
+    } else {
+      return [
+        { name: 'Party Anthems', query: 'Bolly Party', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f43f5e' },
+        { name: 'Late Night Jazz', query: 'Coffee Jazz', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.25)', color: '#a78bfa' },
+        { name: 'Rock Classics', query: 'Classic Rock', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)', color: '#fb923c' },
+        { name: 'Romantic Bolly', query: 'Romantic Bollywood', bg: 'rgba(0, 229, 255, 0.12)', border: 'rgba(0, 229, 255, 0.25)', color: '#00e5ff' }
+      ];
+    }
+  };
+
+  const formatDuration = (seconds) => {
+    if (isNaN(seconds) || seconds === null) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    if (mins >= 60) {
+      const hrs = Math.floor(mins / 60);
+      const remainingMins = mins % 60;
+      return `${hrs} hr ${remainingMins} min`;
+    }
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   return (
@@ -455,7 +747,7 @@ export default function MainContent({
         
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
-          <div className="view-home">
+          <div className="view-home view-animate-in">
             {/* Mobile Greeting (hidden on desktop via CSS, styled beautiful on mobile) */}
             <div className="mobile-greeting-wrapper">
               <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
@@ -478,19 +770,35 @@ export default function MainContent({
               </div>
             </div>
 
-            {/* If homeFilter is All or Music, show Shortcuts and Featured for You */}
+            {/* If homeFilter is All or Music, show Recently Played, Shortcuts, and all Feeds */}
             {(homeFilter === 'all' || homeFilter === 'music') && (
               <>
+                {/* Recently Played Section */}
+                {recentlyPlayed && recentlyPlayed.length > 0 && (
+                  <div className="featured-section recently-played-section" style={{ marginBottom: '24px' }}>
+                    <h2>Recently Played</h2>
+                    <div className="featured-cards-scroll">
+                      {recentlyPlayed.map(track => (
+                        <div key={`recent-${track.id}`} className="featured-card glass-panel" onClick={() => playTrack(track, recentlyPlayed)}>
+                          <div className="featured-card-cover-container">
+                            <img src={track.image?.[2]?.url || track.image?.[1]?.url || track.image?.[0]?.url} alt={track.name} className="featured-card-cover" />
+                            <button className="featured-card-play-btn" title="Play">
+                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                            </button>
+                          </div>
+                          <span className="featured-card-title">{track.name}</span>
+                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick shortcuts */}
                 <div className="shortcuts-grid">
                   <h2>Quick Discoveries</h2>
                   <div className="shortcuts-container">
-                    {[
-                      { name: 'Lo-Fi Mix', query: 'Lofi Chill', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.25)', color: '#a78bfa' },
-                      { name: 'Arijit Hits', query: 'Arijit Singh Hits', bg: 'rgba(0, 229, 255, 0.12)', border: 'rgba(0, 229, 255, 0.25)', color: '#00e5ff' },
-                      { name: 'Top Pop', query: 'Pop Hits', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f43f5e' },
-                      { name: 'Retro Indian', query: 'Kishore Kumar Classics', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)', color: '#fb923c' }
-                    ].map((item, idx) => (
+                    {getGreetingShortcuts().map((item, idx) => (
                       <div 
                         key={idx} 
                         className="shortcut-card"
@@ -540,44 +848,115 @@ export default function MainContent({
                     </div>
                   )}
                 </div>
+
+                {/* Horizontal scrollable New Releases row */}
+                <div className="featured-section" style={{ marginTop: '24px' }}>
+                  <h2>New Releases & Fresh Drops</h2>
+                  {homeNewReleasesLoading ? (
+                    <div className="main-loading">
+                      <div className="bounce-loader">
+                        <div></div><div></div><div></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="featured-cards-scroll">
+                      {homeNewReleases.map(track => (
+                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeNewReleases)}>
+                          <div className="featured-card-cover-container">
+                            <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
+                            <button className="featured-card-play-btn" title="Play">
+                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                            </button>
+                          </div>
+                          <span className="featured-card-title">{track.name}</span>
+                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Horizontal scrollable Chill Vibes row */}
+                <div className="featured-section" style={{ marginTop: '24px' }}>
+                  <h2>Chillout Vibez</h2>
+                  {homeChillLoading ? (
+                    <div className="main-loading">
+                      <div className="bounce-loader">
+                        <div></div><div></div><div></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="featured-cards-scroll">
+                      {homeChill.map(track => (
+                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeChill)}>
+                          <div className="featured-card-cover-container">
+                            <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
+                            <button className="featured-card-play-btn" title="Play">
+                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                            </button>
+                          </div>
+                          <span className="featured-card-title">{track.name}</span>
+                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Horizontal scrollable Workout Boosters row */}
+                <div className="featured-section" style={{ marginTop: '24px' }}>
+                  <h2>Workout Boosters</h2>
+                  {homeWorkoutLoading ? (
+                    <div className="main-loading">
+                      <div className="bounce-loader">
+                        <div></div><div></div><div></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="featured-cards-scroll">
+                      {homeWorkout.map(track => (
+                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeWorkout)}>
+                          <div className="featured-card-cover-container">
+                            <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
+                            <button className="featured-card-play-btn" title="Play">
+                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                            </button>
+                          </div>
+                          <span className="featured-card-title">{track.name}</span>
+                          <span className="featured-card-artist">{track.artists?.primary?.[0]?.name || 'Artist'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
-            {/* Podcasts Section */}
+            {/* Podcasts Section (Mock database of real Shows) */}
             {homeFilter === 'podcasts' && (
               <div className="podcasts-section">
                 <h2>Trending Podcasts & Shows</h2>
-                {podcastsLoading ? (
-                  <div className="main-loading">
-                    <div className="bounce-loader">
-                      <div></div><div></div><div></div>
-                    </div>
-                  </div>
-                ) : podcasts.length > 0 ? (
-                  <div className="featured-cards-scroll">
-                    {podcasts.map(track => (
-                      <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, podcasts)}>
-                        <div className="featured-card-cover-container" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-                          <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
-                          <button className="featured-card-play-btn" title="Play">
-                            <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
-                          </button>
-                        </div>
-                        <span className="featured-card-title">{track.name}</span>
-                        <span className="featured-card-artist">Episode · Tunely Podcasts</span>
+                <div className="featured-cards-scroll">
+                  {MOCK_PODCAST_SHOWS.map(show => (
+                    <div key={show.id} className="featured-card glass-panel" onClick={() => window.location.hash = `#podcast-show-${show.id}`}>
+                      <div className="featured-card-cover-container" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                        <img src={show.image[2].url || show.image[1].url} alt={show.name} className="featured-card-cover" />
+                        <button className="featured-card-play-btn" title="View Show" onClick={(e) => { e.stopPropagation(); window.location.hash = `#podcast-show-${show.id}`; }}>
+                          <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-results">No podcasts available right now.</div>
-                )}
+                      <span className="featured-card-title">{show.name}</span>
+                      <span className="featured-card-artist">Podcast Show · {show.publisher}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Trending Section */}
+            {/* Trending / Episode Section */}
             <div className="trending-section" style={{ marginTop: '24px' }}>
-              <h2>{homeFilter === 'podcasts' ? 'Podcast Episodes' : 'Trending Today'}</h2>
-              {homeLoading || (homeFilter === 'podcasts' && podcastsLoading) ? (
+              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : 'Trending Today'}</h2>
+              {homeLoading ? (
                 <div className="main-loading">
                   <div className="bounce-loader">
                     <div></div><div></div><div></div>
@@ -585,14 +964,14 @@ export default function MainContent({
                 </div>
               ) : (
                 <div className="song-list-table">
-                  {(homeFilter === 'podcasts' ? podcasts : homeTrending).map((track, idx) => (
+                  {(homeFilter === 'podcasts' ? ALL_MOCK_EPISODES : homeTrending).map((track, idx) => (
                     <SongRow 
                       key={track.id} 
                       track={track} 
                       index={idx}
                       customPlaylists={customPlaylists}
                       setCustomPlaylists={setCustomPlaylists}
-                      playlistTracks={homeFilter === 'podcasts' ? podcasts : homeTrending}
+                      playlistTracks={homeFilter === 'podcasts' ? ALL_MOCK_EPISODES : homeTrending}
                     />
                   ))}
                 </div>
@@ -604,7 +983,7 @@ export default function MainContent({
 
         {/* VIEW 2: SEARCH */}
         {currentView === 'search' && (
-          <div className="view-search">
+          <div className="view-search view-animate-in">
             {/* Search Input bar */}
             <form onSubmit={handleSearchSubmit} className="search-bar-form">
               <div className="search-input-wrapper glass-panel">
@@ -752,7 +1131,7 @@ export default function MainContent({
 
         {/* VIEW 3 & 4: PLAYLIST / ALBUM DETAILS */}
         {(currentView === 'playlist' || currentView === 'album') && (
-          <div className="view-detail">
+          <div className="view-detail view-animate-in">
             {detailLoading ? (
               <div className="main-loading">
                 <div className="bounce-loader">
@@ -832,7 +1211,7 @@ export default function MainContent({
 
         {/* VIEW 5: CUSTOM PLAYLIST DETAIL */}
         {currentView === 'custom' && (
-          <div className="view-detail">
+          <div className="view-detail view-animate-in">
             {detailData ? (
               <>
                 {/* Detail Header Banner */}
@@ -921,9 +1300,90 @@ export default function MainContent({
           </div>
         )}
 
+        {/* VIEW: PODCAST SHOW DETAIL */}
+        {currentView === 'podcast-show' && (
+          <div className="view-detail view-animate-in">
+            {detailData ? (
+              <>
+                {/* Detail Header Banner */}
+                <div className="detail-header podcast-show-banner" style={{ background: 'linear-gradient(to bottom, rgba(139, 92, 246, 0.2), rgba(10, 10, 15, 0))' }}>
+                  <div className="detail-cover-container" style={{ width: '190px', height: '190px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 12px 30px rgba(0,0,0,0.5)' }}>
+                    <img src={detailData.image?.[2]?.url || detailData.image?.[1]?.url} alt={detailData.name} className="detail-cover-img" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div className="detail-header-meta">
+                    <span className="detail-type" style={{ background: 'var(--primary)', color: '#000', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', letterSpacing: '0.05em' }}>PODCAST SHOW</span>
+                    <h1 className="detail-title" style={{ fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: '800', margin: '8px 0', lineHeight: 1.1 }}>{detailData.name}</h1>
+                    <p className="detail-description" style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.4, margin: '4px 0 12px' }}>{detailData.description}</p>
+                    <div className="detail-stats" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      <span className="stat-highlight" style={{ fontWeight: '600', color: 'var(--text-main)' }}>{detailData.publisher}</span>
+                      <span>•</span>
+                      <span>{detailData.episodes?.length || 0} episodes</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Podcast Episodes list */}
+                <div className="detail-tracks-container" style={{ padding: '0 24px 24px' }}>
+                  <div className="podcast-episodes-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
+                    {detailData.episodes?.map((episode) => (
+                      <div 
+                        key={episode.id} 
+                        className="podcast-episode-card glass-panel" 
+                        style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          padding: '16px', 
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)'
+                        }}
+                        onClick={() => playTrack(episode, detailData.episodes)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <button 
+                            className="episode-play-icon-btn" 
+                            style={{ 
+                              width: '40px', 
+                              height: '40px', 
+                              borderRadius: '50%', 
+                              background: 'var(--primary)', 
+                              color: '#000', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              border: 'none',
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{episode.name}</h3>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>{episode.description}</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', paddingLeft: '56px', fontSize: '12px', color: 'var(--text-dimmed)' }}>
+                          <span>{episode.releaseDate}</span>
+                          <span>•</span>
+                          <span>{formatDuration(episode.duration)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="empty-results">Podcast show not found.</div>
+            )}
+          </div>
+        )}
+
         {/* VIEW 6: LIBRARY */}
         {currentView === 'library' && (
-          <div className="view-library">
+          <div className="view-library view-animate-in">
             {/* Filter pills */}
             <div className="library-filter-pills">
               <button className="lib-pill active">Playlists</button>

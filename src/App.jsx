@@ -116,6 +116,7 @@ function TunelyApp() {
   // Smart sync for custom playlists on login/load
   useEffect(() => {
     if (isLoading) return; // Wait for session restore
+    if (user?.isGuest) return; // Skip guest sync
     if (!isLoggedIn || !authFetch) return;
 
     const syncPlaylists = async () => {
@@ -149,11 +150,12 @@ function TunelyApp() {
     };
 
     syncPlaylists();
-  }, [isLoggedIn, isLoading, authFetch]);
+  }, [isLoggedIn, isLoading, authFetch, user]);
 
   // Live Sync / Periodic Polling for Playlists
   useEffect(() => {
     if (isLoading) return;
+    if (user?.isGuest) return; // Skip guest sync
     if (!isLoggedIn || !authFetch) return;
 
     let intervalId;
@@ -212,11 +214,12 @@ function TunelyApp() {
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isLoggedIn, isLoading, authFetch]);
+  }, [isLoggedIn, isLoading, authFetch, user]);
 
   // Incremental Sync for local changes (creates, updates, deletes)
   useEffect(() => {
     if (isLoading) return;
+    if (user?.isGuest) return; // Skip guest sync
     if (!isLoggedIn || !authFetch) return;
 
     // Wait until ref is initialized
@@ -274,7 +277,7 @@ function TunelyApp() {
     };
 
     syncChanges();
-  }, [customPlaylists, isLoggedIn, isLoading, authFetch]);
+  }, [customPlaylists, isLoggedIn, isLoading, authFetch, user]);
 
   // Hash-based routing event listener for Safari Back/Forward button support (stops 404s)
   useEffect(() => {
@@ -302,6 +305,10 @@ function TunelyApp() {
         const id = hash.replace('#custom-', '');
         setSelectedPlaylistId(id);
         setCurrentView('custom');
+      } else if (hash.startsWith('#podcast-show-')) {
+        const id = hash.replace('#podcast-show-', '');
+        setSelectedPlaylistId(id);
+        setCurrentView('podcast-show');
       } else {
         setCurrentView('home');
         setSelectedPlaylistId(null);

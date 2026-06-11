@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
@@ -116,10 +117,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /** Log in locally as a Guest with predefined limitations */
+  const loginAsGuest = () => {
+    const guestUser = {
+      id: 'guest_user',
+      name: 'Guest User',
+      email: 'guest@tunely.com',
+      isGuest: true
+    };
+    const guestToken = 'guest_token';
+    setToken(guestToken);
+    setUser(guestUser);
+    persistSession(guestToken, guestUser);
+    return { success: true };
+  };
+
   /** Logout — deletes server session and clears local state */
   const logout = async () => {
     try {
-      if (token) {
+      if (token && token !== 'guest_token') {
         await fetch(`${API_BASE}/api/auth/logout`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
@@ -131,6 +147,9 @@ export const AuthProvider = ({ children }) => {
 
   /** Helper: make an authenticated API request */
   const authFetch = useCallback(async (url, options = {}) => {
+    if (token === 'guest_token') {
+      return new Response(JSON.stringify({ success: false, message: 'Offline guest mode' }), { status: 403 });
+    }
     return fetch(url, {
       ...options,
       headers: {
@@ -152,6 +171,7 @@ export const AuthProvider = ({ children }) => {
       login,
       logout,
       register,
+      loginAsGuest,
       authFetch
     }}>
       {children}
