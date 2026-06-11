@@ -330,7 +330,7 @@ export default function MainContent({
     }
     setHomeLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Trending%20Songs&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Top%20Hindi%20Songs%202025&limit=10`);
       if (res.ok) {
         const obj = await res.json();
         const results = obj.data.results || [];
@@ -348,7 +348,7 @@ export default function MainContent({
   const fetchHomeFeatured = async () => {
     setHomeFeaturedLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Latest%20Hits&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Bollywood%20Hits%202025&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeFeatured(obj.data.results || []);
@@ -363,7 +363,7 @@ export default function MainContent({
   const fetchHomeNewReleases = async () => {
     setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=New%20Releases&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=New%20Bollywood%20Songs%202025&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeNewReleases(obj.data.results || []);
@@ -378,7 +378,7 @@ export default function MainContent({
   const fetchHomeChill = async () => {
     setHomeChillLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Chillout%20Hits&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Arijit%20Singh%20Latest%202025&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeChill(obj.data.results || []);
@@ -393,7 +393,7 @@ export default function MainContent({
   const fetchHomeWorkout = async () => {
     setHomeWorkoutLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Workout%20Hits&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Party%20Hits%20Bollywood%202025&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeWorkout(obj.data.results || []);
@@ -801,13 +801,14 @@ export default function MainContent({
             {/* Home Greeting Header (visible on both Desktop and Mobile, styled beautifully) */}
             <div className="home-greeting">
               <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'} 👋</h1>
+              <span className="home-live-badge">Live</span>
             </div>
 
             {/* Hero banner - visible on desktop, hidden on mobile */}
             <div className="hero-banner">
-              <div className="hero-tag">Trending</div>
-              <h1>Discover High Fidelity</h1>
-              <p>Stream over 80 million tracks smoothly. Immerse yourself in obsidian sound design, zero-lag rendering, and live lyrics.</p>
+              <div className="hero-tag">🎵 2025 Hits</div>
+              <h1>Your Sound. Your World.</h1>
+              <p>Stream the biggest 2025 Bollywood hits, trending tracks, and exclusive releases — all in stunning quality, zero ads.</p>
               <div className="hero-actions">
                 <button 
                   className="hero-play-btn" 
@@ -826,7 +827,9 @@ export default function MainContent({
                 {/* Recently Played Section */}
                 {recentlyPlayed && recentlyPlayed.length > 0 && (
                   <div className="featured-section recently-played-section" style={{ marginBottom: '24px' }}>
-                    <h2>Recently Played</h2>
+                    <div className="featured-section-header">
+                      <h2>🕐 Recently Played</h2>
+                    </div>
                     <div className="featured-cards-scroll">
                       {recentlyPlayed.map(track => (
                         <div key={`recent-${track.id}`} className="featured-card glass-panel" onClick={() => playTrack(track, recentlyPlayed)}>
@@ -846,7 +849,7 @@ export default function MainContent({
 
                 {/* Quick shortcuts */}
                 <div className="shortcuts-grid">
-                  <h2>Quick Discoveries</h2>
+                  <h2>⚡ Discover by Mood</h2>
                   <div className="shortcuts-container">
                     {getGreetingShortcuts().map((item, idx) => (
                       <div 
@@ -875,7 +878,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable Featured row */}
                 <div className="featured-section">
-                  <h2>Featured for You</h2>
+                  <div className="featured-section-header">
+                    <h2>🔥 Bollywood Hits 2025</h2>
+                  </div>
                   {homeFeaturedLoading ? (
                     <div className="main-loading">
                       <div className="bounce-loader">
@@ -902,7 +907,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable New Releases row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
-                  <h2>New Releases & Fresh Drops</h2>
+                  <div className="featured-section-header">
+                    <h2>✨ Fresh Drops 2025</h2>
+                  </div>
                   {homeNewReleasesLoading ? (
                     <div className="main-loading">
                       <div className="bounce-loader">
@@ -929,7 +936,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable Chill Vibes row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
-                  <h2>Chillout Vibez</h2>
+                  <div className="featured-section-header">
+                    <h2>🎤 Arijit Singh Hits</h2>
+                  </div>
                   {homeChillLoading ? (
                     <div className="main-loading">
                       <div className="bounce-loader">
@@ -956,7 +965,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable Workout Boosters row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
-                  <h2>Workout Boosters</h2>
+                  <div className="featured-section-header">
+                    <h2>🎉 Party Anthems</h2>
+                  </div>
                   {homeWorkoutLoading ? (
                     <div className="main-loading">
                       <div className="bounce-loader">
@@ -1006,7 +1017,7 @@ export default function MainContent({
 
             {/* Trending / Episode Section */}
             <div className="trending-section" style={{ marginTop: '24px' }}>
-              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : 'Trending Today'}</h2>
+              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : '📈 Trending Today 2025'}</h2>
               {homeLoading ? (
                 <div className="main-loading">
                   <div className="bounce-loader">
@@ -1753,36 +1764,80 @@ export default function MainContent({
 
         /* Home View Styles */
         .home-greeting {
-          margin-bottom: 24px;
+          margin-bottom: 28px;
           text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 14px;
         }
 
         .home-greeting h1 {
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 800;
           color: var(--text-main);
           letter-spacing: -0.03em;
-          background: linear-gradient(135deg, #fff 60%, var(--primary));
+          background: linear-gradient(135deg, #fff 40%, var(--primary));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
+          line-height: 1.2;
+        }
+
+        .home-live-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          background: rgba(0, 229, 255, 0.12);
+          border: 1px solid rgba(0, 229, 255, 0.3);
+          color: var(--primary);
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          flex-shrink: 0;
+        }
+
+        .home-live-badge::before {
+          content: '';
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--primary);
+          animation: live-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes live-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.8); }
         }
 
         .featured-section {
-          margin-bottom: 32px;
+          margin-bottom: 36px;
           text-align: left;
         }
 
+        .featured-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+        }
+
         .featured-section h2 {
-          font-size: 20px;
-          margin-bottom: 16px;
+          font-size: 19px;
+          font-weight: 700;
           color: var(--text-main);
+          font-family: var(--font-display);
+          letter-spacing: -0.02em;
         }
 
         .featured-cards-scroll {
           display: flex;
-          gap: 16px;
+          gap: 14px;
           overflow-x: auto;
           padding-bottom: 8px;
+          padding-top: 2px;
           scrollbar-width: none;
         }
 
@@ -1791,23 +1846,40 @@ export default function MainContent({
         }
 
         .featured-card {
-          flex: 0 0 160px;
-          min-width: 0; /* Prevents long text from pushing flexbox widths */
+          flex: 0 0 168px;
+          min-width: 0;
           display: flex;
           flex-direction: column;
-          padding: 12px;
-          border-radius: 12px;
+          padding: 10px;
+          border-radius: 14px;
           cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid var(--border-color);
+          transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+          background: rgba(255, 255, 255, 0.025);
+          border: 1px solid rgba(255,255,255,0.06);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .featured-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 14px;
+          background: linear-gradient(135deg, var(--primary-glow) 0%, transparent 60%);
+          opacity: 0;
+          transition: opacity 0.3s;
+          pointer-events: none;
+        }
+
+        .featured-card:hover::before {
+          opacity: 1;
         }
 
         .featured-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: var(--primary);
-          transform: translateY(-6px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 12px var(--primary-glow);
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(0, 229, 255, 0.3);
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary-glow);
         }
 
         .featured-card-cover-container {
@@ -1850,10 +1922,10 @@ export default function MainContent({
         }
 
         .featured-card-title {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
           color: var(--text-main);
-          margin-bottom: 4px;
+          margin-bottom: 3px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1890,10 +1962,10 @@ export default function MainContent({
         }
 
         .hero-banner {
-          background: linear-gradient(135deg, var(--primary-glow) 0%, rgba(255, 255, 255, 0.02) 50%, transparent 100%);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 40px;
+          background: linear-gradient(135deg, rgba(0,229,255,0.12) 0%, rgba(0,176,255,0.06) 40%, rgba(255,255,255,0.02) 80%, transparent 100%);
+          border: 1px solid rgba(0,229,255,0.15);
+          border-radius: 16px;
+          padding: 36px 40px;
           margin-bottom: 32px;
           display: flex;
           flex-direction: column;
@@ -1901,6 +1973,20 @@ export default function MainContent({
           text-align: left;
           position: relative;
           overflow: hidden;
+        }
+
+        .hero-banner::before {
+          content: '';
+          position: absolute;
+          left: -60px;
+          top: -60px;
+          width: 260px;
+          height: 260px;
+          border-radius: 50%;
+          background: var(--primary);
+          filter: blur(120px);
+          opacity: 0.1;
+          pointer-events: none;
         }
 
         .hero-banner::after {
@@ -1911,9 +1997,9 @@ export default function MainContent({
           width: 200px;
           height: 200px;
           border-radius: 50%;
-          background: var(--primary);
+          background: #00b0ff;
           filter: blur(100px);
-          opacity: 0.15;
+          opacity: 0.1;
           pointer-events: none;
         }
 
@@ -1930,10 +2016,14 @@ export default function MainContent({
         }
 
         .hero-banner h1 {
-          font-size: 42px;
-          font-weight: 700;
+          font-size: 44px;
+          font-weight: 800;
           margin-bottom: 12px;
-          line-height: 1.1;
+          line-height: 1.05;
+          letter-spacing: -0.03em;
+          background: linear-gradient(135deg, #fff 50%, var(--primary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
 
         .hero-banner p {
@@ -1968,37 +2058,41 @@ export default function MainContent({
         }
 
         .shortcuts-grid h2 {
-          font-size: 20px;
+          font-size: 19px;
+          font-weight: 700;
+          font-family: var(--font-display);
+          letter-spacing: -0.02em;
           margin-bottom: 16px;
           color: var(--text-main);
         }
 
         .shortcuts-container {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 10px;
         }
 
         .shortcut-card {
           display: flex;
           align-items: center;
-          gap: 16px;
-          padding: 12px 20px;
-          border-radius: 8px;
+          gap: 14px;
+          padding: 10px 16px;
+          border-radius: 10px;
           cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          background: rgba(255,255,255,0.02);
+          transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+          background: rgba(255,255,255,0.03);
           text-align: left;
           position: relative;
           overflow: hidden;
-          border-left: 4px solid currentColor;
+          border: 1px solid rgba(255,255,255,0.05);
+          border-left: 3px solid currentColor;
         }
 
         @media (hover: hover) {
           .shortcut-card:hover {
-            background: rgba(255, 255, 255, 0.05) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 8px currentColor;
+            background: rgba(255, 255, 255, 0.07) !important;
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 10px currentColor;
             border-color: currentColor !important;
           }
         }
@@ -2024,6 +2118,37 @@ export default function MainContent({
           .view-search .search-bar-form {
             display: none;
           }
+
+          /* Desktop filter pills */
+          .filter-pills-container {
+            display: flex;
+            gap: 8px;
+          }
+
+          .filter-pill {
+            padding: 7px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.07);
+            color: var(--text-muted);
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+          }
+
+          .filter-pill:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-main);
+          }
+
+          .filter-pill.active {
+            background: var(--primary);
+            color: var(--bg-darker);
+            border-color: var(--primary);
+            box-shadow: 0 2px 10px var(--primary-glow);
+          }
         }
 
         .trending-section {
@@ -2031,7 +2156,10 @@ export default function MainContent({
         }
 
         .trending-section h2 {
-          font-size: 20px;
+          font-size: 19px;
+          font-weight: 700;
+          font-family: var(--font-display);
+          letter-spacing: -0.02em;
           margin-bottom: 16px;
         }
 
