@@ -35,6 +35,7 @@ export const AudioProvider = ({ children }) => {
   const audioRef = useRef(new Audio());
   const preloadRef = useRef(new Audio()); // For pre-buffering the next track
   const fadeIntervalRef = useRef(null);
+  const volumeRef = useRef(volume);
 
   // Equalizer states and references
   const [eqPreset, setEqPreset] = useState('flat'); // 'flat' | 'bass-boost' | 'vocal-boost' | 'treble-boost' | 'hifi' | 'spatial'
@@ -561,11 +562,13 @@ export const AudioProvider = ({ children }) => {
     audioRef.current.volume = 0;
     let currentVol = 0;
     fadeIntervalRef.current = setInterval(() => {
-      if (currentVol < volume) {
-        currentVol = Math.min(volume, currentVol + 0.05);
+      const targetVol = volumeRef.current;
+      if (currentVol < targetVol) {
+        currentVol = Math.min(targetVol, currentVol + 0.05);
         audioRef.current.volume = currentVol;
       } else {
         clearInterval(fadeIntervalRef.current);
+        audioRef.current.volume = targetVol;
       }
     }, 30);
   };
@@ -823,11 +826,29 @@ export const AudioProvider = ({ children }) => {
       setIsLoadingTrack(false);
     };
 
+    const handlePlay = () => {
+      setIsPlaying(true);
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = "playing";
+      }
+      fadeInVolume();
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = "paused";
+      }
+      clearInterval(fadeIntervalRef.current);
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -835,12 +856,15 @@ export const AudioProvider = ({ children }) => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, loopMode, isShuffle]);
 
   // Adjust volume smoothly
   useEffect(() => {
+    volumeRef.current = volume;
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
@@ -892,10 +916,10 @@ export const AudioProvider = ({ children }) => {
 
     const actionHandlers = [
       ['play', () => {
-        if (!isPlaying) togglePlay();
+        audioRef.current.play().catch(e => console.error("MediaSession play failed:", e));
       }],
       ['pause', () => {
-        if (isPlaying) togglePlay();
+        audioRef.current.pause();
       }],
       ['previoustrack', prevTrack],
       ['nexttrack', nextTrack],
