@@ -330,7 +330,7 @@ export default function MainContent({
     }
     setHomeLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Lofi&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Trending%20Songs&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         const results = obj.data.results || [];
@@ -348,7 +348,7 @@ export default function MainContent({
   const fetchHomeFeatured = async () => {
     setHomeFeaturedLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Bollywood%20Hits&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Latest%20Hits&limit=6`);
       if (res.ok) {
         const obj = await res.json();
         setHomeFeatured(obj.data.results || []);
@@ -363,7 +363,7 @@ export default function MainContent({
   const fetchHomeNewReleases = async () => {
     setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Latest%20Hits%202026&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=New%20Releases&limit=6`);
       if (res.ok) {
         const obj = await res.json();
         setHomeNewReleases(obj.data.results || []);
@@ -378,7 +378,7 @@ export default function MainContent({
   const fetchHomeChill = async () => {
     setHomeChillLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Chill%20Acoustic&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Chillout%20Hits&limit=6`);
       if (res.ok) {
         const obj = await res.json();
         setHomeChill(obj.data.results || []);
@@ -393,7 +393,7 @@ export default function MainContent({
   const fetchHomeWorkout = async () => {
     setHomeWorkoutLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Workout%20Cardio&limit=6`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=Workout%20Hits&limit=6`);
       if (res.ok) {
         const obj = await res.json();
         setHomeWorkout(obj.data.results || []);
