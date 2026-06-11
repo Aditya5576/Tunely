@@ -691,56 +691,106 @@ export default function MainContent({
 
   return (
     <div className="main-content">
-      {/* Mobile Top Bar - Spotify Style */}
-      <div className="mobile-header">
-        {/* Left: Avatar or Back button */}
-        {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
-          <button className="mobile-back-btn" onClick={() => { window.location.hash = 'library'; }} title="Back">
-            <ChevronLeft size={24} />
-          </button>
-        ) : (
-          <button className="mobile-avatar-btn" onClick={() => setIsAccountOpen && setIsAccountOpen(true)} title="Profile">
-            <div className="mobile-avatar" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
+      {/* Unified App Header - responsive for both Desktop & Mobile */}
+      <header className="app-header">
+        {/* Left Side: Navigation Arrows (Desktop) / Avatar or Back (Mobile) */}
+        <div className="header-left">
+          {/* Desktop Navigation Arrows */}
+          <div className="desktop-nav-arrows">
+            <button className="nav-arrow-btn" onClick={() => window.history.back()} title="Go Back">
+              <ChevronLeft size={18} />
+            </button>
+            <button className="nav-arrow-btn" onClick={() => window.history.forward()} title="Go Forward" style={{ transform: 'rotate(180deg)' }}>
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+
+          {/* Mobile Back or Avatar */}
+          <div className="mobile-left-nav">
+            {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
+              <button className="mobile-back-btn" onClick={() => { window.location.hash = 'library'; }} title="Back">
+                <ChevronLeft size={24} />
+              </button>
+            ) : (
+              <button className="mobile-avatar-btn" onClick={() => setIsAccountOpen && setIsAccountOpen(true)} title="Profile">
+                <div className="mobile-avatar" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
+                  {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Center: View-dependent content / Title / Filter Pills */}
+        <div className="header-center">
+          {currentView === 'home' && (
+            <div className="filter-pills-container">
+              {['All', 'Music', 'Podcasts'].map(label => (
+                <button
+                  key={label}
+                  className={`filter-pill ${homeFilter === label.toLowerCase() ? 'active' : ''}`}
+                  onClick={() => setHomeFilter(label.toLowerCase())}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+          {currentView === 'search' && (
+            <div className="header-search-container">
+              <form onSubmit={handleSearchSubmit} className="header-search-bar-form">
+                <div className="header-search-input-wrapper">
+                  <SearchIcon size={16} className="search-input-icon" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="What do you want to listen to?"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button type="button" className="clear-search-btn" onClick={() => { setSearchQuery(''); setSearchResults(null); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-dimmed)', fontSize: '18px', cursor: 'pointer', padding: '0 4px', display: 'flex', alignItems: 'center' }}>
+                      ×
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+          {currentView === 'library' && (
+            <span className="view-title-label">Your Library</span>
+          )}
+          {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom' || currentView === 'podcast-show') && (
+            <span className="view-title-label view-title-truncate">
+              {detailData ? decodeHtml(detailData.name) : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Right Side: Profile Capsule (Desktop) / Actions (Mobile) */}
+        <div className="header-right">
+          {/* Desktop Profile capsule */}
+          <div className="desktop-profile-capsule" onClick={() => setIsAccountOpen && setIsAccountOpen(true)}>
+            <div className="profile-avatar-circle" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
               {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
             </div>
-          </button>
-        )}
-
-        {/* Center: View-dependent content */}
-        {currentView === 'home' && (
-          <div className="mobile-filter-pills">
-            {['All', 'Music', 'Podcasts'].map(label => (
-              <button
-                key={label}
-                className={`filter-pill ${homeFilter === label.toLowerCase() ? 'active' : ''}`}
-                onClick={() => setHomeFilter(label.toLowerCase())}
-              >{label}</button>
-            ))}
+            <span className="profile-name-text">{user?.name?.split(' ')[0] || 'Guest'}</span>
           </div>
-        )}
-        {currentView === 'search' && (
-          <span className="mobile-view-title">Search</span>
-        )}
-        {currentView === 'library' && (
-          <span className="mobile-view-title">Your Library</span>
-        )}
-        {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') && (
-          <span className="mobile-view-title" style={{ fontSize: 15, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}></span>
-        )}
 
-        {/* Right: Context actions */}
-        {currentView === 'library' ? (
-          <button className="mobile-icon-btn" onClick={createNewPlaylist} title="New Playlist">
-            <Plus size={22} />
-          </button>
-        ) : currentView === 'home' || currentView === 'search' ? (
-          <button className="mobile-icon-btn" onClick={() => { window.location.hash = 'search'; }} title="Search">
-            <SearchIcon size={20} />
-          </button>
-        ) : (
-          <div style={{ width: 36 }} />
-        )}
-      </div>
+          {/* Mobile Right Action Icons */}
+          <div className="mobile-right-actions">
+            {currentView === 'library' ? (
+              <button className="mobile-icon-btn" onClick={createNewPlaylist} title="New Playlist">
+                <Plus size={22} />
+              </button>
+            ) : currentView === 'home' || currentView === 'search' ? (
+              <button className="mobile-icon-btn" onClick={() => { window.location.hash = 'search'; }} title="Search">
+                <SearchIcon size={20} />
+              </button>
+            ) : (
+              <div style={{ width: 34 }} />
+            )}
+          </div>
+        </div>
+      </header>
 
       {/* Scrollable Container */}
       <div className="content-scroll">
@@ -748,9 +798,9 @@ export default function MainContent({
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
           <div className="view-home view-animate-in">
-            {/* Mobile Greeting (hidden on desktop via CSS, styled beautiful on mobile) */}
-            <div className="mobile-greeting-wrapper">
-              <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
+            {/* Home Greeting Header (visible on both Desktop and Mobile, styled beautifully) */}
+            <div className="home-greeting">
+              <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'} 👋</h1>
             </div>
 
             {/* Hero banner - visible on desktop, hidden on mobile */}
@@ -806,14 +856,15 @@ export default function MainContent({
                           background: item.bg, 
                           borderColor: item.border,
                           borderWidth: '1px',
-                          borderStyle: 'solid'
+                          borderStyle: 'solid',
+                          color: item.color
                         }}
                         onClick={() => {
                           window.location.hash = 'search';
                           handleCategoryClick(item.query);
                         }}
                       >
-                        <div className="shortcut-icon-container" style={{ background: 'rgba(255,255,255,0.05)', color: item.color }}>
+                        <div className="shortcut-icon-container">
                           <Music size={18} />
                         </div>
                         <span>{item.name}</span>
@@ -1573,9 +1624,147 @@ export default function MainContent({
           padding: 24px 32px 140px; /* Buffer bottom space for the player bar */
         }
 
-        /* Home View Styles */
-        .mobile-greeting-wrapper {
+        /* App Header Styles */
+        .app-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 32px;
+          height: 64px;
+          background: rgba(5, 6, 11, 0.35);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border-bottom: 1px solid var(--border-color);
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          width: 100%;
+          transition: all 0.2s ease;
+        }
+
+        .header-left, .header-right {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+
+        .header-center {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-width: 0;
+          padding: 0 16px;
+        }
+
+        .desktop-nav-arrows {
+          display: flex;
+          gap: 8px;
+        }
+
+        .nav-arrow-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.5);
+          border: none;
+          color: var(--text-dimmed);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .nav-arrow-btn:hover {
+          background: rgba(0, 0, 0, 0.8);
+          color: var(--text-main);
+          transform: scale(1.05);
+        }
+
+        .filter-pills-container {
+          display: flex;
+          gap: 8px;
+        }
+
+        .header-search-container {
+          width: 100%;
+          max-width: 380px;
+        }
+
+        .header-search-input-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 16px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--border-color);
+          width: 100%;
+        }
+
+        .header-search-input-wrapper input {
+          background: transparent;
+          border: none;
+          color: var(--text-main);
+          font-size: 13px;
+          width: 100%;
+          outline: none;
+        }
+
+        .desktop-profile-capsule {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 4px 12px 4px 4px;
+          border-radius: 20px;
+          background: rgba(0, 0, 0, 0.5);
+          cursor: pointer;
+          border: 1px solid var(--border-color);
+          transition: all 0.2s ease;
+        }
+
+        .desktop-profile-capsule:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: var(--primary);
+        }
+
+        .profile-avatar-circle {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          color: #fff;
+          font-size: 12px;
+        }
+
+        .profile-name-text {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-main);
+        }
+
+        .mobile-left-nav, .mobile-right-actions, .view-title-label {
           display: none;
+        }
+
+        /* Home View Styles */
+        .home-greeting {
+          margin-bottom: 24px;
+          text-align: left;
+        }
+
+        .home-greeting h1 {
+          font-size: 28px;
+          font-weight: 800;
+          color: var(--text-main);
+          letter-spacing: -0.03em;
+          background: linear-gradient(135deg, #fff 60%, var(--primary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
 
         .featured-section {
@@ -1606,7 +1795,7 @@ export default function MainContent({
           display: flex;
           flex-direction: column;
           padding: 12px;
-          border-radius: 10px;
+          border-radius: 12px;
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           background: rgba(255, 255, 255, 0.02);
@@ -1614,9 +1803,10 @@ export default function MainContent({
         }
 
         .featured-card:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(0, 229, 255, 0.25);
-          transform: translateY(-4px);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: var(--primary);
+          transform: translateY(-6px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 12px var(--primary-glow);
         }
 
         .featured-card-cover-container {
@@ -1699,7 +1889,7 @@ export default function MainContent({
         }
 
         .hero-banner {
-          background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(108, 92, 231, 0.05) 50%, transparent 100%);
+          background: linear-gradient(135deg, var(--primary-glow) 0%, rgba(255, 255, 255, 0.02) 50%, transparent 100%);
           border: 1px solid var(--border-color);
           border-radius: 12px;
           padding: 40px;
@@ -1710,6 +1900,20 @@ export default function MainContent({
           text-align: left;
           position: relative;
           overflow: hidden;
+        }
+
+        .hero-banner::after {
+          content: '';
+          position: absolute;
+          right: -50px;
+          top: -50px;
+          width: 200px;
+          height: 200px;
+          border-radius: 50%;
+          background: var(--primary);
+          filter: blur(100px);
+          opacity: 0.15;
+          pointer-events: none;
         }
 
         .hero-tag {
@@ -1781,16 +1985,20 @@ export default function MainContent({
           padding: 12px 20px;
           border-radius: 8px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           background: rgba(255,255,255,0.02);
           text-align: left;
+          position: relative;
+          overflow: hidden;
+          border-left: 4px solid currentColor;
         }
 
         @media (hover: hover) {
           .shortcut-card:hover {
-            background: var(--bg-hover);
+            background: rgba(255, 255, 255, 0.05) !important;
             transform: translateY(-2px);
-            border-color: rgba(29, 185, 84, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 8px currentColor;
+            border-color: currentColor !important;
           }
         }
 
@@ -1798,8 +2006,8 @@ export default function MainContent({
           width: 36px;
           height: 36px;
           border-radius: 6px;
-          background: rgba(29, 185, 84, 0.1);
-          color: var(--primary);
+          background: rgba(255, 255, 255, 0.05);
+          color: inherit;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1808,7 +2016,13 @@ export default function MainContent({
         .shortcut-card span {
           font-size: 14px;
           font-weight: 600;
-          color: var(--text-main);
+          color: var(--text-main) !important;
+        }
+
+        @media (min-width: 769px) {
+          .view-search .search-bar-form {
+            display: none;
+          }
         }
 
         .trending-section {
@@ -2329,25 +2543,45 @@ export default function MainContent({
         }
 
         /* Mobile Responsive Overrides */
-        .mobile-header {
-          display: none;
+        .app-header {
+          display: flex;
         }
 
         @media (max-width: 768px) {
-          .mobile-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
+          .app-header {
             padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+            height: auto;
             background: rgba(8, 10, 18, 0.65);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: 1px solid var(--border-color);
-            z-index: 50;
+          }
+
+          .desktop-nav-arrows, .desktop-profile-capsule, .header-search-container {
+            display: none !important;
+          }
+
+          .mobile-left-nav, .mobile-right-actions {
+            display: flex !important;
+          }
+
+          .header-center {
+            padding: 0;
+            flex: 1;
+          }
+
+          .view-title-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: var(--font-display);
+            text-align: center;
             width: 100%;
-            position: sticky;
-            top: 0;
+          }
+
+          .view-title-truncate {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           /* Avatar button */
@@ -2363,7 +2597,7 @@ export default function MainContent({
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #e53935, #c62828);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: #fff;
             font-size: 14px;
             font-weight: 800;
@@ -2384,15 +2618,16 @@ export default function MainContent({
           }
 
           /* Filter pills (Home view) */
-          .mobile-filter-pills {
+          .filter-pills-container {
             display: flex;
             gap: 8px;
             flex: 1;
             justify-content: flex-start;
             overflow-x: auto;
             scrollbar-width: none;
+            width: 100%;
           }
-          .mobile-filter-pills::-webkit-scrollbar { display: none; }
+          .filter-pills-container::-webkit-scrollbar { display: none; }
 
           .filter-pill {
             padding: 6px 14px;
@@ -2450,17 +2685,12 @@ export default function MainContent({
             padding: 16px 16px 160px;
           }
 
-          .mobile-greeting-wrapper {
-            display: block;
-            margin-bottom: 20px;
-            text-align: left;
+          .home-greeting {
+            margin-bottom: 16px;
           }
 
-          .mobile-greeting-wrapper h1 {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text-main);
-            letter-spacing: -0.03em;
+          .home-greeting h1 {
+            font-size: 20px !important;
           }
 
           .hero-banner {
