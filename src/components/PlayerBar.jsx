@@ -579,7 +579,14 @@ const decodeHtml = (text) => {
 
           {/* Fullscreen Volume Slider */}
           <div className="pf-volume-container">
-            <Volume2 size={16} className="pf-volume-icon" />
+            <button 
+              className="pf-volume-btn" 
+              onClick={handleVolumeToggle} 
+              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              title="Mute/Unmute"
+            >
+              {isMuted || volume === 0 ? <VolumeX size={16} className="pf-volume-icon" /> : <Volume2 size={16} className="pf-volume-icon" />}
+            </button>
             <input 
               type="range"
               min="0"

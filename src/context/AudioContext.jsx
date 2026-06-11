@@ -357,14 +357,20 @@ export const AudioProvider = ({ children }) => {
     delayNode = pannerNodeRef.current,
     compressorNode = compressorFilterRef.current
   ) => {
-    if (!subBassNode || !bassNode || !midNode || !presenceNode || !trebleNode || !airNode) return;
+    // If the nodes are not loaded yet (e.g. early startup/mobile bypass), log and return gracefully
+    if (!subBassNode || !bassNode || !midNode || !presenceNode || !trebleNode || !airNode) {
+      console.log("Tunely EQ: applyEqPreset bypassed (nodes not initialized or mobile browser bypass)");
+      return;
+    }
     const transitionTime = audioContextRef.current ? audioContextRef.current.currentTime + 0.05 : 0;
+
+    console.log(`Tunely EQ: Applying preset '${preset}' gently to avoid harshness and distortion...`);
 
     // Reset compressor to default parameters before adjusting
     if (compressorNode) {
-      compressorNode.threshold.setValueAtTime(-12, transitionTime);
-      compressorNode.knee.setValueAtTime(10, transitionTime);
-      compressorNode.ratio.setValueAtTime(3, transitionTime);
+      compressorNode.threshold.setValueAtTime(-14, transitionTime);
+      compressorNode.knee.setValueAtTime(15, transitionTime);
+      compressorNode.ratio.setValueAtTime(2.5, transitionTime);
     }
 
     // Reset delay time to 0 by default
@@ -373,71 +379,73 @@ export const AudioProvider = ({ children }) => {
     }
 
     if (preset === 'bass-boost') {
-      subBassNode.gain.setValueAtTime(8, transitionTime);
-      bassNode.gain.setValueAtTime(6, transitionTime);
+      // Gentle bass lift to prevent loud digital clipping
+      subBassNode.gain.setValueAtTime(4.0, transitionTime);
+      bassNode.gain.setValueAtTime(2.5, transitionTime);
       midNode.gain.setValueAtTime(0, transitionTime);
-      presenceNode.gain.setValueAtTime(-1, transitionTime);
-      trebleNode.gain.setValueAtTime(-1, transitionTime);
-      airNode.gain.setValueAtTime(1, transitionTime);
+      presenceNode.gain.setValueAtTime(-1.5, transitionTime);
+      trebleNode.gain.setValueAtTime(-0.5, transitionTime);
+      airNode.gain.setValueAtTime(1.0, transitionTime);
       if (compressorNode) {
         compressorNode.threshold.setValueAtTime(-18, transitionTime);
-        compressorNode.ratio.setValueAtTime(4, transitionTime);
+        compressorNode.ratio.setValueAtTime(3.0, transitionTime);
       }
     } else if (preset === 'vocal-boost') {
-      subBassNode.gain.setValueAtTime(-4, transitionTime);
-      bassNode.gain.setValueAtTime(-2, transitionTime);
-      midNode.gain.setValueAtTime(4, transitionTime);
-      presenceNode.gain.setValueAtTime(6, transitionTime);
-      trebleNode.gain.setValueAtTime(3, transitionTime);
-      airNode.gain.setValueAtTime(1, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-24, transitionTime);
-        compressorNode.ratio.setValueAtTime(3.5, transitionTime);
-        compressorNode.knee.setValueAtTime(30, transitionTime);
-      }
-    } else if (preset === 'treble-boost') {
-      subBassNode.gain.setValueAtTime(-2, transitionTime);
-      bassNode.gain.setValueAtTime(-1, transitionTime);
-      midNode.gain.setValueAtTime(1, transitionTime);
-      presenceNode.gain.setValueAtTime(3, transitionTime);
-      trebleNode.gain.setValueAtTime(8, transitionTime);
-      airNode.gain.setValueAtTime(6, transitionTime);
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-12, transitionTime);
-        compressorNode.ratio.setValueAtTime(2.5, transitionTime);
-      }
-    } else if (preset === 'hifi') {
-      // Studio High-Fidelity Premium Curve
-      subBassNode.gain.setValueAtTime(4.5, transitionTime);
-      bassNode.gain.setValueAtTime(3.0, transitionTime);
-      midNode.gain.setValueAtTime(1.0, transitionTime);
-      presenceNode.gain.setValueAtTime(2.5, transitionTime);
-      trebleNode.gain.setValueAtTime(4.0, transitionTime);
-      airNode.gain.setValueAtTime(3.5, transitionTime);
+      // Clear, warm voice profile without harsh/tinny mid-high boosts
+      subBassNode.gain.setValueAtTime(-2.0, transitionTime);
+      bassNode.gain.setValueAtTime(-1.0, transitionTime);
+      midNode.gain.setValueAtTime(1.5, transitionTime);
+      presenceNode.gain.setValueAtTime(2.0, transitionTime);
+      trebleNode.gain.setValueAtTime(1.0, transitionTime);
+      airNode.gain.setValueAtTime(1.5, transitionTime);
       if (compressorNode) {
         compressorNode.threshold.setValueAtTime(-20, transitionTime);
-        compressorNode.ratio.setValueAtTime(4, transitionTime);
-        compressorNode.knee.setValueAtTime(25, transitionTime);
-      }
-    } else if (preset === 'spatial') {
-      // 3D Spatial Surround Curve (widescreen depth and spatialized feel)
-      subBassNode.gain.setValueAtTime(2.0, transitionTime);
-      bassNode.gain.setValueAtTime(1.0, transitionTime);
-      midNode.gain.setValueAtTime(1.5, transitionTime);
-      presenceNode.gain.setValueAtTime(3.0, transitionTime);
-      trebleNode.gain.setValueAtTime(3.0, transitionTime);
-      airNode.gain.setValueAtTime(4.0, transitionTime);
-      if (delayNode) {
-        // Apply 20ms delay on Right channel for Haas Stereo Widening
-        delayNode.delayTime.setValueAtTime(0.02, transitionTime);
-      }
-      if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-15, transitionTime);
-        compressorNode.ratio.setValueAtTime(3, transitionTime);
+        compressorNode.ratio.setValueAtTime(2.8, transitionTime);
         compressorNode.knee.setValueAtTime(20, transitionTime);
       }
+    } else if (preset === 'treble-boost') {
+      // Crisp treble clarity, soft on sibilance
+      subBassNode.gain.setValueAtTime(-1.0, transitionTime);
+      bassNode.gain.setValueAtTime(0.0, transitionTime);
+      midNode.gain.setValueAtTime(0.5, transitionTime);
+      presenceNode.gain.setValueAtTime(1.5, transitionTime);
+      trebleNode.gain.setValueAtTime(3.0, transitionTime);
+      airNode.gain.setValueAtTime(3.5, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-12, transitionTime);
+        compressorNode.ratio.setValueAtTime(2.0, transitionTime);
+      }
+    } else if (preset === 'hifi') {
+      // Premium studio audiophile balanced Smiley curve
+      subBassNode.gain.setValueAtTime(2.5, transitionTime);
+      bassNode.gain.setValueAtTime(1.5, transitionTime);
+      midNode.gain.setValueAtTime(0.0, transitionTime);
+      presenceNode.gain.setValueAtTime(1.0, transitionTime);
+      trebleNode.gain.setValueAtTime(1.5, transitionTime);
+      airNode.gain.setValueAtTime(2.0, transitionTime);
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-16, transitionTime);
+        compressorNode.ratio.setValueAtTime(2.5, transitionTime);
+        compressorNode.knee.setValueAtTime(15, transitionTime);
+      }
+    } else if (preset === 'spatial') {
+      // 3D surround wide staging, balanced response
+      subBassNode.gain.setValueAtTime(2.0, transitionTime);
+      bassNode.gain.setValueAtTime(1.0, transitionTime);
+      midNode.gain.setValueAtTime(0.0, transitionTime);
+      presenceNode.gain.setValueAtTime(1.5, transitionTime);
+      trebleNode.gain.setValueAtTime(2.0, transitionTime);
+      airNode.gain.setValueAtTime(3.0, transitionTime);
+      if (delayNode) {
+        delayNode.delayTime.setValueAtTime(0.02, transitionTime); // 20ms Haas separation
+      }
+      if (compressorNode) {
+        compressorNode.threshold.setValueAtTime(-14, transitionTime);
+        compressorNode.ratio.setValueAtTime(2.5, transitionTime);
+        compressorNode.knee.setValueAtTime(15, transitionTime);
+      }
     } else {
-      // Flat profile (Normal)
+      // Normal flat profile
       subBassNode.gain.setValueAtTime(0, transitionTime);
       bassNode.gain.setValueAtTime(0, transitionTime);
       midNode.gain.setValueAtTime(0, transitionTime);
@@ -445,8 +453,8 @@ export const AudioProvider = ({ children }) => {
       trebleNode.gain.setValueAtTime(0, transitionTime);
       airNode.gain.setValueAtTime(0, transitionTime);
       if (compressorNode) {
-        compressorNode.threshold.setValueAtTime(-6, transitionTime);
-        compressorNode.ratio.setValueAtTime(1.5, transitionTime);
+        compressorNode.threshold.setValueAtTime(-8, transitionTime);
+        compressorNode.ratio.setValueAtTime(1.6, transitionTime);
       }
     }
   };
