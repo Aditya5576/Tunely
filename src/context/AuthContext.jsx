@@ -51,6 +51,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tunely_liked_songs_updated_at');
     localStorage.removeItem('spotify_custom_playlists');
     localStorage.removeItem('tunely_custom_playlists_updated_at');
+    localStorage.removeItem('tunely_recently_played');
   };
 
   const verifySession = useCallback(async (t) => {
@@ -183,9 +184,11 @@ export const AuthProvider = ({ children }) => {
       isGuest: true
     };
     const guestToken = 'guest_token';
+    clearSession(); // Wipe any existing user data (including recently played)
     setToken(guestToken);
     setUser(guestUser);
     persistSession(guestToken, guestUser);
+    window.location.href = '/';
     return { success: true };
   };
 
@@ -200,6 +203,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch { /* ignore network errors on logout */ }
     clearSession();
+    window.location.href = '/';
   };
 
   /** Helper: make an authenticated API request. Auto-logs out on 403 banned. */
