@@ -6,6 +6,11 @@
   <img src="public/favicon.svg" width="150" alt="Tunely Logo">
 </p>
 
+### 🌍 **[Live Demo: https://tunely.pages.dev](https://tunely.pages.dev)**
+
+> [!NOTE]  
+> **Optimal Viewing Experience:** Tunely was designed with a heavy focus on a premium, glassmorphism mobile interface. If you are viewing the live demo on a desktop or laptop, we highly recommend opening **Developer Tools (F12) and toggling Device/Mobile Toolbar (Ctrl+Shift+M)** to experience the app as intended.
+
 ## ✨ Features
 
 - **Premium Audio Engine**: Enforces 320kbps high-fidelity playback by default for crisp, clear audio.
