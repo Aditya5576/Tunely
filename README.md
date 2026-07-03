@@ -2,7 +2,9 @@
 
 **Tunely** is a modern, high-fidelity music streaming web application built with a focus on premium user experience, real-time audio processing, and sleek UI/UX. It offers a seamless, app-like experience directly in the browser.
 
-![Tunely Banner](public/logo.png) <!-- Update this path with an actual banner if you have one -->
+<p align="center">
+  <img src="public/favicon.svg" width="150" alt="Tunely Logo">
+</p>
 
 ## ✨ Features
 
