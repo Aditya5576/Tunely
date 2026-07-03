@@ -54,6 +54,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifySession = useCallback(async (t) => {
+    if (t === 'guest_token') return; // Do not verify offline guest tokens with the backend
     try {
       const res = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${t}` }
