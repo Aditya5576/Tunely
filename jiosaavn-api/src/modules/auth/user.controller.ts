@@ -342,3 +342,39 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
   return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists, serverUpdatedAt } })
 })
+
+/**
+ * POST /api/user/activity
+ * Body: { track, isPlaying, progress, device }
+ * Keeps the session alive and logs the user's active media state.
+ */
+userController.post('/activity', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  let body: { track?: any; isPlaying?: boolean; progress?: number; device?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ success: false, message: 'Invalid JSON body' }, 400)
+  }
+
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    const userAgent = c.req.header('User-Agent') || 'Unknown Device'
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-real-ip') || 'Unknown IP'
+    const now = new Date().toISOString()
+    const activityData = {
+      track: body.track || null,
+      isPlaying: body.isPlaying || false,
+      progress: body.progress || 0,
+      device: body.device || userAgent,
+      ip,
+      lastActive: now
+    }
+    // Set TTL to 90 seconds (so if ping fails twice they go offline)
+    await kv.put(`user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 90 })
+    await kv.put(`user:${userId}:last_seen`, now)
+  }
+
+  return c.json({ success: true, message: 'Activity logged' })
+})
+

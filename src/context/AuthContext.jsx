@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [isLoading, setIsLoading] = useState(true); // true while restoring session
+  const [bannedMessage, setBannedMessage] = useState(null);
 
   const persistSession = (t, u) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
@@ -57,7 +58,16 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${t}` }
       });
-      if (!res.ok) {
+      if (res.status === 403) {
+        // Could be banned — parse the body to confirm
+        try {
+          const data = await res.json();
+          if (data.banned) {
+            setBannedMessage(data.message || 'Your account has been suspended.');
+          }
+        } catch {}
+        clearSession();
+      } else if (!res.ok) {
         // Token expired or invalid — clear session silently
         clearSession();
       } else {
@@ -107,6 +117,10 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
+      if (res.status === 403 && data.banned) {
+        setBannedMessage(data.message || 'Your account has been suspended.');
+        return { success: false, error: data.message };
+      }
       if (!res.ok) return { success: false, error: data.message || 'Login failed' };
       setToken(data.data.token);
       setUser(data.data.user);
@@ -116,6 +130,48 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
+
+  /** Step 1: Request password reset OTP. Returns { success, error, devOtp } */
+  const requestPasswordReset = async (email) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.status === 403 && data.banned) {
+        setBannedMessage(data.message || 'Your account has been suspended.');
+        return { success: false, error: data.message };
+      }
+      if (!res.ok) return { success: false, error: data.message || 'Failed to send reset code' };
+      // devOtp is only present when no email API is configured (dev mode)
+      return { success: true, devOtp: data.devOtp || null };
+    } catch {
+      return { success: false, error: 'Network error. Please check your connection.' };
+    }
+  };
+
+  /** Step 2: Confirm OTP and set new password. Returns { success, error } */
+  const confirmPasswordReset = async (email, otp, newPassword) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.message || 'Reset failed' };
+      // Log user in with new session token
+      setToken(data.data.token);
+      setUser(data.data.user);
+      persistSession(data.data.token, data.data.user);
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error. Please check your connection.' };
+    }
+  };
+
 
   /** Log in locally as a Guest with predefined limitations */
   const loginAsGuest = () => {
@@ -145,12 +201,12 @@ export const AuthProvider = ({ children }) => {
     clearSession();
   };
 
-  /** Helper: make an authenticated API request */
+  /** Helper: make an authenticated API request. Auto-logs out on 403 banned. */
   const authFetch = useCallback(async (url, options = {}) => {
     if (token === 'guest_token') {
       return new Response(JSON.stringify({ success: false, message: 'Offline guest mode' }), { status: 403 });
     }
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -158,6 +214,17 @@ export const AuthProvider = ({ children }) => {
         Authorization: `Bearer ${token}`
       }
     });
+    // Auto-logout if account is banned
+    if (res.status === 403) {
+      try {
+        const data = await res.clone().json();
+        if (data.banned) {
+          setBannedMessage(data.message || 'Your account has been suspended.');
+          clearSession();
+        }
+      } catch {}
+    }
+    return res;
   }, [token]);
 
   const isLoggedIn = !!user && !!token;
@@ -168,12 +235,39 @@ export const AuthProvider = ({ children }) => {
       token,
       isLoggedIn,
       isLoading,
+      bannedMessage,
+      clearBannedMessage: () => setBannedMessage(null),
       login,
       logout,
       register,
+      requestPasswordReset,
+      confirmPasswordReset,
       loginAsGuest,
       authFetch
     }}>
+      {/* Banned overlay — shown immediately when account is suspended */}
+      {bannedMessage && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a0505 0%, #0d0808 100%)',
+            border: '1px solid rgba(239,68,68,0.4)', borderRadius: 24,
+            padding: 36, maxWidth: 400, width: '100%', textAlign: 'center',
+            fontFamily: "'Outfit', 'Inter', sans-serif", color: '#fff',
+            boxShadow: '0 20px 60px rgba(239,68,68,0.2)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f87171', marginBottom: 8 }}>Account Suspended</h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+              {bannedMessage}
+            </p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Contact support to appeal this decision.</p>
+          </div>
+        </div>
+      )}
       {children}
     </AuthContext.Provider>
   );

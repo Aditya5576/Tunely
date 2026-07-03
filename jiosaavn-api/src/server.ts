@@ -2,6 +2,7 @@ import { AlbumController, ArtistController, SearchController, SongController } f
 import { PlaylistController } from '#modules/playlists/controllers'
 import { authController } from '#modules/auth/auth.controller'
 import { userController } from '#modules/auth/user.controller'
+import { adminController } from '#modules/auth/admin.controller'
 import { App } from './app'
 
 const app = new App([
@@ -10,6 +11,6 @@ const app = new App([
   new AlbumController(),
   new ArtistController(),
   new PlaylistController()
-], authController, userController).getApp()
+], authController, userController, adminController).getApp()
 
 export default app

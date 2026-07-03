@@ -1,5 +1,6 @@
-import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, Palette } from 'lucide-react';
+import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, Palette, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const PRE_CONFIGURED_PLAYLISTS = [
   { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
@@ -10,6 +11,8 @@ const PRE_CONFIGURED_PLAYLISTS = [
 
 export default function Sidebar({ currentView, selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal }) {
   const { user, isLoggedIn, logout } = useAuth() || {};
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Handles deleting a custom playlist
   const deletePlaylist = (e, playlistId) => {
@@ -23,21 +26,21 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
     // If the deleted playlist was selected, reset view to home
     if (selectedPlaylistId === playlistId) {
       /* eslint-disable-next-line react-hooks/immutability */
-      window.location.hash = 'home';
+      navigate('/home');
       if (setIsSidebarOpen) setIsSidebarOpen(false);
     }
   };
 
   const handlePlaylistClick = (playlist) => {
     const view = playlist.type === 'album' ? 'album' : (playlist.type === 'custom' ? 'custom' : 'playlist');
-    window.location.hash = `${view}-${playlist.id}`;
+    navigate(`/${view}-${playlist.id}`);
     if (setIsSidebarOpen) setIsSidebarOpen(false);
   };
 
   return (
     <div className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`}>
       {/* Brand Header */}
-      <div className="sidebar-header" onClick={() => { window.location.hash = 'home'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
+      <div className="sidebar-header" onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
         <div className="logo-icon"></div>
         <h2>Tunely<span className="dot">.</span></h2>
       </div>
@@ -45,15 +48,15 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
       {/* Main Navigation */}
       <div className="nav-menu">
         <button 
-          className={`nav-item ${currentView === 'home' ? 'active' : ''}`}
-          onClick={() => { window.location.hash = 'home'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+          className={`nav-item ${location.pathname === '/home' ? 'active' : ''}`}
+          onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
           <Home size={20} />
           <span>Home</span>
         </button>
         <button 
-          className={`nav-item ${currentView === 'search' ? 'active' : ''}`}
-          onClick={() => { window.location.hash = 'search'; if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+          className={`nav-item ${location.pathname === '/search' ? 'active' : ''}`}
+          onClick={() => { navigate('/search'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
           <Search size={20} />
           <span>Search</span>
@@ -151,11 +154,14 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
       <div className="sidebar-account">
         {isLoggedIn ? (
           <div className="sidebar-user">
-            <div className="sidebar-user-avatar">
+            <div className="sidebar-user-avatar" style={{ cursor: user?.email === 'aditya@admin.com' ? 'pointer' : 'default' }} onClick={() => { if (user?.email === 'aditya@admin.com') navigate('/admin'); }}>
               {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
             </div>
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">{user?.name}</span>
+            <div className="sidebar-user-info" style={{ cursor: user?.email === 'aditya@admin.com' ? 'pointer' : 'default' }} onClick={() => { if (user?.email === 'aditya@admin.com') navigate('/admin'); }}>
+              <span className="sidebar-user-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {user?.name}
+                {user?.email === 'aditya@admin.com' && <Shield size={12} color="#ef4444" fill="#ef4444" style={{ display: 'inline-block' }} />}
+              </span>
               <span className="sidebar-user-email">{user?.email}</span>
             </div>
             <button className="sidebar-logout-btn" onClick={logout} title="Sign out">

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap');
+/* Tunely - Pure Vanilla CSS */
+
 
 :root {
   --bg-darker: #05060b;
@@ -45,6 +46,8 @@ body {
   width: 100vw;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  touch-action: pan-x pan-y; /* Prevent pinch zoom on iOS */
+  overscroll-behavior: none; /* Prevent bounce scrolling */
 }
 
 #root {

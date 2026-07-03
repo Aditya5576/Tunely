@@ -12,7 +12,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
     setIsQueueVisible, setIsLyricsVisible,
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
-    likedSongs, toggleLikeTrack
+    likedSongs, toggleLikeTrack, audioOutputDevice
   } = useAudio();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -220,6 +220,15 @@ const decodeHtml = (text) => {
                 </span>
               </div>
               <span className="artist-name">{getArtistsString()}</span>
+              {/* Audio output device chip — only shown when a real device is detected */}
+              {audioOutputDevice && audioOutputDevice.length > 0 && (
+                <span className="device-chip">
+                  {audioOutputDevice.toLowerCase().includes('bluetooth') || audioOutputDevice.toLowerCase().includes('buds') || audioOutputDevice.toLowerCase().includes('airpod') || audioOutputDevice.toLowerCase().includes('headphone') || audioOutputDevice.toLowerCase().includes('headset') || audioOutputDevice.toLowerCase().includes('earphone') || audioOutputDevice.toLowerCase().includes('earbuds') ? '🎧' :
+                   audioOutputDevice.toLowerCase().includes('tv') || audioOutputDevice.toLowerCase().includes('hdmi') || audioOutputDevice.toLowerCase().includes('display') ? '📺' :
+                   audioOutputDevice.toLowerCase().includes('speaker') || audioOutputDevice.toLowerCase().includes('homepod') || audioOutputDevice.toLowerCase().includes('sonos') ? '🔊' : '🎵'}
+                  {' '}{audioOutputDevice}
+                </span>
+              )}
             </div>
             {/* Collapsed Mobile EQ Indicator */}
             <div className="mobile-eq-indicator">
@@ -824,6 +833,23 @@ const decodeHtml = (text) => {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .device-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 10px;
+          color: rgba(255,255,255,0.45);
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 20px;
+          padding: 1px 7px;
+          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 140px;
         }
 
         .no-track {

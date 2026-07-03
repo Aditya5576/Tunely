@@ -11,25 +11,26 @@ import type { Hono } from 'hono'
 export class App {
   private app: OpenAPIHono
 
-  constructor(routes: Routes[], authRouter?: Hono, userRouter?: Hono) {
+  constructor(routes: Routes[], authRouter?: Hono, userRouter?: Hono, adminRouter?: Hono) {
     this.app = new OpenAPIHono()
 
     this.initializeGlobalMiddlewares()
-    this.initializeRoutes(routes, authRouter, userRouter)
+    this.initializeRoutes(routes, authRouter, userRouter, adminRouter)
     this.initializeSwaggerUI()
     this.initializeRouteFallback()
     this.initializeErrorHandler()
   }
 
-  private initializeRoutes(routes: Routes[], authRouter?: Hono, userRouter?: Hono) {
+  private initializeRoutes(routes: Routes[], authRouter?: Hono, userRouter?: Hono, adminRouter?: Hono) {
     routes.forEach((route) => {
       route.initRoutes()
       this.app.route('/api', route.controller)
     })
 
-    // Mount auth and user routes
+    // Mount auth, user and admin routes
     if (authRouter) this.app.route('/api/auth', authRouter)
     if (userRouter) this.app.route('/api/user', userRouter)
+    if (adminRouter) this.app.route('/api/admin', adminRouter)
 
     // Spotify Playlist route using official Spotify Web API or fallback public embed parser
     // Token is cached in module scope per Worker instance to avoid redundant token requests.

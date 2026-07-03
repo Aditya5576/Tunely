@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -242,6 +245,7 @@ export default function MainContent({
   createNewPlaylist
 }) {
   const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed } = useAudio();
+  const navigate = useNavigate();
   const { user } = useAuth() || {};
   
   // Search states
@@ -328,9 +332,11 @@ export default function MainContent({
       setHomeLoading(false);
       return;
     }
+    const queries = ['Top Hindi Songs 2025', 'Global Top 50', 'Viral Hits', 'Bollywood Romance'];
+    const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Top%20Hindi%20Songs%202025&limit=10`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=10`);
       if (res.ok) {
         const obj = await res.json();
         const results = obj.data.results || [];
@@ -346,9 +352,11 @@ export default function MainContent({
   };
 
   const fetchHomeFeatured = async () => {
+    const queries = ['Bollywood Hits 2025', 'Trending Pop', 'Best of 2024', 'Party Hits'];
+    const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeFeaturedLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Bollywood%20Hits%202025&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeFeatured(obj.data.results || []);
@@ -361,9 +369,11 @@ export default function MainContent({
   };
 
   const fetchHomeNewReleases = async () => {
+    const queries = ['New Bollywood Songs 2025', 'Latest Punjabi', 'Fresh Indie', 'New Pop 2025'];
+    const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=New%20Bollywood%20Songs%202025&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeNewReleases(obj.data.results || []);
@@ -376,9 +386,11 @@ export default function MainContent({
   };
 
   const fetchHomeChill = async () => {
+    const queries = ['Arijit Singh Latest 2025', 'Lo-Fi Chill', 'Acoustic Covers', 'Relaxing Music'];
+    const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeChillLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Arijit%20Singh%20Latest%202025&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeChill(obj.data.results || []);
@@ -391,9 +403,11 @@ export default function MainContent({
   };
 
   const fetchHomeWorkout = async () => {
+    const queries = ['Party Hits Bollywood 2025', 'Workout Motivation', 'Hip Hop Hits', 'Electronic Dance'];
+    const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeWorkoutLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=Party%20Hits%20Bollywood%202025&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
       if (res.ok) {
         const obj = await res.json();
         setHomeWorkout(obj.data.results || []);
@@ -622,12 +636,18 @@ export default function MainContent({
       setShowImportModal(false);
       setSpotifyUrl('');
       
-      window.location.hash = `custom-${newPlaylist.id}`;
+      navigate(`/custom/${newPlaylist.id}`);
     } catch (err) {
+      let errorMessage = err.message || 'An unknown error occurred during import.';
+      if (errorMessage.includes('Failed to fetch')) {
+        errorMessage = 'Network Error: Could not connect to Tunely backend. Please check your internet connection or try again later.';
+      } else if (errorMessage.includes('Unexpected token')) {
+        errorMessage = 'Server Error: The Tunely backend returned an invalid response. The Spotify link might be private or malformed.';
+      }
       setImportStatus(prev => ({
         ...prev,
         loading: false,
-        error: err.message || 'An unknown error occurred during import.'
+        error: errorMessage
       }));
     }
   };
@@ -708,7 +728,7 @@ export default function MainContent({
           {/* Mobile Back or Avatar */}
           <div className="mobile-left-nav">
             {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
-              <button className="mobile-back-btn" onClick={() => { window.location.hash = 'library'; }} title="Back">
+              <button className="mobile-back-btn" onClick={() => { navigate('/library'); }} title="Back">
                 <ChevronLeft size={24} />
               </button>
             ) : (
@@ -782,7 +802,7 @@ export default function MainContent({
                 <Plus size={22} />
               </button>
             ) : currentView === 'home' || currentView === 'search' ? (
-              <button className="mobile-icon-btn" onClick={() => { window.location.hash = 'search'; }} title="Search">
+              <button className="mobile-icon-btn" onClick={() => { navigate('/search'); }} title="Search">
                 <SearchIcon size={20} />
               </button>
             ) : (
@@ -797,16 +817,32 @@ export default function MainContent({
         
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
-          <div className="view-home view-animate-in">
+          <motion.div
+            className="view-home"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
             {/* Home Greeting Header (visible on both Desktop and Mobile, styled beautifully) */}
-            <div className="home-greeting">
+            <motion.div
+              className="home-greeting"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
+            >
               <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'} 👋</h1>
               <span className="home-live-badge">Live</span>
-            </div>
+            </motion.div>
 
             {/* Hero banner - visible on desktop, hidden on mobile */}
-            <div className="hero-banner">
-              <div className="hero-tag">🎵 2025 Hits</div>
+            <motion.div
+              className="hero-banner"
+              initial={{ opacity: 0, scale: 0.97, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+            >
+              <div className="hero-tag">🎥 2025 Hits</div>
               <h1>Your Sound. Your World.</h1>
               <p>Stream the biggest 2025 Bollywood hits, trending tracks, and exclusive releases — all in stunning quality, zero ads.</p>
               <div className="hero-actions">
@@ -819,7 +855,7 @@ export default function MainContent({
                   <span>Play Featured</span>
                 </button>
               </div>
-            </div>
+            </motion.div>
 
             {/* If homeFilter is All or Music, show Recently Played, Shortcuts, and all Feeds */}
             {(homeFilter === 'all' || homeFilter === 'music') && (
@@ -863,7 +899,7 @@ export default function MainContent({
                           color: item.color
                         }}
                         onClick={() => {
-                          window.location.hash = 'search';
+                          navigate('/search');
                           handleCategoryClick(item.query);
                         }}
                       >
@@ -889,8 +925,17 @@ export default function MainContent({
                     </div>
                   ) : (
                     <div className="featured-cards-scroll">
-                      {homeFeatured.map(track => (
-                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeFeatured)}>
+                      {homeFeatured.map((track, idx) => (
+                        <motion.div
+                          key={track.id}
+                          className="featured-card glass-panel"
+                          onClick={() => playTrack(track, homeFeatured)}
+                          initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                          whileHover={{ y: -8, scale: 1.03, transition: { duration: 0.2 } }}
+                          whileTap={{ scale: 0.97 }}
+                        >
                           <div className="featured-card-cover-container">
                             <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
                             <button className="featured-card-play-btn" title="Play">
@@ -899,7 +944,7 @@ export default function MainContent({
                           </div>
                           <span className="featured-card-title">{decodeHtml(track.name)}</span>
                           <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   )}
@@ -918,8 +963,17 @@ export default function MainContent({
                     </div>
                   ) : (
                     <div className="featured-cards-scroll">
-                      {homeNewReleases.map(track => (
-                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeNewReleases)}>
+                      {homeNewReleases.map((track, idx) => (
+                        <motion.div
+                          key={track.id}
+                          className="featured-card glass-panel"
+                          onClick={() => playTrack(track, homeNewReleases)}
+                          initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                          whileHover={{ y: -8, scale: 1.03, transition: { duration: 0.2 } }}
+                          whileTap={{ scale: 0.97 }}
+                        >
                           <div className="featured-card-cover-container">
                             <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
                             <button className="featured-card-play-btn" title="Play">
@@ -928,7 +982,7 @@ export default function MainContent({
                           </div>
                           <span className="featured-card-title">{decodeHtml(track.name)}</span>
                           <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   )}
@@ -947,8 +1001,17 @@ export default function MainContent({
                     </div>
                   ) : (
                     <div className="featured-cards-scroll">
-                      {homeChill.map(track => (
-                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeChill)}>
+                      {homeChill.map((track, idx) => (
+                        <motion.div
+                          key={track.id}
+                          className="featured-card glass-panel"
+                          onClick={() => playTrack(track, homeChill)}
+                          initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                          whileHover={{ y: -8, scale: 1.03, transition: { duration: 0.2 } }}
+                          whileTap={{ scale: 0.97 }}
+                        >
                           <div className="featured-card-cover-container">
                             <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
                             <button className="featured-card-play-btn" title="Play">
@@ -957,7 +1020,7 @@ export default function MainContent({
                           </div>
                           <span className="featured-card-title">{decodeHtml(track.name)}</span>
                           <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   )}
@@ -976,8 +1039,17 @@ export default function MainContent({
                     </div>
                   ) : (
                     <div className="featured-cards-scroll">
-                      {homeWorkout.map(track => (
-                        <div key={track.id} className="featured-card glass-panel" onClick={() => playTrack(track, homeWorkout)}>
+                      {homeWorkout.map((track, idx) => (
+                        <motion.div
+                          key={track.id}
+                          className="featured-card glass-panel"
+                          onClick={() => playTrack(track, homeWorkout)}
+                          initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                          whileHover={{ y: -8, scale: 1.03, transition: { duration: 0.2 } }}
+                          whileTap={{ scale: 0.97 }}
+                        >
                           <div className="featured-card-cover-container">
                             <img src={track.image?.[2]?.url || track.image?.[1]?.url} alt={track.name} className="featured-card-cover" />
                             <button className="featured-card-play-btn" title="Play">
@@ -986,7 +1058,7 @@ export default function MainContent({
                           </div>
                           <span className="featured-card-title">{decodeHtml(track.name)}</span>
                           <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   )}
@@ -1000,10 +1072,10 @@ export default function MainContent({
                 <h2>Trending Podcasts & Shows</h2>
                 <div className="featured-cards-scroll">
                   {MOCK_PODCAST_SHOWS.map(show => (
-                    <div key={show.id} className="featured-card glass-panel" onClick={() => window.location.hash = `#podcast-show-${show.id}`}>
+                    <div key={show.id} className="featured-card glass-panel" onClick={() => navigate(`/podcast-show/${show.id}`)}>
                       <div className="featured-card-cover-container" style={{ borderRadius: '16px', overflow: 'hidden' }}>
                         <img src={show.image[2].url || show.image[1].url} alt={show.name} className="featured-card-cover" />
-                        <button className="featured-card-play-btn" title="View Show" onClick={(e) => { e.stopPropagation(); window.location.hash = `#podcast-show-${show.id}`; }}>
+                        <button className="featured-card-play-btn" title="View Show" onClick={(e) => { e.stopPropagation(); navigate(`/podcast-show/${show.id}`); }}>
                           <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
                         </button>
                       </div>
@@ -1039,13 +1111,19 @@ export default function MainContent({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
 
 
         {/* VIEW 2: SEARCH */}
         {currentView === 'search' && (
-          <div className="view-search view-animate-in">
+          <motion.div
+            className="view-search"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
             {/* Search Input bar */}
             <form onSubmit={handleSearchSubmit} className="search-bar-form">
               <div className="search-input-wrapper glass-panel">
@@ -1188,7 +1266,7 @@ export default function MainContent({
                 )}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* VIEW 3 & 4: PLAYLIST / ALBUM DETAILS */}
@@ -1348,7 +1426,7 @@ export default function MainContent({
                         <Compass size={32} />
                         <h3>Your playlist is empty</h3>
                         <p>Go to the <strong>Search</strong> tab to find songs and click the "+" button to populate your playlist!</p>
-                        <button className="go-search-btn" onClick={() => { window.location.hash = 'search'; }}>
+                        <button className="go-search-btn" onClick={() => { navigate('/search'); }}>
                           Go to Search
                         </button>
                       </div>
@@ -1466,7 +1544,7 @@ export default function MainContent({
             {/* Static Liked Songs Playlist Card */}
             <div
               className="lib-item liked-songs-lib-card"
-              onClick={() => { window.location.hash = 'custom-liked'; }}
+              onClick={() => { navigate('/custom/liked'); }}
               style={{ 
                 background: 'rgba(0, 229, 255, 0.03)',
                 border: '1px solid rgba(0, 229, 255, 0.15)',
@@ -1495,7 +1573,7 @@ export default function MainContent({
               <div
                 key={playlist.id}
                 className="lib-item"
-                onClick={() => { window.location.hash = `custom-${playlist.id}`; }}
+                onClick={() => { navigate(`/custom/${playlist.id}`); }}
               >
                 <div className="lib-item-art custom-art">
                   <Music size={20} />
@@ -1527,7 +1605,7 @@ export default function MainContent({
               <div
                 key={playlist.id}
                 className="lib-item"
-                onClick={() => { window.location.hash = `${playlist.type}-${playlist.id}`; }}
+                onClick={() => { navigate(`/${playlist.type}/${playlist.id}`); }}
               >
                 <div className="lib-item-art featured-art">
                   <ListMusic size={20} />
@@ -1850,8 +1928,8 @@ export default function MainContent({
           min-width: 0;
           display: flex;
           flex-direction: column;
-          padding: 10px;
-          border-radius: 14px;
+          padding: 16px;
+          border-radius: 16px;
           cursor: pointer;
           transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
           background: rgba(255, 255, 255, 0.025);
@@ -1885,7 +1963,7 @@ export default function MainContent({
         .featured-card-cover-container {
           width: 100%;
           aspect-ratio: 1 / 1;
-          border-radius: 8px;
+          border-radius: 10px;
           overflow: hidden;
           position: relative;
           margin-bottom: 12px;
@@ -2842,13 +2920,14 @@ export default function MainContent({
           }
 
           .featured-card {
-            flex: 0 0 130px;
-            padding: 8px;
-            border-radius: 8px;
+            flex: 0 0 144px;
+            padding: 14px;
+            border-radius: 14px;
           }
 
           .featured-card-cover-container {
-            margin-bottom: 8px;
+            border-radius: 8px;
+            margin-bottom: 10px;
           }
 
           .featured-card-play-btn {
@@ -3054,12 +3133,19 @@ export default function MainContent({
           .lib-item {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            gap: 16px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.015);
+            border: 1px solid rgba(255,255,255,0.03);
             cursor: pointer;
-            border-radius: 8px;
-            transition: background 0.15s;
+            border-radius: 12px;
+            transition: all 0.2s;
+          }
+
+          .lib-item:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.08);
           }
 
           .lib-item:active {
@@ -3067,14 +3153,14 @@ export default function MainContent({
           }
 
           .lib-item-art {
-            width: 52px;
-            height: 52px;
-            border-radius: 6px;
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 20px;
+            font-size: 22px;
           }
 
           .custom-art {

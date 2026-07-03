@@ -32,6 +32,8 @@ export const AudioProvider = ({ children }) => {
   const [lyrics, setLyrics] = useState(null);
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
+  // null = not yet detected; string = real device name
+  const [audioOutputDevice, setAudioOutputDevice] = useState(null);
 
   const audioRef = useRef(new Audio());
   const preloadRef = useRef(new Audio()); // For pre-buffering the next track
@@ -41,7 +43,7 @@ export const AudioProvider = ({ children }) => {
   const sourceNodeRef = useRef(null);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
-    return localStorage.getItem('tunely_audio_quality') || '160kbps';
+    return localStorage.getItem('tunely_audio_quality') || '320kbps';
   });
 
   const [recentlyPlayed, setRecentlyPlayed] = useState(() => {
@@ -84,6 +86,36 @@ export const AudioProvider = ({ children }) => {
       return [];
     }
   });
+
+  // Detect basic audio output device (without requesting mic permissions)
+  const detectAudioDevice = async () => {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter(d => d.kind === 'audiooutput');
+      if (outputs.length === 0) return;
+      
+      const currentSinkId = audioRef.current?.sinkId || 'default';
+      const active = outputs.find(d => d.deviceId === currentSinkId) || outputs[0];
+      const label = active?.label || '';
+      if (label && label !== 'Default') {
+        setAudioOutputDevice(label.replace(/\s*\(.*?\)\s*/g, '').trim() || 'Speaker');
+      } else {
+        const named = outputs.find(d => d.label && d.label !== 'Default' && d.deviceId !== 'default');
+        if (named?.label) setAudioOutputDevice(named.label.replace(/\s*\(.*?\)\s*/g, '').trim() || 'Speaker');
+        else setAudioOutputDevice('Speaker');
+      }
+    } catch { 
+      setAudioOutputDevice('Speaker');
+    }
+  };
+
+  useEffect(() => {
+    detectAudioDevice();
+    navigator.mediaDevices?.addEventListener?.('devicechange', detectAudioDevice);
+    return () => navigator.mediaDevices?.removeEventListener?.('devicechange', detectAudioDevice);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load liked songs from localStorage on mount
   useEffect(() => {
@@ -761,6 +793,52 @@ export const AudioProvider = ({ children }) => {
     }
   }, [volume]);
 
+  // Log user activity (current playing track, device, state) to server for live admin dashboard
+  useEffect(() => {
+    if (!isLoggedIn || !authFetch || user?.isGuest || isLoading) return;
+
+    let intervalId;
+    const sendActivity = async () => {
+      try {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        // Use detected audio output device label, fall back to platform type
+        const deviceLabel = audioOutputDevice && audioOutputDevice !== 'Speaker'
+          ? audioOutputDevice
+          : isMobile ? 'Mobile' : 'Desktop Browser';
+        await authFetch(`${API_BASE}/api/user/activity`, {
+          method: 'POST',
+          body: JSON.stringify({
+            track: currentTrack ? {
+              id: currentTrack.id,
+              name: currentTrack.name,
+              artists: currentTrack.artists,
+              image: currentTrack.image,
+              album: currentTrack.album
+            } : null,
+            isPlaying,
+            progress: audioRef.current ? Math.floor(audioRef.current.currentTime) : 0,
+            device: deviceLabel
+          })
+        });
+      } catch (e) {
+        // ignore activity failures
+      }
+    };
+
+    // Send immediately on change
+    sendActivity();
+
+    // Setup periodic updates every 15s if playing
+    if (isPlaying) {
+      intervalId = setInterval(sendActivity, 15000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [currentTrack, isPlaying, isLoggedIn, authFetch, user, isLoading]);
+
+
   // Sync lyrics when currentTrack changes
   useEffect(() => {
     if (currentTrack) {
@@ -933,7 +1011,8 @@ export const AudioProvider = ({ children }) => {
       likedSongs,
       likedSongsMetadata,
       toggleLikeTrack,
-      recentlyPlayed
+      recentlyPlayed,
+      audioOutputDevice
     }}>
       {children}
     </AudioContext.Provider>
