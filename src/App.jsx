@@ -301,7 +301,7 @@ function TunelyApp() {
                 </>
               )}
             </div>
-            <div className="drawer-footer"><span className="app-version">Tunely Mobile v1.0</span></div>
+            <div className="drawer-footer"><span className="app-version">Tunely Mobile v1.1.0</span></div>
           </div>
 
           {/* Mobile Tab Bar */}
