@@ -744,7 +744,7 @@ function AdminDashboard({ onLogout }) {
         .admin-main-container {
           max-width: 1300px;
           margin: 0 auto;
-          padding: 36px 24px;
+          padding: 36px 24px 80px;
           display: flex;
           flex-direction: column;
           gap: 32px;
@@ -1013,7 +1013,7 @@ function AdminDashboard({ onLogout }) {
             justify-content: center;
           }
           .admin-main-container {
-            padding: 24px 16px;
+            padding: 24px 16px 80px;
             gap: 20px;
             /* Enable CSS ordering on mobile */
             display: flex;
