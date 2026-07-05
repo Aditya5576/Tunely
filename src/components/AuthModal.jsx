@@ -33,7 +33,7 @@ export const AuthModal = ({ onClose, required = false }) => {
         });
         const data = await res.json();
         if (data.success) {
-          localStorage.setItem('tunely_admin_token', data.token);
+          sessionStorage.setItem('tunely_admin_token', data.token);
           window.location.href = '/admin';
           return;
         } else {
