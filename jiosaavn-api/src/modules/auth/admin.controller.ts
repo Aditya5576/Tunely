@@ -193,3 +193,27 @@ adminController.post('/users/:id/reset-password', async (c) => {
   }
 })
 
+adminController.post('/broadcast', async (c) => {
+  let body: { message?: string }
+  try { body = await c.req.json() } catch {
+    return c.json({ success: false, message: 'Invalid JSON body' }, 400)
+  }
+
+  const { message } = body
+  if (!message || !message.trim()) {
+    return c.json({ success: false, message: 'Message is required' }, 400)
+  }
+
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    const broadcastData = {
+      message: message.trim(),
+      timestamp: new Date().toISOString()
+    }
+    await kv.put('global:broadcast', JSON.stringify(broadcastData))
+  }
+
+  return c.json({ success: true, message: 'Broadcast dispatched successfully' })
+})
+
+

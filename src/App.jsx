@@ -21,6 +21,7 @@ function TunelyApp() {
 
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashMounted, setIsSplashMounted] = useState(true);
+  const [activeBroadcast, setActiveBroadcast] = useState(null);
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
@@ -154,6 +155,38 @@ function TunelyApp() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [isLoggedIn, isLoading, authFetch, user]);
+
+  // Poll broadcast messages from server
+  useEffect(() => {
+    if (isLoading || !isLoggedIn || !authFetch || user?.isGuest) return;
+    const checkBroadcast = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await authFetch(`${API_BASE}/api/user/broadcast`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.broadcast) {
+          const lastSeen = localStorage.getItem('tunely_last_seen_broadcast_ts');
+          if (!lastSeen || new Date(data.broadcast.timestamp).getTime() > new Date(lastSeen).getTime()) {
+            setActiveBroadcast(data.broadcast);
+          }
+        }
+      } catch (e) {
+        console.warn('Broadcast poll failed:', e);
+      }
+    };
+
+    checkBroadcast();
+    const intervalId = setInterval(checkBroadcast, 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') checkBroadcast(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isLoggedIn, isLoading, authFetch, user]);
+
 
   // Splash animation
   useEffect(() => {
@@ -314,6 +347,54 @@ function TunelyApp() {
           {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
           {showThemeModal && (
             <ThemeModal onClose={() => setShowThemeModal(false)} activeTheme={activeTheme} onChangeTheme={changeTheme} />
+          )}
+
+          {activeBroadcast && (
+            <div style={{
+              position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 9999, width: '90%', maxWidth: 480,
+              background: 'rgba(10, 11, 20, 0.85)',
+              border: '1px solid rgba(0, 229, 255, 0.3)',
+              borderRadius: 20, padding: '16px 20px',
+              backdropFilter: 'blur(30px)',
+              boxShadow: '0 12px 40px rgba(0, 229, 255, 0.25)',
+              display: 'flex', gap: 12, alignItems: 'flex-start',
+              animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'linear-gradient(135deg, #00f2fe, #4facfe)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Shield size={18} color="#fff" />
+              </div>
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#00e5ff', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>
+                  System Broadcast
+                </span>
+                <p style={{ fontSize: 13, color: '#fff', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
+                  {activeBroadcast.message}
+                </p>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', display: 'block', marginTop: 6 }}>
+                  {new Date(activeBroadcast.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.setItem('tunely_last_seen_broadcast_ts', activeBroadcast.timestamp);
+                  setActiveBroadcast(null);
+                }}
+                style={{
+                  background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer', padding: 4, display: 'flex', alignSelf: 'flex-start', transition: 'color 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+              >
+                <X size={16} />
+              </button>
+            </div>
           )}
 
           <PlayerBar

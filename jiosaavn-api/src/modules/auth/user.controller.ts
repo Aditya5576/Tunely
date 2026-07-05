@@ -378,3 +378,16 @@ userController.post('/activity', authMiddleware, async (c) => {
   return c.json({ success: true, message: 'Activity logged' })
 })
 
+userController.get('/broadcast', authMiddleware, async (c) => {
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  let broadcast = null
+  if (kv) {
+    const raw = await kv.get('global:broadcast')
+    if (raw) {
+      try { broadcast = JSON.parse(raw) } catch {}
+    }
+  }
+  return c.json({ success: true, broadcast })
+})
+
+

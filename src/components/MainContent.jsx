@@ -253,6 +253,15 @@ export default function MainContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tunely_search_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [searchTab, setSearchTab] = useState('songs'); // 'songs' | 'albums'
   const searchInputRef = useRef(null);
 
   // Home states
@@ -474,7 +483,19 @@ export default function MainContent({
     }, 200); // 200ms debounce for snappy feel
 
     return () => clearTimeout(delayDebounceFn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, currentView]);
+
+  const addToHistory = (q) => {
+    if (!q || !q.trim()) return;
+    const term = q.trim();
+    setSearchHistory(prev => {
+      const filtered = prev.filter(item => item.toLowerCase() !== term.toLowerCase());
+      const next = [term, ...filtered].slice(0, 8);
+      localStorage.setItem('tunely_search_history', JSON.stringify(next));
+      return next;
+    });
+  };
 
   async function performSearch(query) {
     const cacheKey = query.trim().toLowerCase();
@@ -484,12 +505,19 @@ export default function MainContent({
       setSearchLoading(false);
       return;
     }
+    addToHistory(query);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`);
-      if (res.ok) {
-        const obj = await res.json();
+      const [songsRes, albumsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`),
+        fetch(`${API_BASE}/api/search/albums?query=${encodeURIComponent(query)}&limit=12`).catch(() => null)
+      ]);
+
+      let songs = [];
+      let albums = [];
+
+      if (songsRes && songsRes.ok) {
+        const obj = await songsRes.json();
         const resultsList = obj.data.results || [];
-        
         const q = query.toLowerCase().trim();
         const getScore = (track) => {
           let score = 0;
@@ -509,19 +537,25 @@ export default function MainContent({
           if (playCount > 0) score += Math.log10(playCount) * 8;
           return score;
         };
-        const sorted = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
-        const result = { songs: sorted };
-        // Cache result (max 100 entries to avoid memory bloat)
-        if (searchCache.size > 100) searchCache.clear();
-        searchCache.set(cacheKey, result);
-        setSearchResults(result);
+        songs = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
       }
+
+      if (albumsRes && albumsRes.ok) {
+        const obj = await albumsRes.json();
+        albums = obj.data.results || [];
+      }
+
+      const result = { songs, albums };
+      // Cache result (max 100 entries to avoid memory bloat)
+      if (searchCache.size > 100) searchCache.clear();
+      searchCache.set(cacheKey, result);
+      setSearchResults(result);
     } catch (e) {
       console.error("Search failed:", e);
     } finally {
       setSearchLoading(false);
     }
-  };
+  }
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
@@ -1151,6 +1185,53 @@ export default function MainContent({
               </div>
             </form>
 
+            {/* Search History */}
+            {!searchResults && !searchLoading && searchHistory.length > 0 && (
+              <div className="search-history-section" style={{ marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>Recent Searches</h3>
+                  <button 
+                    onClick={() => { setSearchHistory([]); localStorage.removeItem('tunely_search_history'); }}
+                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {searchHistory.map((query, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => setSearchQuery(query)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 20, fontSize: 12, color: 'rgba(255,255,255,0.85)', cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+                    >
+                      <span>{query}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = searchHistory.filter((_, i) => i !== idx);
+                          setSearchHistory(next);
+                          localStorage.setItem('tunely_search_history', JSON.stringify(next));
+                        }}
+                        style={{
+                          background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)',
+                          cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', padding: '0 2px'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Grid categories when no query */}
             {!searchResults && !searchLoading && (
               <div className="categories-grid-section">
@@ -1191,87 +1272,161 @@ export default function MainContent({
             {/* Search results output */}
             {searchResults && !searchLoading && (
               <div className="search-results">
-                {searchResults.songs.length === 0 ? (
-                  <div className="empty-results">No matches found for "{searchQuery}"</div>
-                ) : (
-                  <>
-                    {/* Top Split Layout: Top Result (Left) & Compact list of next 4 songs (Right) */}
-                    <div className="search-split-layout">
-                      
-                      {/* Left: Top Result Card */}
-                      <div className="top-result-section">
-                        <h2>Top Result</h2>
-                        <div 
-                          className="top-result-card glass-panel"
-                          onClick={() => playTrack(searchResults.songs[0], searchResults.songs)}
-                        >
-                          <img 
-                            src={searchResults.songs[0].image?.[2]?.url || searchResults.songs[0].image?.[1]?.url} 
-                            alt={decodeHtml(searchResults.songs[0].name)} 
-                            className="top-result-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                          <div className="top-result-info">
-                            <span className="top-result-name">{decodeHtml(searchResults.songs[0].name)}</span>
-                            <div className="top-result-artist-row">
-                              <span className="top-result-tag">Song</span>
-                              <span className="bullet">•</span>
-                              <span className="top-result-artist-name">{decodeHtml(searchResults.songs[0].artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist')}</span>
+                {/* Categorized Search Tabs */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 10 }}>
+                  <button
+                    onClick={() => setSearchTab('songs')}
+                    style={{
+                      background: 'transparent', border: 'none',
+                      color: searchTab === 'songs' ? '#00e5ff' : 'rgba(255,255,255,0.5)',
+                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                      position: 'relative', padding: '4px 8px'
+                    }}
+                  >
+                    Songs
+                    {searchTab === 'songs' && (
+                      <span style={{ position: 'absolute', bottom: -11, left: 0, right: 0, height: 2, background: '#00e5ff', borderRadius: 2 }} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setSearchTab('albums')}
+                    style={{
+                      background: 'transparent', border: 'none',
+                      color: searchTab === 'albums' ? '#00e5ff' : 'rgba(255,255,255,0.5)',
+                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                      position: 'relative', padding: '4px 8px'
+                    }}
+                  >
+                    Albums ({searchResults.albums?.length || 0})
+                    {searchTab === 'albums' && (
+                      <span style={{ position: 'absolute', bottom: -11, left: 0, right: 0, height: 2, background: '#00e5ff', borderRadius: 2 }} />
+                    )}
+                  </button>
+                </div>
+
+                {searchTab === 'songs' && (
+                  searchResults.songs.length === 0 ? (
+                    <div className="empty-results">No matches found for "{searchQuery}"</div>
+                  ) : (
+                    <>
+                      {/* Top Split Layout: Top Result (Left) & Compact list of next 4 songs (Right) */}
+                      <div className="search-split-layout">
+                        
+                        {/* Left: Top Result Card */}
+                        <div className="top-result-section">
+                          <h2>Top Result</h2>
+                          <div 
+                            className="top-result-card glass-panel"
+                            onClick={() => playTrack(searchResults.songs[0], searchResults.songs)}
+                          >
+                            <img 
+                              src={searchResults.songs[0].image?.[2]?.url || searchResults.songs[0].image?.[1]?.url} 
+                              alt={decodeHtml(searchResults.songs[0].name)} 
+                              className="top-result-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                            <div className="top-result-info">
+                              <span className="top-result-name">{decodeHtml(searchResults.songs[0].name)}</span>
+                              <div className="top-result-artist-row">
+                                <span className="top-result-tag">Song</span>
+                                <span className="bullet">•</span>
+                                <span className="top-result-artist-name">{decodeHtml(searchResults.songs[0].artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist')}</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="top-result-play-btn" 
+                              title="Play"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playTrack(searchResults.songs[0], searchResults.songs);
+                              }}
+                            >
+                              <Play size={20} fill="currentColor" style={{ marginLeft: '2px' }} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Right: Next 4 Tracks */}
+                        {searchResults.songs.length > 1 && (
+                          <div className="songs-list-column">
+                            <h2>Songs</h2>
+                            <div className="compact-song-list">
+                              {searchResults.songs.slice(1, 5).map((track, idx) => (
+                                <SongRow 
+                                  key={track.id} 
+                                  track={track} 
+                                  index={idx}
+                                  customPlaylists={customPlaylists}
+                                  setCustomPlaylists={setCustomPlaylists}
+                                  playlistTracks={searchResults.songs}
+                                />
+                              ))}
                             </div>
                           </div>
-                          <button 
-                            className="top-result-play-btn" 
-                            title="Play"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTrack(searchResults.songs[0], searchResults.songs);
-                            }}
-                          >
-                            <Play size={20} fill="currentColor" style={{ marginLeft: '2px' }} />
-                          </button>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Right: Next 4 Tracks */}
-                      {searchResults.songs.length > 1 && (
-                        <div className="songs-list-column">
-                          <h2>Songs</h2>
-                          <div className="compact-song-list">
-                            {searchResults.songs.slice(1, 5).map((track, idx) => (
+                      {/* Bottom: Remaining Tracks list */}
+                      {searchResults.songs.length > 5 && (
+                        <div className="remaining-matches-section">
+                          <h2>More Matches</h2>
+                          <div className="song-list-table">
+                            {searchResults.songs.slice(5).map((track, idx) => (
                               <SongRow 
                                 key={track.id} 
                                 track={track} 
-                                index={idx}
+                                index={idx + 4}
                                 customPlaylists={customPlaylists}
-                                setCustomPlaylists={setCustomPlaylists}
+                                  setCustomPlaylists={setCustomPlaylists}
                                 playlistTracks={searchResults.songs}
                               />
                             ))}
                           </div>
                         </div>
                       )}
-                    </div>
+                    </>
+                  )
+                )}
 
-                    {/* Bottom: Remaining Tracks list */}
-                    {searchResults.songs.length > 5 && (
-                      <div className="remaining-matches-section">
-                        <h2>More Matches</h2>
-                        <div className="song-list-table">
-                          {searchResults.songs.slice(5).map((track, idx) => (
-                            <SongRow 
-                              key={track.id} 
-                              track={track} 
-                              index={idx + 4}
-                              customPlaylists={customPlaylists}
-                              setCustomPlaylists={setCustomPlaylists}
-                              playlistTracks={searchResults.songs}
+                {searchTab === 'albums' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 16, marginTop: 12 }}>
+                    {(!searchResults.albums || searchResults.albums.length === 0) ? (
+                      <div className="empty-results" style={{ gridColumn: '1/-1' }}>No albums found for "{searchQuery}"</div>
+                    ) : (
+                      searchResults.albums.map((album, idx) => (
+                        <div
+                          key={album.id || idx}
+                          onClick={() => {
+                            navigate(`/album/${album.id}`);
+                          }}
+                          style={{
+                            background: 'rgba(15, 17, 28, 0.4)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: 16, padding: 12, cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'left'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.backgroundColor = 'rgba(15, 17, 28, 0.4)'; }}
+                        >
+                          <div style={{ position: 'relative', paddingBottom: '100%', borderRadius: 10, overflow: 'hidden', marginBottom: 10, background: 'rgba(255,255,255,0.03)' }}>
+                            <img
+                              src={album.image?.[2]?.url || album.image?.[1]?.url || 'https://via.placeholder.com/150'}
+                              alt={decodeHtml(album.name)}
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                             />
-                          ))}
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {decodeHtml(album.name)}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                            {album.year} • {album.artists?.primary?.map(a => a.name).join(', ') || album.artist || 'Various'}
+                          </div>
                         </div>
-                      </div>
+                      ))
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             )}
@@ -2910,7 +3065,20 @@ export default function MainContent({
           }
 
           .hero-banner {
-            display: none !important;
+            display: flex !important;
+            padding: 24px 20px !important;
+            margin-bottom: 24px !important;
+          }
+          .hero-banner h1 {
+            font-size: 26px !important;
+          }
+          .hero-banner p {
+            font-size: 12px !important;
+            margin-bottom: 16px !important;
+          }
+          .hero-play-btn {
+            padding: 8px 16px !important;
+            font-size: 12px !important;
           }
 
           /* Featured scroll section on mobile */

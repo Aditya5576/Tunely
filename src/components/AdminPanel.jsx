@@ -526,6 +526,8 @@ function AdminDashboard({ onLogout }) {
   const [refreshCountdown, setRefreshCountdown] = useState(30);
   const [activityLogs, setActivityLogs] = useState([]);
   const [newToday, setNewToday] = useState(0);
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
 
   useEffect(() => {
     const cutoff = Date.now() - 86400000;
@@ -535,10 +537,37 @@ function AdminDashboard({ onLogout }) {
 
 
 
+
   const showToast = (msg, type = 'success', duration = 4000) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), duration);
   };
+
+  const handleBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastMsg.trim()) return;
+    setBroadcastLoading(true);
+    try {
+      const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+      const res = await fetch(`${API_BASE}/api/admin/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `AdminBearer ${token}` },
+        body: JSON.stringify({ message: broadcastMsg.trim() })
+      });
+      if (res.ok) {
+        showToast("Global broadcast notification dispatched successfully!", "success");
+        setActivityLogs(prev => [`ADMIN: Dispatched broadcast: "${broadcastMsg.trim()}"`, ...prev].slice(0, 15));
+        setBroadcastMsg('');
+      } else {
+        showToast("Failed to dispatch broadcast.", "error");
+      }
+    } catch {
+      showToast("Network error broadcasting message.", "error");
+    } finally {
+      setBroadcastLoading(false);
+    }
+  };
+
 
   const fetchUsers = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -1250,6 +1279,41 @@ function AdminDashboard({ onLogout }) {
 
           {/* Live events log */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Global Broadcast Dispatcher */}
+            <div style={{ background: 'rgba(15, 17, 28, 0.75)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: 20, padding: 20, backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Radio size={16} color="#00e5ff" style={{ animation: 'pulse 1.2s infinite' }} />
+                <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em' }}>Dispatch Global Broadcast</span>
+              </div>
+              <form onSubmit={handleBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <textarea
+                  value={broadcastMsg}
+                  onChange={e => setBroadcastMsg(e.target.value)}
+                  placeholder="Type an announcement to send to all active music listeners..."
+                  style={{
+                    width: '100%', minHeight: 80, padding: 12, background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, color: '#fff',
+                    fontSize: 12, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box'
+                  }}
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={broadcastLoading || !broadcastMsg.trim()}
+                  style={{
+                    padding: '10px 14px', borderRadius: 10,
+                    background: broadcastLoading || !broadcastMsg.trim() ? 'rgba(0, 229, 255, 0.25)' : 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                    border: 'none', color: '#fff', fontWeight: 700, fontSize: 12,
+                    cursor: broadcastLoading || !broadcastMsg.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                  }}
+                >
+                  {broadcastLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={12} />}
+                  Send Alert
+                </button>
+              </form>
+            </div>
+
             <div style={{ background: 'rgba(10, 12, 20, 0.65)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, padding: 20, backdropFilter: 'blur(20px)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <Activity size={16} color="#00e5ff" style={{ animation: 'pulse 1.2s infinite' }} />
