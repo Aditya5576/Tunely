@@ -10,7 +10,6 @@ export const AuthModal = ({ onClose, required = false }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
-  const [devOtp, setDevOtp] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,7 +41,7 @@ export const AuthModal = ({ onClose, required = false }) => {
           setLoading(false);
           return;
         }
-      } catch (err) {
+      } catch {
         setError('Network error');
         setLoading(false);
         return;
@@ -59,7 +58,6 @@ export const AuthModal = ({ onClose, required = false }) => {
     } else if (tab === 'forgot_step1') {
       result = await requestPasswordReset(email.trim());
       if (result.success) {
-        setDevOtp(result.devOtp || null);
         setLoading(false);
         goTo('forgot_step2');
         return;

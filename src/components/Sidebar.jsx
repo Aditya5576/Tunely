@@ -9,7 +9,7 @@ const PRE_CONFIGURED_PLAYLISTS = [
   { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
-export default function Sidebar({ currentView, selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal }) {
+export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal }) {
   const { user, isLoggedIn, logout } = useAuth() || {};
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,7 +25,6 @@ export default function Sidebar({ currentView, selectedPlaylistId, customPlaylis
     
     // If the deleted playlist was selected, reset view to home
     if (selectedPlaylistId === playlistId) {
-      /* eslint-disable-next-line react-hooks/immutability */
       navigate('/home');
       if (setIsSidebarOpen) setIsSidebarOpen(false);
     }

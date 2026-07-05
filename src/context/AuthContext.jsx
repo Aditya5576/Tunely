@@ -67,7 +67,9 @@ export const AuthProvider = ({ children }) => {
           if (data.banned) {
             setBannedMessage(data.message || 'Your account has been suspended.');
           }
-        } catch {}
+        } catch {
+          // JSON parsing failed, ignore
+        }
         clearSession();
       } else if (!res.ok) {
         // Token expired or invalid — clear session silently
@@ -227,7 +229,9 @@ export const AuthProvider = ({ children }) => {
           setBannedMessage(data.message || 'Your account has been suspended.');
           clearSession();
         }
-      } catch {}
+      } catch {
+        // Cloning or JSON parsing failed, ignore
+      }
     }
     return res;
   }, [token]);

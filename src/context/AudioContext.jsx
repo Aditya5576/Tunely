@@ -114,7 +114,6 @@ export const AudioProvider = ({ children }) => {
     detectAudioDevice();
     navigator.mediaDevices?.addEventListener?.('devicechange', detectAudioDevice);
     return () => navigator.mediaDevices?.removeEventListener?.('devicechange', detectAudioDevice);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load liked songs from localStorage on mount
@@ -820,7 +819,7 @@ export const AudioProvider = ({ children }) => {
             device: deviceLabel
           })
         });
-      } catch (e) {
+      } catch {
         // ignore activity failures
       }
     };
@@ -836,7 +835,7 @@ export const AudioProvider = ({ children }) => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [currentTrack, isPlaying, isLoggedIn, authFetch, user, isLoading]);
+  }, [currentTrack, isPlaying, isLoggedIn, authFetch, user, isLoading, audioOutputDevice]);
 
 
   // Sync lyrics when currentTrack changes

@@ -5,7 +5,8 @@ import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, Chevron
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -307,16 +308,20 @@ export default function MainContent({
     if (selectedPlaylistId) {
       if (currentView === 'custom') {
         if (selectedPlaylistId === 'liked') {
-          setDetailData({
-            id: 'liked',
-            name: 'Liked Songs',
-            type: 'custom',
-            songs: likedSongsMetadata
+          Promise.resolve().then(() => {
+            setDetailData({
+              id: 'liked',
+              name: 'Liked Songs',
+              type: 'custom',
+              songs: likedSongsMetadata
+            });
           });
         } else {
           // Custom playlist loading
           const playlist = customPlaylists.find(p => p.id === selectedPlaylistId);
-          setDetailData(playlist);
+          Promise.resolve().then(() => {
+            setDetailData(playlist);
+          });
         }
       } else {
         fetchDetailData();
@@ -447,19 +452,23 @@ export default function MainContent({
   useEffect(() => {
     if (currentView !== 'search') return;
     if (!searchQuery.trim()) {
-      setSearchResults(null);
-      setSearchLoading(false);
+      Promise.resolve().then(() => {
+        setSearchResults(null);
+        setSearchLoading(false);
+      });
       return;
     }
 
     // Instant result from cache, no loader flash
     const cacheKey = searchQuery.trim().toLowerCase();
     if (searchCache.has(cacheKey)) {
-      setSearchResults(searchCache.get(cacheKey));
-      setSearchLoading(false);
+      Promise.resolve().then(() => {
+        setSearchResults(searchCache.get(cacheKey));
+        setSearchLoading(false);
+      });
       return;
     }
-    setSearchLoading(true);
+    Promise.resolve().then(() => setSearchLoading(true));
     const delayDebounceFn = setTimeout(() => {
       performSearch(searchQuery);
     }, 200); // 200ms debounce for snappy feel

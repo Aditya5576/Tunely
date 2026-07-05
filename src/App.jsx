@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, Search, ListMusic, Plus, Music, Trash2, Heart, LogOut, LogIn, Settings, Info, Palette, X, User, Shield } from 'lucide-react';
+import { Home, Search, ListMusic, Music, Settings, Info, Palette, X, User, Shield } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
@@ -9,7 +9,7 @@ import { AudioProvider } from './context/AudioContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import ThemeModal from './components/ThemeModal';
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();

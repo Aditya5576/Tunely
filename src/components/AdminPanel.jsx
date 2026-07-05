@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
 import {
   Shield, LogOut, Users, Search, Ban, Trash2, CheckCircle,
-  XCircle, RefreshCw, Eye, EyeOff, AlertTriangle, Music,
+  XCircle, RefreshCw, Eye, EyeOff, AlertTriangle,
   Activity, UserCheck, UserX, Clock, ChevronDown, ChevronUp,
   Laptop, Smartphone, Network, Play, Pause, Radio, Zap, Key
 } from 'lucide-react';
@@ -299,11 +300,12 @@ function UserRow({ user, onBan, onUnban, onDelete, onResetPassword, onViewDetail
 
 // ─── User Detail Modal ────────────────────────────────────────────────────────
 function UserDetailModal({ user, onClose, onBan, onUnban, onDelete, onResetPassword }) {
+  const [copied, setCopied] = useState(false);
   if (!user) return null;
   const isBanned = user.banned;
   const isOnline = !!user.activity;
   const activity = user.activity;
-  const [copied, setCopied] = useState(false);
+
 
   const copyEmail = () => {
     navigator.clipboard.writeText(user.email).then(() => {
@@ -523,6 +525,15 @@ function AdminDashboard({ onLogout }) {
   // Live Sync State
   const [refreshCountdown, setRefreshCountdown] = useState(30);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [newToday, setNewToday] = useState(0);
+
+  useEffect(() => {
+    const cutoff = Date.now() - 86400000;
+    const count = users.filter(u => u.createdAt && new Date(u.createdAt).getTime() > cutoff).length;
+    Promise.resolve().then(() => setNewToday(count));
+  }, [users]);
+
+
 
   const showToast = (msg, type = 'success', duration = 4000) => {
     setToast({ msg, type });
@@ -564,8 +575,11 @@ function AdminDashboard({ onLogout }) {
 
   // Fetch immediately
   useEffect(() => {
-    fetchUsers();
+    Promise.resolve().then(() => {
+      fetchUsers();
+    });
   }, [fetchUsers]);
+
 
   // Auto-refresh every 30 seconds (reduced from 5s to cut network noise)
   useEffect(() => {
@@ -666,18 +680,18 @@ function AdminDashboard({ onLogout }) {
       return va < vb ? 1 : -1;
     });
 
-  const onlineUsers = users.filter(u => !!u.activity);
-
+  const onlineUsers = useMemo(() => users.filter(u => !!u.activity), [users]);
   const totalUsers  = users.length;
-  const activeUsers = users.filter(u => !u.banned).length;
-  const bannedUsers = users.filter(u => u.banned).length;
-  const newToday    = users.filter(u => u.createdAt && new Date(u.createdAt) > new Date(Date.now() - 86400000)).length;
+  const activeUsers = useMemo(() => users.filter(u => !u.banned).length, [users]);
+  const bannedUsers = useMemo(() => users.filter(u => u.banned).length, [users]);
+
+
 
   const toggleSort = (col) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortBy(col); setSortDir('asc'); }
   };
-  const SortIcon = ({ col }) => sortBy === col ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null;
+  const renderSortIcon = (col) => sortBy === col ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#07080d', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#fff' }}>
@@ -1192,14 +1206,14 @@ function AdminDashboard({ onLogout }) {
             <div className="user-row-desktop-headers" style={{ display: 'grid', gridTemplateColumns: '48px 1fr 1.2fr 120px 140px 180px', gap: 16, padding: '10px 24px', background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               <div />
               <button onClick={() => toggleSort('name')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 'inherit', textTransform: 'inherit' }}>
-                Name/Email <SortIcon col="name" />
+                Name/Email {renderSortIcon('name')}
               </button>
               <button onClick={() => toggleSort('createdAt')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 'inherit', textTransform: 'inherit' }}>
-                Join Date <SortIcon col="createdAt" />
+                Join Date {renderSortIcon('createdAt')}
               </button>
               <div>Status</div>
               <button onClick={() => toggleSort('lastSeen')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 'inherit', textTransform: 'inherit' }}>
-                Last Active <SortIcon col="lastSeen" />
+                Last Active {renderSortIcon('lastSeen')}
               </button>
               <div>Actions</div>
             </div>
