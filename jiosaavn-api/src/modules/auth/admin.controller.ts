@@ -194,12 +194,12 @@ adminController.post('/users/:id/reset-password', async (c) => {
 })
 
 adminController.post('/broadcast', async (c) => {
-  let body: { message?: string }
+  let body: { message?: string, duration?: number }
   try { body = await c.req.json() } catch {
     return c.json({ success: false, message: 'Invalid JSON body' }, 400)
   }
 
-  const { message } = body
+  const { message, duration } = body
   if (!message || !message.trim()) {
     return c.json({ success: false, message: 'Message is required' }, 400)
   }
@@ -210,7 +210,11 @@ adminController.post('/broadcast', async (c) => {
       message: message.trim(),
       timestamp: new Date().toISOString()
     }
-    await kv.put('global:broadcast', JSON.stringify(broadcastData))
+    const options: { expirationTtl?: number } = {}
+    if (duration && duration > 0) {
+      options.expirationTtl = duration
+    }
+    await kv.put('global:broadcast', JSON.stringify(broadcastData), options)
   }
 
   return c.json({ success: true, message: 'Broadcast dispatched successfully' })

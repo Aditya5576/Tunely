@@ -527,6 +527,7 @@ function AdminDashboard({ onLogout }) {
   const [activityLogs, setActivityLogs] = useState([]);
   const [newToday, setNewToday] = useState(0);
   const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastDuration, setBroadcastDuration] = useState('3600');
   const [broadcastLoading, setBroadcastLoading] = useState(false);
 
   useEffect(() => {
@@ -552,11 +553,14 @@ function AdminDashboard({ onLogout }) {
       const res = await fetch(`${API_BASE}/api/admin/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `AdminBearer ${token}` },
-        body: JSON.stringify({ message: broadcastMsg.trim() })
+        body: JSON.stringify({
+          message: broadcastMsg.trim(),
+          duration: parseInt(broadcastDuration, 10)
+        })
       });
       if (res.ok) {
         showToast("Global broadcast notification dispatched successfully!", "success");
-        setActivityLogs(prev => [`ADMIN: Dispatched broadcast: "${broadcastMsg.trim()}"`, ...prev].slice(0, 15));
+        setActivityLogs(prev => [`ADMIN: Dispatched broadcast: "${broadcastMsg.trim()}" (${broadcastDuration}s)`, ...prev].slice(0, 15));
         setBroadcastMsg('');
       } else {
         showToast("Failed to dispatch broadcast.", "error");
@@ -723,7 +727,7 @@ function AdminDashboard({ onLogout }) {
   const renderSortIcon = (col) => sortBy === col ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#07080d', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#fff' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#07080d', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#fff' }}>
       
       {/* Dynamic Mobile CSS inject */}
       <style>{`
@@ -1297,20 +1301,50 @@ function AdminDashboard({ onLogout }) {
                   }}
                   required
                 />
-                <button
-                  type="submit"
-                  disabled={broadcastLoading || !broadcastMsg.trim()}
-                  style={{
-                    padding: '10px 14px', borderRadius: 10,
-                    background: broadcastLoading || !broadcastMsg.trim() ? 'rgba(0, 229, 255, 0.25)' : 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-                    border: 'none', color: '#fff', fontWeight: 700, fontSize: 12,
-                    cursor: broadcastLoading || !broadcastMsg.trim() ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                  }}
-                >
-                  {broadcastLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={12} />}
-                  Send Alert
-                </button>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
+                    <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '0.05em' }}>DISPLAY DURATION</label>
+                    <select
+                      value={broadcastDuration}
+                      onChange={(e) => setBroadcastDuration(e.target.value)}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 10,
+                        color: '#fff',
+                        padding: '10px 12px',
+                        fontSize: 12,
+                        fontFamily: "inherit",
+                        outline: 'none',
+                        cursor: 'pointer',
+                        width: '100%'
+                      }}
+                    >
+                      <option value="600" style={{ background: '#090a10', color: '#fff' }}>10 Minutes</option>
+                      <option value="1800" style={{ background: '#090a10', color: '#fff' }}>30 Minutes</option>
+                      <option value="3600" style={{ background: '#090a10', color: '#fff' }}>1 Hour</option>
+                      <option value="86400" style={{ background: '#090a10', color: '#fff' }}>1 Day</option>
+                      <option value="604800" style={{ background: '#090a10', color: '#fff' }}>7 Days</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', paddingTop: 18 }}>
+                    <button
+                      type="submit"
+                      disabled={broadcastLoading || !broadcastMsg.trim()}
+                      style={{
+                        padding: '10px 18px', borderRadius: 10,
+                        background: broadcastLoading || !broadcastMsg.trim() ? 'rgba(0, 229, 255, 0.25)' : 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                        border: 'none', color: '#fff', fontWeight: 700, fontSize: 12,
+                        cursor: broadcastLoading || !broadcastMsg.trim() ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        height: 38
+                      }}
+                    >
+                      {broadcastLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={12} />}
+                      Send Alert
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
 
