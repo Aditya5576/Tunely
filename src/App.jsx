@@ -19,8 +19,8 @@ function TunelyApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [showSplash, setShowSplash] = useState(true);
-  const [isSplashMounted, setIsSplashMounted] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('tunely_splash_shown'));
+  const [isSplashMounted, setIsSplashMounted] = useState(() => !sessionStorage.getItem('tunely_splash_shown'));
   const [activeBroadcast, setActiveBroadcast] = useState(null);
 
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -190,8 +190,15 @@ function TunelyApp() {
 
   // Splash animation
   useEffect(() => {
+    const hasSeen = sessionStorage.getItem('tunely_splash_shown');
+    if (hasSeen) {
+      setShowSplash(false);
+      setIsSplashMounted(false);
+      return;
+    }
     const fadeTimer = setTimeout(() => {
       setShowSplash(false);
+      sessionStorage.setItem('tunely_splash_shown', 'true');
       const unmountTimer = setTimeout(() => setIsSplashMounted(false), 600);
       return () => clearTimeout(unmountTimer);
     }, 1500);

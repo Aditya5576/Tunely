@@ -22,6 +22,22 @@ const decodeHtml = (text) => {
     .replace(/&apos;/g, "'");
 };
 
+const deduplicateTracks = (tracks) => {
+  if (!Array.isArray(tracks)) return [];
+  const seen = new Set();
+  return tracks.filter(track => {
+    if (!track) return false;
+    const nameKey = `${(track.name || '').trim().toLowerCase()}-${(track.artists?.primary?.[0]?.name || '').trim().toLowerCase()}`;
+    const idKey = track.id;
+    if (seen.has(nameKey) || seen.has(idKey)) {
+      return false;
+    }
+    seen.add(nameKey);
+    seen.add(idKey);
+    return true;
+  });
+};
+
 // In-memory cache for search results and trending data
 const searchCache = new Map();
 const homeCache = { data: null, ts: 0 };
@@ -341,7 +357,7 @@ export default function MainContent({
 
   const fetchHomeTrending = async () => {
     // Serve from in-memory cache if fresh
-    if (homeCache.data && Date.now() - homeCache.ts < CACHE_TTL) {
+    if (homeCache.data && homeCache.data.length > 0 && Date.now() - homeCache.ts < CACHE_TTL) {
       setHomeTrending(homeCache.data);
       setHomeLoading(false);
       return;
@@ -350,10 +366,10 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=10`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=25`);
       if (res.ok) {
         const obj = await res.json();
-        const results = obj.data.results || [];
+        const results = deduplicateTracks(obj.data.results || []).slice(0, 10);
         homeCache.data = results;
         homeCache.ts = Date.now();
         setHomeTrending(results);
@@ -370,10 +386,11 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeFeaturedLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
       if (res.ok) {
         const obj = await res.json();
-        setHomeFeatured(obj.data.results || []);
+        const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
+        setHomeFeatured(results);
       }
     } catch (e) {
       console.error("Error loading home featured tracks:", e);
@@ -387,10 +404,11 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
       if (res.ok) {
         const obj = await res.json();
-        setHomeNewReleases(obj.data.results || []);
+        const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
+        setHomeNewReleases(results);
       }
     } catch (e) {
       console.error("Error loading new releases:", e);
@@ -404,10 +422,11 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeChillLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
       if (res.ok) {
         const obj = await res.json();
-        setHomeChill(obj.data.results || []);
+        const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
+        setHomeChill(results);
       }
     } catch (e) {
       console.error("Error loading chill tracks:", e);
@@ -421,10 +440,11 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeWorkoutLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=8`);
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
       if (res.ok) {
         const obj = await res.json();
-        setHomeWorkout(obj.data.results || []);
+        const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
+        setHomeWorkout(results);
       }
     } catch (e) {
       console.error("Error loading workout tracks:", e);
