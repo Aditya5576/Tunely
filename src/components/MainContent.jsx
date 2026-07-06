@@ -10,17 +10,7 @@ import { motion } from 'framer-motion';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
-const decodeHtml = (text) => {
-  if (!text) return '';
-  return text
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&apos;/g, "'");
-};
+import { decodeHtml } from '../utils/lyrics';
 
 const deduplicateTracks = (tracks) => {
   if (!Array.isArray(tracks)) return [];
@@ -1501,7 +1491,7 @@ export default function MainContent({
                   <div className="detail-header-meta">
                     <span className="detail-type">{currentView}</span>
                     <h1 className="detail-title">{detailData.name}</h1>
-                    <p className="detail-description" dangerouslySetInnerHTML={{ __html: detailData.description || '' }}></p>
+                    <p className="detail-description">{decodeHtml(detailData.description || '')}</p>
                     <div className="detail-stats">
                       <span className="stat-highlight">
                         {detailData.songs?.length || detailData.songCount || 0} songs

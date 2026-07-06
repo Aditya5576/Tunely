@@ -2,18 +2,7 @@ import { useState } from 'react';
 import { Play, Pause, Plus, Check, Music, Heart, X } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
-
-const decodeHtml = (text) => {
-  if (!text) return '';
-  return text
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&apos;/g, "'");
-};
+import { decodeHtml } from '../utils/lyrics';
 
 export default function SongRow({ 
   track, 

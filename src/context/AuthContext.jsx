@@ -86,11 +86,13 @@ export const AuthProvider = ({ children }) => {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    if (token) {
-      /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      verifySession(token);
-    }
-    setIsLoading(false);
+    const restore = async () => {
+      if (token) {
+        await verifySession(token);
+      }
+      setIsLoading(false);
+    };
+    restore();
   }, [token, verifySession]);
 
   /** Register a new account. Returns { success, error } */

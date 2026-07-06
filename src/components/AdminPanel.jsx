@@ -13,6 +13,18 @@ const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityap
 const ADMIN_TOKEN_KEY = 'tunely_admin_token';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const decodeHtml = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&apos;/g, "'");
+};
+
 const fmtDate = (iso) => {
   if (!iso) return 'Never';
   return new Date(iso).toLocaleString('en-IN', {
@@ -124,7 +136,7 @@ function ActiveUserCard({ session, onBan, onUnban, onDelete, onViewDetails }) {
               style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
             />
             <div style={{ overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 12, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} dangerouslySetInnerHTML={{ __html: track.name }}></div>
+              <div style={{ fontWeight: 600, fontSize: 12, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{decodeHtml(track.name)}</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artists?.primary?.[0]?.name || 'Unknown Artist'}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: isPlaying ? 'rgba(0, 229, 255, 0.12)' : 'rgba(255,255,255,0.06)', color: isPlaying ? '#00e5ff' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
@@ -363,7 +375,7 @@ function UserDetailModal({ user, onClose, onBan, onUnban, onDelete, onResetPassw
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <img src={activity.track.image?.[1]?.url || activity.track.image?.[0]?.url} alt="" style={{ width: 36, height: 36, borderRadius: 6, flexShrink: 0 }} />
               <div style={{ overflow: 'hidden', flex: 1 }}>
-                <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} dangerouslySetInnerHTML={{ __html: activity.track.name }}></div>
+                <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{decodeHtml(activity.track.name)}</div>
                 <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activity.track.artists?.primary?.[0]?.name}</div>
               </div>
             </div>
@@ -688,9 +700,8 @@ function AdminDashboard({ onLogout }) {
     }
     const ok = await performAction('reset-password', user, { newPassword: trimmed });
     if (ok) {
-      // Show the password in the toast for 10 seconds so admin can note it
-      showToast(`✅ Password for ${user.name || user.email} set to: "${trimmed}"`, 'success', 10000);
-      setActivityLogs(prev => [`ADMIN: Set password for ${user.email} → "${trimmed}"`, ...prev].slice(0, 15));
+      showToast(`✅ Password for ${user.name || user.email} has been reset successfully.`, 'success', 4000);
+      setActivityLogs(prev => [`ADMIN: Reset password for ${user.email}`, ...prev].slice(0, 15));
     } else {
       showToast('Reset failed', 'error');
     }
@@ -1466,7 +1477,6 @@ export default function AdminPanel() {
   return (
     <AdminDashboard onLogout={() => {
       sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-      localStorage.removeItem(ADMIN_TOKEN_KEY);
       setAdminToken(null);
       window.location.href = '/';
     }} />

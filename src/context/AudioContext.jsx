@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
+import { parseLyrics } from '../utils/lyrics';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 const AudioContext = createContext(null);
@@ -41,6 +42,7 @@ export const AudioProvider = ({ children }) => {
   const volumeRef = useRef(volume);
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
+  const hasPreloadedRef = useRef(null);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
     return localStorage.getItem('tunely_audio_quality') || '320kbps';
@@ -179,7 +181,7 @@ export const AudioProvider = ({ children }) => {
   // Live Sync / Periodic Polling for Liked Songs
   useEffect(() => {
     if (isLoading) return;
-    if (!isLoggedIn || !authFetch) return;
+    if (!isLoggedIn || !authFetch || user?.isGuest) return;
 
     let intervalId;
 
@@ -233,7 +235,7 @@ export const AudioProvider = ({ children }) => {
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isLoggedIn, isLoading, authFetch]);
+  }, [isLoggedIn, isLoading, authFetch, user?.isGuest]);
 
   const toggleLikeTrack = async (track) => {
     if (!track) return;
@@ -748,9 +750,12 @@ export const AudioProvider = ({ children }) => {
       setCurrentTime(audio.currentTime);
       
       // Gapless preloader logic:
-      // When the current song reaches 90% completion and we have a next song, preload its media chunks
+      // When the current song reaches 90% completion and we have a next song, preload its media chunks once
       if (audio.duration && (audio.currentTime / audio.duration > 0.90)) {
-        preloadNextTrack();
+        if (hasPreloadedRef.current !== currentTrack?.id) {
+          preloadNextTrack();
+          hasPreloadedRef.current = currentTrack?.id;
+        }
       }
     };
 
@@ -996,46 +1001,7 @@ export const AudioProvider = ({ children }) => {
   }, [sleepTimer]);
 
   const parsedLyrics = useMemo(() => {
-    if (!lyrics) return [];
-    const lines = lyrics.split('\n');
-    const timedLyrics = [];
-    const lrcRegex = /^\[(\d{2}):(\d{2fixed})(?:\.(\d{2,3}))?\](.*)/;
-    const lrcRegexMatched = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/;
-    let hasTimestamps = false;
-    
-    for (const line of lines) {
-      const cleanLine = line.trim();
-      const match = cleanLine.match(lrcRegexMatched);
-      if (match) {
-        hasTimestamps = true;
-        const min = parseInt(match[1], 10);
-        const sec = parseInt(match[2], 10);
-        const ms = match[3] ? parseInt(match[3], 10) / (match[3].length === 2 ? 100 : 1000) : 0;
-        const time = min * 60 + sec + ms;
-        const text = match[4].trim();
-        timedLyrics.push({ time, text });
-      }
-    }
-    
-    if (hasTimestamps) {
-      return timedLyrics.sort((a, b) => a.time - b.time);
-    }
-    
-    const cleanLines = lines.map(l => l.trim()).filter(l => l !== '');
-    if (cleanLines.length === 0) return [];
-    
-    const totalChars = cleanLines.reduce((sum, line) => sum + line.length, 0);
-    let accumulatedTime = 0;
-    const usableDuration = duration ? duration * 0.85 : 180;
-    const offset = duration ? duration * 0.05 : 5;
-    
-    return cleanLines.map((text) => {
-      const weight = text.length;
-      const d = (weight / totalChars) * usableDuration;
-      const time = offset + accumulatedTime;
-      accumulatedTime += d;
-      return { time, text };
-    });
+    return parseLyrics(lyrics, duration);
   }, [lyrics, duration]);
 
   const currentLyric = useMemo(() => {

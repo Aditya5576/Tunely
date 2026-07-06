@@ -23,31 +23,6 @@ export const AuthModal = ({ onClose, required = false }) => {
 
     let result;
 
-    if (tab === 'admin') {
-      try {
-        const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
-        const res = await fetch(`${API_BASE}/api/admin/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), password })
-        });
-        const data = await res.json();
-        if (data.success) {
-          sessionStorage.setItem('tunely_admin_token', data.token);
-          window.location.href = '/admin';
-          return;
-        } else {
-          setError(data.message || 'Invalid admin credentials');
-          setLoading(false);
-          return;
-        }
-      } catch {
-        setError('Network error');
-        setLoading(false);
-        return;
-      }
-    }
-
     if (tab === 'login') {
       result = await login(email.trim(), password);
       if (result.success) { onClose(); setLoading(false); return; }
@@ -87,7 +62,7 @@ export const AuthModal = ({ onClose, required = false }) => {
           {!required && <button className="auth-close-btn" onClick={onClose}>✕</button>}
         </div>
 
-        {/* Tab bar — only shown on login/register/admin */}
+        {/* Tab bar — only shown on login/register */}
         {!isForgot && (
           <div className="auth-tabs">
             <button
@@ -103,14 +78,6 @@ export const AuthModal = ({ onClose, required = false }) => {
               type="button"
             >
               Create Account
-            </button>
-            <button
-              className={`auth-tab ${tab === 'admin' ? 'active' : ''}`}
-              onClick={() => goTo('admin')}
-              type="button"
-              style={{ flex: 0.6 }}
-            >
-              Admin
             </button>
           </div>
         )}
@@ -136,7 +103,7 @@ export const AuthModal = ({ onClose, required = false }) => {
             </div>
           )}
 
-          {(tab === 'login' || tab === 'register' || tab === 'forgot_step1' || tab === 'admin') && (
+          {(tab === 'login' || tab === 'register' || tab === 'forgot_step1') && (
             <div className="auth-field">
               <label>Email</label>
               <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
@@ -167,9 +134,9 @@ export const AuthModal = ({ onClose, required = false }) => {
             </>
           )}
 
-          {(tab === 'login' || tab === 'register' || tab === 'forgot_step2' || tab === 'admin') && (
+          {(tab === 'login' || tab === 'register' || tab === 'forgot_step2') && (
             <div className="auth-field">
-              <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <label style={{ display: 'flex', justifycontent: 'space-between', width: '100%' }}>
                 <span>
                   {tab === 'forgot_step2' ? 'New Password' : 'Password'}
                   {tab === 'register' && <span className="auth-hint"> (min 6 chars)</span>}
@@ -204,14 +171,13 @@ export const AuthModal = ({ onClose, required = false }) => {
               ? <span className="auth-spinner" />
               : tab === 'login' ? 'Sign In'
               : tab === 'register' ? 'Create Account'
-              : tab === 'admin' ? 'Sign In as Admin'
               : tab === 'forgot_step1' ? 'Send Reset Code'
               : 'Set New Password & Sign In'
             }
           </button>
         </form>
 
-        {(tab === 'login' || tab === 'register' || tab === 'admin') && (
+        {(tab === 'login' || tab === 'register') && (
           <>
             <div className="auth-separator"><span>or</span></div>
             <button type="button" className="auth-guest-btn" onClick={() => { loginAsGuest(); onClose(); }}>
@@ -226,7 +192,7 @@ export const AuthModal = ({ onClose, required = false }) => {
           </p>
         )}
 
-        {!required && (tab === 'login' || tab === 'register' || tab === 'admin') && (
+        {!required && (tab === 'login' || tab === 'register') && (
           <p className="auth-footer-note auth-footer-sub">
             Without an account, Tunely still works — your data is just saved to this browser only.
           </p>
