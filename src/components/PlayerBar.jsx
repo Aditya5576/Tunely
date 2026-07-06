@@ -13,7 +13,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
     setIsQueueVisible, setIsLyricsVisible,
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
-    likedSongs, toggleLikeTrack, audioOutputDevice
+    likedSongs, toggleLikeTrack, audioOutputDevice, currentLyric
   } = useAudio();
   const { user } = useAuth() || {};
 
@@ -581,6 +581,15 @@ const decodeHtml = (text) => {
               <span>{formatTime(localTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
+          </div>
+
+          {/* Sync Lyric Line under progress bar */}
+          <div className="pf-current-lyric-container">
+            {currentLyric ? (
+              <p className="pf-current-lyric-text">{currentLyric}</p>
+            ) : (
+              <p style={{ margin: 0, opacity: 0.15, fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 700 }}>Instrumental / Outro</p>
+            )}
           </div>
 
           {/* Primary Controls */}
@@ -1277,11 +1286,38 @@ const decodeHtml = (text) => {
           width: 100%;
         }
 
-        .pf-time-labels {
+         .pf-time-labels {
           display: flex;
           justify-content: space-between;
           font-size: 11px;
           color: var(--text-dimmed);
+        }
+
+        .pf-current-lyric-container {
+          min-height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 0 24px;
+          margin-bottom: 16px;
+          position: relative;
+          z-index: 2;
+        }
+
+        .pf-current-lyric-text {
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--primary);
+          line-height: 1.4;
+          margin: 0;
+          text-shadow: 0 0 10px var(--primary-glow);
+          animation: pf-lyric-pulse 1.5s infinite alternate;
+        }
+
+        @keyframes pf-lyric-pulse {
+          from { opacity: 0.85; transform: scale(0.99); }
+          to { opacity: 1; transform: scale(1.01); }
         }
 
         .pf-controls {

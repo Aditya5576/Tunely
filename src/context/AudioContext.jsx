@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
@@ -995,6 +995,67 @@ export const AudioProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sleepTimer]);
 
+  const parsedLyrics = useMemo(() => {
+    if (!lyrics) return [];
+    const lines = lyrics.split('\n');
+    const timedLyrics = [];
+    const lrcRegex = /^\[(\d{2}):(\d{2fixed})(?:\.(\d{2,3}))?\](.*)/;
+    const lrcRegexMatched = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/;
+    let hasTimestamps = false;
+    
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      const match = cleanLine.match(lrcRegexMatched);
+      if (match) {
+        hasTimestamps = true;
+        const min = parseInt(match[1], 10);
+        const sec = parseInt(match[2], 10);
+        const ms = match[3] ? parseInt(match[3], 10) / (match[3].length === 2 ? 100 : 1000) : 0;
+        const time = min * 60 + sec + ms;
+        const text = match[4].trim();
+        timedLyrics.push({ time, text });
+      }
+    }
+    
+    if (hasTimestamps) {
+      return timedLyrics.sort((a, b) => a.time - b.time);
+    }
+    
+    const cleanLines = lines.map(l => l.trim()).filter(l => l !== '');
+    if (cleanLines.length === 0) return [];
+    
+    const totalChars = cleanLines.reduce((sum, line) => sum + line.length, 0);
+    let accumulatedTime = 0;
+    const usableDuration = duration ? duration * 0.85 : 180;
+    const offset = duration ? duration * 0.05 : 5;
+    
+    return cleanLines.map((text) => {
+      const weight = text.length;
+      const d = (weight / totalChars) * usableDuration;
+      const time = offset + accumulatedTime;
+      accumulatedTime += d;
+      return { time, text };
+    });
+  }, [lyrics, duration]);
+
+  const currentLyric = useMemo(() => {
+    if (parsedLyrics.length === 0) return '';
+    let activeIdx = -1;
+    for (let i = 0; i < parsedLyrics.length; i++) {
+      if (parsedLyrics[i].time <= currentTime) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
+    // Filter out standard placeholders or instructions
+    const activeText = activeIdx !== -1 ? parsedLyrics[activeIdx].text : '';
+    if (activeText.includes('[Instrumental]') || activeText.includes('(Lyrics not available')) {
+      return '';
+    }
+    return activeText;
+  }, [parsedLyrics, currentTime]);
+
   return (
     <AudioContext.Provider value={{
       isPlaying,
@@ -1034,7 +1095,8 @@ export const AudioProvider = ({ children }) => {
       likedSongsMetadata,
       toggleLikeTrack,
       recentlyPlayed,
-      audioOutputDevice
+      audioOutputDevice,
+      currentLyric
     }}>
       {children}
     </AudioContext.Provider>
