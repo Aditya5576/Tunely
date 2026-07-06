@@ -1,6 +1,18 @@
 import { useAudio } from '../context/AudioContext';
 import { X, Loader2 } from 'lucide-react';
 
+const decodeHtml = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&apos;/g, "'");
+};
+
 export default function LyricsPanel() {
   const { currentTrack, lyrics, isLoadingLyrics, isLyricsVisible, setIsLyricsVisible } = useAudio();
 
@@ -21,9 +33,9 @@ export default function LyricsPanel() {
         {currentTrack ? (
           <>
             <div className="lyrics-track-info">
-              <span className="lyrics-track-name">{currentTrack.name}</span>
+              <span className="lyrics-track-name">{decodeHtml(currentTrack.name)}</span>
               <span className="lyrics-track-artist">
-                {currentTrack.artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist'}
+                {decodeHtml(currentTrack.artists?.primary?.map(a => a.name).join(', ') || 'Unknown Artist')}
               </span>
             </div>
 

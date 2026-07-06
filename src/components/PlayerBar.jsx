@@ -226,15 +226,6 @@ const decodeHtml = (text) => {
                 </span>
               </div>
               <span className="artist-name">{getArtistsString()}</span>
-              {/* Audio output device chip — only shown when a real device is detected */}
-              {audioOutputDevice && audioOutputDevice.length > 0 && (
-                <span className="device-chip">
-                  {audioOutputDevice.toLowerCase().includes('bluetooth') || audioOutputDevice.toLowerCase().includes('buds') || audioOutputDevice.toLowerCase().includes('airpod') || audioOutputDevice.toLowerCase().includes('headphone') || audioOutputDevice.toLowerCase().includes('headset') || audioOutputDevice.toLowerCase().includes('earphone') || audioOutputDevice.toLowerCase().includes('earbuds') ? '🎧' :
-                   audioOutputDevice.toLowerCase().includes('tv') || audioOutputDevice.toLowerCase().includes('hdmi') || audioOutputDevice.toLowerCase().includes('display') ? '📺' :
-                   audioOutputDevice.toLowerCase().includes('speaker') || audioOutputDevice.toLowerCase().includes('homepod') || audioOutputDevice.toLowerCase().includes('sonos') ? '🔊' : '🎵'}
-                  {' '}{audioOutputDevice}
-                </span>
-              )}
             </div>
             {/* Collapsed Mobile EQ Indicator */}
             <div className="mobile-eq-indicator">

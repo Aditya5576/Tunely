@@ -400,7 +400,7 @@ export const AudioProvider = ({ children }) => {
   // 1. Core Functions
 
   // Function to fetch track lyrics (with fallback)
-  const fetchLyrics = async (trackId) => {
+  const fetchLyrics = async (trackId, artistName = '', trackName = '') => {
     setIsLoadingLyrics(true);
     
     // Check local fallback first for instant loading on popular tracks
@@ -413,7 +413,7 @@ export const AudioProvider = ({ children }) => {
     setLyrics(null);
 
     try {
-      // Only call the valid JioSaavn lyrics endpoint
+      // 1. Try JioSaavn lyrics first
       const response = await fetch(`${API_BASE}/api/songs/${trackId}/lyrics`);
       if (response.ok) {
         const resObj = await response.json();
@@ -423,7 +423,29 @@ export const AudioProvider = ({ children }) => {
           return;
         }
       }
-      // Graceful fallback — no error shown in network tab for missing lyrics
+
+      // 2. Fallback to free public lyrics API (lyrics.ovh)
+      if (artistName && trackName) {
+        // Clean title (remove "From...", "Feat...", etc.)
+        const titleClean = trackName
+          .replace(/\(From.*?\)/gi, '')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;/g, "'")
+          .replace(/&amp;/g, '&')
+          .trim();
+        
+        const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(titleClean)}`);
+        if (fallbackRes.ok) {
+          const fallbackObj = await fallbackRes.json();
+          if (fallbackObj.lyrics) {
+            setLyrics(fallbackObj.lyrics);
+            setIsLoadingLyrics(false);
+            return;
+          }
+        }
+      }
+
+      // 3. Ultimate graceful fallback
       setLyrics(`[Instrumental]\n\n(Lyrics not available for this track)\n\nEnjoy the stream on Tunely! 🎵`);
     } catch {
       setLyrics(`(Unable to load lyrics)\nEnjoy the high quality stream!`);
@@ -841,8 +863,9 @@ export const AudioProvider = ({ children }) => {
   // Sync lyrics when currentTrack changes
   useEffect(() => {
     if (currentTrack) {
+      const primaryArtist = currentTrack.artists?.primary?.[0]?.name || '';
       /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      fetchLyrics(currentTrack.id);
+      fetchLyrics(currentTrack.id, primaryArtist, currentTrack.name);
     } else {
       setLyrics(null);
     }
