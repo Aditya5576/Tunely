@@ -682,32 +682,7 @@ const decodeHtml = (text) => {
             </div>
           </div>
 
-          {/* Fullscreen Volume Slider */}
-          <div className="pf-volume-container">
-            <button 
-              className="pf-volume-btn" 
-              onClick={handleVolumeToggle} 
-              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              title="Mute/Unmute"
-            >
-              {isMuted || volume === 0 ? <VolumeX size={16} className="pf-volume-icon" /> : <Volume2 size={16} className="pf-volume-icon" />}
-            </button>
-            <input 
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                const vol = parseFloat(e.target.value);
-                setTrackVolume(vol);
-                if (vol > 0) setIsMuted(false);
-              }}
-              style={{
-                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) 100%)`
-              }}
-            />
-          </div>
+
 
           {/* Bottom Toolbar: Lyrics & Queue */}
           <div className="pf-toolbar">

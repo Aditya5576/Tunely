@@ -695,11 +695,26 @@ export default function MainContent({
     }
   };
 
-  // Quick category search handler
   const handleCategoryClick = (category) => {
     setSearchQuery(category);
     setSearchLoading(true);
     performSearch(category);
+  };
+
+  const handlePlayCategory = async (e, query) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        const results = data.data.results || [];
+        if (results.length > 0) {
+          playTrack(results[0], results);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to play category:", err);
+    }
   };
 
   const playAllTracks = (tracks) => {
@@ -926,7 +941,7 @@ export default function MainContent({
                   </div>
                 )}
 
-                {/* Quick shortcuts */}
+                 {/* Quick shortcuts */}
                 <div className="shortcuts-grid">
                   <h2>⚡ Discover by Mood</h2>
                   <div className="shortcuts-container">
@@ -950,6 +965,14 @@ export default function MainContent({
                           <Music size={18} />
                         </div>
                         <span>{item.name}</span>
+                        <button 
+                          className="shortcut-play-btn" 
+                          onClick={(e) => handlePlayCategory(e, item.query)}
+                          title={`Play ${item.name}`}
+                          style={{ color: item.color }}
+                        >
+                          <Play size={14} fill="currentColor" style={{ marginLeft: '1px' }} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -2076,10 +2099,10 @@ export default function MainContent({
 
         .featured-cards-scroll {
           display: flex;
-          gap: 14px;
+          gap: 16px;
           overflow-x: auto;
-          padding-bottom: 8px;
-          padding-top: 2px;
+          padding: 12px 4px 24px; /* Generous bottom padding so hover translate and shadows aren't clipped */
+          margin-top: -4px;
           scrollbar-width: none;
         }
 
@@ -2088,16 +2111,16 @@ export default function MainContent({
         }
 
         .featured-card {
-          flex: 0 0 168px;
+          flex: 0 0 160px;
           min-width: 0;
           display: flex;
           flex-direction: column;
-          padding: 16px;
-          border-radius: 16px;
+          padding: 12px;
+          border-radius: 12px;
           cursor: pointer;
-          transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-          background: rgba(255, 255, 255, 0.025);
-          border: 1px solid rgba(255,255,255,0.06);
+          transition: all 0.25s cubic-bezier(0.3, 0.8, 0.4, 1);
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
           position: relative;
           overflow: hidden;
         }
@@ -2106,7 +2129,7 @@ export default function MainContent({
           content: '';
           position: absolute;
           inset: 0;
-          border-radius: 14px;
+          border-radius: 12px;
           background: linear-gradient(135deg, var(--primary-glow) 0%, transparent 60%);
           opacity: 0;
           transition: opacity 0.3s;
@@ -2114,45 +2137,50 @@ export default function MainContent({
         }
 
         .featured-card:hover::before {
-          opacity: 1;
+          opacity: 0.8;
         }
 
         .featured-card:hover {
           background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(0, 229, 255, 0.3);
-          transform: translateY(-8px) scale(1.02);
-          box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary-glow);
+          border-color: rgba(255, 255, 255, 0.1);
+          transform: translateY(-6px);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4), 0 0 15px var(--primary-glow);
         }
 
         .featured-card-cover-container {
           width: 100%;
           aspect-ratio: 1 / 1;
-          border-radius: 10px;
+          border-radius: 8px;
           overflow: hidden;
           position: relative;
           margin-bottom: 12px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.5);
         }
 
         .featured-card-cover {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          transition: transform 0.4s ease;
+        }
+
+        .featured-card:hover .featured-card-cover {
+          transform: scale(1.04);
         }
 
         .featured-card-play-btn {
           position: absolute;
-          right: 8px;
-          bottom: 8px;
+          right: 12px;
+          bottom: 12px;
           background: var(--primary);
           color: var(--bg-darker);
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           opacity: 0;
-          transform: translateY(4px);
-          transition: all 0.2s;
-          box-shadow: 0 4px 10px rgba(0, 229, 255, 0.3);
+          transform: translateY(8px);
+          transition: all 0.25s cubic-bezier(0.3, 0.8, 0.4, 1);
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -2328,6 +2356,38 @@ export default function MainContent({
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.05);
           border-left: 3px solid currentColor;
+        }
+
+        .shortcut-play-btn {
+          position: absolute;
+          right: 16px;
+          background: var(--primary);
+          color: #000;
+          border: none;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transform: translateY(8px);
+          transition: all 0.25s cubic-bezier(0.3, 0.8, 0.4, 1);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+          cursor: pointer;
+        }
+
+        @media (hover: hover) {
+          .shortcut-card:hover .shortcut-play-btn {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .shortcut-play-btn {
+            display: none !important;
+          }
         }
 
         @media (hover: hover) {
