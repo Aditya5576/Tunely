@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
   Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle, Clock
@@ -14,6 +15,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
     likedSongs, toggleLikeTrack, audioOutputDevice
   } = useAudio();
+  const { user } = useAuth() || {};
 
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.8);
@@ -92,6 +94,10 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
   };
 
   const handleCreateNewPlaylistFromModal = () => {
+    if (user?.isGuest && customPlaylists.length >= 1) {
+      alert("Guest Mode Limitation: Guests can only create 1 custom playlist. Please sign in or register to create unlimited playlists.");
+      return;
+    }
     const name = prompt("Enter playlist name:");
     if (!name || name.trim() === "") return;
     
