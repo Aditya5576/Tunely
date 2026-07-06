@@ -446,9 +446,9 @@ export const AudioProvider = ({ children }) => {
       }
 
       // 3. Ultimate graceful fallback
-      setLyrics(`[Instrumental]\n\n(Lyrics not available for this track)\n\nEnjoy the stream on Tunely! 🎵`);
+      setLyrics(`🎵 Sing along! No lyrics found for this song.\nEnjoy the music on Tunely! 🎵`);
     } catch {
-      setLyrics(`(Unable to load lyrics)\nEnjoy the high quality stream!`);
+      setLyrics(`🎵 Sing along! No lyrics found for this song.\nEnjoy the music on Tunely! 🎵`);
     } finally {
       setIsLoadingLyrics(false);
     }

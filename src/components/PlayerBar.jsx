@@ -588,7 +588,7 @@ const decodeHtml = (text) => {
             {currentLyric ? (
               <p key={currentLyric} className="pf-current-lyric-text">{currentLyric}</p>
             ) : (
-              <p style={{ margin: 0, opacity: 0.15, fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 700 }}>Instrumental / Outro</p>
+              <p style={{ margin: 0, opacity: 0.4, fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)' }}>🎵 Enjoy the music on Tunely!</p>
             )}
           </div>
 
