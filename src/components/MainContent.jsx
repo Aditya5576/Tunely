@@ -400,7 +400,7 @@ export default function MainContent({
   };
 
   const fetchHomeChill = async () => {
-    const queries = ['Arijit Singh Latest 2026', 'Lo-Fi Chill', 'Acoustic Covers', 'Relaxing Music'];
+    const queries = ['Bollywood Hits 2025', 'Arijit Singh Hits 2025', 'Romantic Songs 2025', 'Best of Hindi 2025'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeChillLoading(true);
     try {
@@ -1057,7 +1057,7 @@ export default function MainContent({
                 {/* Horizontal scrollable Chill Vibes row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
                   <div className="featured-section-header">
-                    <h2>🎤 Arijit Singh Hits</h2>
+                    <h2>🔥 Bollywood Hits 2025</h2>
                   </div>
                   {homeChillLoading ? (
                     <div className="main-loading">

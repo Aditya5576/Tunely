@@ -256,12 +256,14 @@ export default function SongRow({
         }
 
         .song-index-col {
-          width: 40px;
+          width: 32px;
           display: flex;
           align-items: center;
-          justify-content: flex-start;
+          justify-content: center;
           color: var(--text-dimmed);
           font-size: 14px;
+          margin-right: 12px;
+          flex-shrink: 0;
         }
 
         .row-eq-visualizer {
@@ -429,6 +431,7 @@ export default function SongRow({
           color: var(--text-muted);
           font-size: 13px;
           gap: 16px;
+          flex-shrink: 0;
         }
 
         .row-heart-btn {
@@ -559,11 +562,14 @@ export default function SongRow({
             flex: 3;
           }
           .song-index-col {
-            width: 30px;
+            width: 24px;
+            margin-right: 8px;
+            justify-content: center;
           }
           .song-duration-col {
-            width: 90px;
+            width: 104px;
             gap: 12px;
+            flex-shrink: 0;
           }
           .row-action-btn,
           .row-heart-btn {
