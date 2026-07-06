@@ -346,7 +346,7 @@ export default function MainContent({
       setHomeLoading(false);
       return;
     }
-    const queries = ['Top Hindi Songs 2025', 'Global Top 50', 'Viral Hits', 'Bollywood Romance'];
+    const queries = ['Top Hindi Songs 2026', 'Global Top 50', 'Viral Hits', 'Bollywood Romance'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeLoading(true);
     try {
@@ -366,7 +366,7 @@ export default function MainContent({
   };
 
   const fetchHomeFeatured = async () => {
-    const queries = ['Bollywood Hits 2025', 'Trending Pop', 'Best of 2024', 'Party Hits'];
+    const queries = ['Bollywood Hits 2026', 'Trending Pop', 'Best of 2026', 'Party Hits'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeFeaturedLoading(true);
     try {
@@ -383,7 +383,7 @@ export default function MainContent({
   };
 
   const fetchHomeNewReleases = async () => {
-    const queries = ['New Bollywood Songs 2025', 'Latest Punjabi', 'Fresh Indie', 'New Pop 2025'];
+    const queries = ['New Bollywood Songs 2026', 'Latest Punjabi', 'Fresh Indie', 'New Pop 2026'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeNewReleasesLoading(true);
     try {
@@ -400,7 +400,7 @@ export default function MainContent({
   };
 
   const fetchHomeChill = async () => {
-    const queries = ['Arijit Singh Latest 2025', 'Lo-Fi Chill', 'Acoustic Covers', 'Relaxing Music'];
+    const queries = ['Arijit Singh Latest 2026', 'Lo-Fi Chill', 'Acoustic Covers', 'Relaxing Music'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeChillLoading(true);
     try {
@@ -417,7 +417,7 @@ export default function MainContent({
   };
 
   const fetchHomeWorkout = async () => {
-    const queries = ['Party Hits Bollywood 2025', 'Workout Motivation', 'Hip Hop Hits', 'Electronic Dance'];
+    const queries = ['Party Hits Bollywood 2026', 'Workout Motivation', 'Hip Hop Hits', 'Electronic Dance'];
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeWorkoutLoading(true);
     try {
@@ -900,9 +900,9 @@ export default function MainContent({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
             >
-              <div className="hero-tag">🎥 2025 Hits</div>
+              <div className="hero-tag">🎥 2026 Hits</div>
               <h1>Your Sound. Your World.</h1>
-              <p>Stream the biggest 2025 Bollywood hits, trending tracks, and exclusive releases — all in stunning quality, zero ads.</p>
+              <p>Stream the biggest 2026 Bollywood hits, trending tracks, and exclusive releases — all in stunning quality, zero ads.</p>
               <div className="hero-actions">
                 <button 
                   className="hero-play-btn" 
@@ -981,7 +981,7 @@ export default function MainContent({
                 {/* Horizontal scrollable Featured row */}
                 <div className="featured-section">
                   <div className="featured-section-header">
-                    <h2>🔥 Bollywood Hits 2025</h2>
+                    <h2>🔥 Bollywood Hits 2026</h2>
                   </div>
                   {homeFeaturedLoading ? (
                     <div className="main-loading">
@@ -1019,7 +1019,7 @@ export default function MainContent({
                 {/* Horizontal scrollable New Releases row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
                   <div className="featured-section-header">
-                    <h2>✨ Fresh Drops 2025</h2>
+                    <h2>✨ Fresh Drops 2026</h2>
                   </div>
                   {homeNewReleasesLoading ? (
                     <div className="main-loading">
@@ -1155,7 +1155,7 @@ export default function MainContent({
 
             {/* Trending / Episode Section */}
             <div className="trending-section" style={{ marginTop: '24px' }}>
-              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : '📈 Trending Today 2025'}</h2>
+              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : '📈 Trending Today 2026'}</h2>
               {homeLoading ? (
                 <div className="main-loading">
                   <div className="bounce-loader">
