@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { X, Loader2 } from 'lucide-react';
 
@@ -13,8 +14,82 @@ const decodeHtml = (text) => {
     .replace(/&apos;/g, "'");
 };
 
+const parseLyrics = (lyricsText, songDuration) => {
+  if (!lyricsText) return [];
+  const lines = lyricsText.split('\n');
+  const timedLyrics = [];
+  
+  // Check if it is LRC format [mm:ss.xx]
+  const lrcRegex = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/;
+  let hasTimestamps = false;
+  
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    const match = cleanLine.match(lrcRegex);
+    if (match) {
+      hasTimestamps = true;
+      const min = parseInt(match[1], 10);
+      const sec = parseInt(match[2], 10);
+      const ms = match[3] ? parseInt(match[3], 10) / (match[3].length === 2 ? 100 : 1000) : 0;
+      const time = min * 60 + sec + ms;
+      const text = match[4].trim();
+      timedLyrics.push({ time, text });
+    }
+  }
+  
+  if (hasTimestamps) {
+    return timedLyrics.sort((a, b) => a.time - b.time);
+  }
+  
+  // If no timestamps, estimate timeline based on character counts
+  const cleanLines = lines.map(l => l.trim()).filter(l => l !== '');
+  if (cleanLines.length === 0) return [];
+  
+  const totalChars = cleanLines.reduce((sum, line) => sum + line.length, 0);
+  let accumulatedTime = 0;
+  
+  // Buffer 5% of song duration for intro and 10% for outro
+  const usableDuration = songDuration ? songDuration * 0.85 : 180;
+  const offset = songDuration ? songDuration * 0.05 : 5;
+  
+  return cleanLines.map((text) => {
+    const weight = text.length;
+    const duration = (weight / totalChars) * usableDuration;
+    const time = offset + accumulatedTime;
+    accumulatedTime += duration;
+    return { time, text };
+  });
+};
+
 export default function LyricsPanel() {
-  const { currentTrack, lyrics, isLoadingLyrics, isLyricsVisible, setIsLyricsVisible } = useAudio();
+  const { currentTrack, lyrics, isLoadingLyrics, isLyricsVisible, setIsLyricsVisible, currentTime, duration } = useAudio();
+  const activeLineRef = useRef(null);
+
+  const parsedLines = useMemo(() => {
+    return parseLyrics(lyrics, duration);
+  }, [lyrics, duration]);
+
+  const activeIndex = useMemo(() => {
+    if (parsedLines.length === 0) return -1;
+    let activeIdx = -1;
+    for (let i = 0; i < parsedLines.length; i++) {
+      if (parsedLines[i].time <= currentTime) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
+    return activeIdx;
+  }, [parsedLines, currentTime]);
+
+  useEffect(() => {
+    if (activeLineRef.current) {
+      activeLineRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [activeIndex]);
 
   if (!isLyricsVisible) return null;
 
@@ -46,12 +121,29 @@ export default function LyricsPanel() {
               </div>
             ) : (
               <div className="lyrics-text">
-                {lyrics ? (
-                  lyrics.split('\n').map((line, idx) => (
-                    <p key={idx} className={line.trim() === "" ? "lyrics-break" : "lyrics-line"}>
-                      {line}
-                    </p>
-                  ))
+                {parsedLines.length > 0 ? (
+                  parsedLines.map((line, idx) => {
+                    const isActive = idx === activeIndex;
+                    return (
+                      <p 
+                        key={idx} 
+                        ref={isActive ? activeLineRef : null}
+                        className={`lyrics-line ${isActive ? 'active' : ''}`}
+                        style={{
+                          color: isActive ? 'var(--primary)' : 'rgba(255, 255, 255, 0.4)',
+                          fontSize: isActive ? '20px' : '16px',
+                          transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          fontWeight: isActive ? '700' : '500',
+                          padding: '10px 0',
+                          margin: 0,
+                          textShadow: isActive ? '0 0 15px var(--primary-glow)' : 'none'
+                        }}
+                      >
+                        {line.text}
+                      </p>
+                    );
+                  })
                 ) : (
                   <p className="lyrics-empty">No lyrics found for this song.</p>
                 )}
