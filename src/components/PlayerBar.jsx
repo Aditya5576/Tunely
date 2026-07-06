@@ -586,7 +586,7 @@ const decodeHtml = (text) => {
           {/* Sync Lyric Line under progress bar */}
           <div className="pf-current-lyric-container">
             {currentLyric ? (
-              <p className="pf-current-lyric-text">{currentLyric}</p>
+              <p key={currentLyric} className="pf-current-lyric-text">{currentLyric}</p>
             ) : (
               <p style={{ margin: 0, opacity: 0.15, fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 700 }}>Instrumental / Outro</p>
             )}
@@ -1294,30 +1294,30 @@ const decodeHtml = (text) => {
         }
 
         .pf-current-lyric-container {
-          min-height: 48px;
+          min-height: 32px;
           display: flex;
           align-items: center;
-          justify-content: center;
-          text-align: center;
-          padding: 0 24px;
-          margin-bottom: 16px;
+          justify-content: flex-start;
+          text-align: left;
+          padding: 0 8px;
+          margin-bottom: 12px;
           position: relative;
           z-index: 2;
+          width: 100%;
         }
 
         .pf-current-lyric-text {
-          font-size: 15px;
-          font-weight: 700;
-          color: var(--primary);
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text-muted);
           line-height: 1.4;
           margin: 0;
-          text-shadow: 0 0 10px var(--primary-glow);
-          animation: pf-lyric-pulse 1.5s infinite alternate;
+          animation: pf-lyric-fade-in 0.4s ease-out forwards;
         }
 
-        @keyframes pf-lyric-pulse {
-          from { opacity: 0.85; transform: scale(0.99); }
-          to { opacity: 1; transform: scale(1.01); }
+        @keyframes pf-lyric-fade-in {
+          from { opacity: 0; transform: translateY(2px); }
+          to { opacity: 0.75; transform: translateY(0); }
         }
 
         .pf-controls {
