@@ -116,9 +116,9 @@ export class App {
           return c.json({ success: false, message: 'Could not obtain Spotify access token' }, 502)
         }
 
-        // Step 2: Fetch playlist details (name + first 100 tracks)
+        // Step 2: Fetch playlist details (name + first 100 tracks + pagination info)
         const playlistRes = await fetch(
-          `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.items(track(name,artists(name)))&limit=100`,
+          `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
           {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           }
@@ -139,7 +139,25 @@ export class App {
 
         const playlistData: any = await playlistRes.json()
         const playlistName = playlistData.name || 'Imported Playlist'
-        const items = playlistData.tracks?.items || []
+        let items = playlistData.tracks?.items || []
+        let nextUrl = playlistData.tracks?.next
+
+        // Paginate to retrieve all tracks (max 10 pages/1000 tracks to avoid timeout/memory limits)
+        let pageCount = 1
+        while (nextUrl && pageCount < 10) {
+          try {
+            const nextRes = await fetch(nextUrl, {
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            })
+            if (!nextRes.ok) break
+            const nextData: any = await nextRes.json()
+            items = items.concat(nextData.items || [])
+            nextUrl = nextData.next
+            pageCount++
+          } catch {
+            break;
+          }
+        }
 
         const tracks = items
           .filter((item: any) => item?.track?.name)
