@@ -43,142 +43,133 @@ export class App {
       // Clean ID from any trailing dots, spaces, or query parameters
       id = id.replaceAll(/[^a-z0-9]/gi, '')
 
-      // Try Option 1: Public Embed Scraper (No credentials required, bypasses Developer API limits/Premium rules)
-      try {
-        const embedRes = await fetch(`https://open.spotify.com/embed/playlist/${id}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
-        })
-
-        if (embedRes.ok) {
-          const html = await embedRes.text()
-          const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
-          if (match) {
-            const parsed = JSON.parse(match[1])
-            const stateData = parsed.props?.pageProps?.state?.data
-            if (stateData && stateData.entity) {
-              const playlistName = stateData.entity.name || 'Imported Playlist'
-              const trackList = stateData.entity.trackList || []
-              if (trackList.length > 0) {
-                const tracks = trackList.map((t: any) => ({
-                  title: t.title || 'Unknown Song',
-                  artist: t.subtitle || 'Unknown Artist'
-                }))
-                return c.json({
-                  success: true,
-                  data: {
-                    name: playlistName,
-                    tracks
-                  }
-                })
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Embed parsing failed, falling back to official API:', error)
-      }
-
-      // Try Option 2: Fall back to official Spotify Web API using Client Credentials flow
       const clientId = (c.env as any)?.SPOTIFY_CLIENT_ID as string | undefined
       const clientSecret = (c.env as any)?.SPOTIFY_CLIENT_SECRET as string | undefined
 
-      if (!clientId || !clientSecret) {
-        return c.json({
-          success: false,
-          message: 'Spotify API credentials are not configured on the server. Please contact the administrator.'
-        }, 503)
+      let useEmbedFallback = !clientId || !clientSecret
+
+      if (clientId && clientSecret) {
+        try {
+          // Step 1: Get access token via Client Credentials (server-to-server, no user login needed)
+          const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
+            },
+            body: 'grant_type=client_credentials'
+          })
+
+          if (!tokenRes.ok) {
+            console.error('Spotify token generation failed, attempting embed fallback')
+            useEmbedFallback = true
+          } else {
+            const tokenData: any = await tokenRes.json()
+            const accessToken = tokenData.access_token
+
+            if (!accessToken) {
+              useEmbedFallback = true
+            } else {
+              // Step 2: Fetch playlist details (name + first 100 tracks + pagination info)
+              const playlistRes = await fetch(
+                `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
+                {
+                  headers: { 'Authorization': `Bearer ${accessToken}` }
+                }
+              )
+
+              if (!playlistRes.ok) {
+                useEmbedFallback = true
+              } else {
+                const playlistData: any = await playlistRes.json()
+                const playlistName = playlistData.name || 'Imported Playlist'
+                let items = playlistData.tracks?.items || []
+                let nextUrl = playlistData.tracks?.next
+
+                // Paginate to retrieve all tracks (max 10 pages/1000 tracks to avoid timeout/memory limits)
+                let pageCount = 1
+                while (nextUrl && pageCount < 10) {
+                  try {
+                    const nextRes = await fetch(nextUrl, {
+                      headers: { 'Authorization': `Bearer ${accessToken}` }
+                    })
+                    if (!nextRes.ok) break
+                    const nextData: any = await nextRes.json()
+                    items = items.concat(nextData.items || [])
+                    nextUrl = nextData.next
+                    pageCount++
+                  } catch {
+                    break
+                  }
+                }
+
+                const tracks = items
+                  .filter((item: any) => item?.track?.name)
+                  .map((item: any) => ({
+                    title: item.track.name,
+                    artist: item.track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist'
+                  }))
+
+                if (tracks.length > 0) {
+                  return c.json({
+                    success: true,
+                    data: {
+                      name: playlistName,
+                      tracks
+                    }
+                  })
+                } else {
+                  useEmbedFallback = true
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Official Spotify API failed, falling back to embed:', error)
+          useEmbedFallback = true
+        }
       }
 
-      try {
-        // Step 1: Get access token via Client Credentials (server-to-server, no user login needed)
-        const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
-          },
-          body: 'grant_type=client_credentials'
-        })
+      if (useEmbedFallback) {
+        // Try Option 1: Public Embed Scraper (No credentials required, bypasses Developer API limits/Premium rules)
+        try {
+          const embedRes = await fetch(`https://open.spotify.com/embed/playlist/${id}`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9'
+            }
+          })
 
-        if (!tokenRes.ok) {
-          const tokenError = await tokenRes.text()
-          return c.json({ success: false, message: `Spotify auth failed: ${tokenError}` }, 502)
-        }
-
-        const tokenData: any = await tokenRes.json()
-        const accessToken = tokenData.access_token
-
-        if (!accessToken) {
-          return c.json({ success: false, message: 'Could not obtain Spotify access token' }, 502)
-        }
-
-        // Step 2: Fetch playlist details (name + first 100 tracks + pagination info)
-        const playlistRes = await fetch(
-          `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
-          {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
+          if (embedRes.ok) {
+            const html = await embedRes.text()
+            const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
+            if (match) {
+              const parsed = JSON.parse(match[1])
+              const stateData = parsed.props?.pageProps?.state?.data
+              if (stateData && stateData.entity) {
+                const playlistName = stateData.entity.name || 'Imported Playlist'
+                const trackList = stateData.entity.trackList || []
+                if (trackList.length > 0) {
+                  const tracks = trackList.map((t: any) => ({
+                    title: t.title || 'Unknown Song',
+                    artist: t.subtitle || 'Unknown Artist'
+                  }))
+                  return c.json({
+                    success: true,
+                    data: {
+                      name: playlistName,
+                      tracks
+                    }
+                  })
+                }
+              }
+            }
           }
-        )
-
-        if (!playlistRes.ok) {
-          if (playlistRes.status === 404) {
-            return c.json({ success: false, message: 'Playlist not found. Make sure the playlist is public and the link is correct.' }, 404)
-          }
-          if (playlistRes.status === 403) {
-            return c.json({
-              success: false,
-              message: 'Spotify API returned status 403. This developer app requires a Spotify Premium subscription for the owner. Make sure your playlist link is correct and try again.'
-            }, 403)
-          }
-          return c.json({ success: false, message: `Spotify API returned status ${playlistRes.status}. Make sure the playlist is public.` }, playlistRes.status as any)
+          return c.json({ success: false, message: 'Could not retrieve Spotify playlist' }, 404)
+        } catch (error: any) {
+          return c.json({ success: false, message: error.message || 'An unexpected error occurred during fallback' }, 500)
         }
-
-        const playlistData: any = await playlistRes.json()
-        const playlistName = playlistData.name || 'Imported Playlist'
-        let items = playlistData.tracks?.items || []
-        let nextUrl = playlistData.tracks?.next
-
-        // Paginate to retrieve all tracks (max 10 pages/1000 tracks to avoid timeout/memory limits)
-        let pageCount = 1
-        while (nextUrl && pageCount < 10) {
-          try {
-            const nextRes = await fetch(nextUrl, {
-              headers: { 'Authorization': `Bearer ${accessToken}` }
-            })
-            if (!nextRes.ok) break
-            const nextData: any = await nextRes.json()
-            items = items.concat(nextData.items || [])
-            nextUrl = nextData.next
-            pageCount++
-          } catch {
-            break;
-          }
-        }
-
-        const tracks = items
-          .filter((item: any) => item?.track?.name)
-          .map((item: any) => ({
-            title: item.track.name,
-            artist: item.track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist'
-          }))
-
-        if (tracks.length === 0) {
-          return c.json({ success: false, message: 'This playlist has no tracks, or it is private.' }, 404)
-        }
-
-        return c.json({
-          success: true,
-          data: {
-            name: playlistName,
-            tracks
-          }
-        })
-      } catch (error: any) {
-        return c.json({ success: false, message: error.message || 'An unexpected error occurred' }, 500)
       }
     })
 
