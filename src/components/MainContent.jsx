@@ -667,16 +667,42 @@ export default function MainContent({
         throw new Error('No songs could be matched on Tunely.');
       }
 
-      const newPlaylist = {
-        id: `custom_${Date.now()}`,
-        name: `${playlistName} (Spotify)`,
-        type: 'custom',
-        songs: matchedSongs
-      };
+      const existingPlaylistIdx = customPlaylists.findIndex(p => p.name === `${playlistName} (Spotify)`);
+      let updated;
+      let targetPlaylistId;
 
-      const updated = [...customPlaylists, newPlaylist];
-      setCustomPlaylists(updated);
-      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+      if (existingPlaylistIdx !== -1) {
+        const existingPlaylist = customPlaylists[existingPlaylistIdx];
+        targetPlaylistId = existingPlaylist.id;
+
+        const existingSongIds = new Set(existingPlaylist.songs.map(s => s.id));
+        const newUniqueSongs = matchedSongs.filter(s => !existingSongIds.has(s.id));
+
+        const updatedPlaylist = {
+          ...existingPlaylist,
+          songs: [...existingPlaylist.songs, ...newUniqueSongs]
+        };
+
+        updated = [...customPlaylists];
+        updated[existingPlaylistIdx] = updatedPlaylist;
+
+        setCustomPlaylists(updated);
+        localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+      } else {
+        const newPlaylistId = `custom_${Date.now()}`;
+        targetPlaylistId = newPlaylistId;
+
+        const newPlaylist = {
+          id: newPlaylistId,
+          name: `${playlistName} (Spotify)`,
+          type: 'custom',
+          songs: matchedSongs
+        };
+
+        updated = [...customPlaylists, newPlaylist];
+        setCustomPlaylists(updated);
+        localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+      }
 
       setImportStatus({
         loading: false,
@@ -689,7 +715,7 @@ export default function MainContent({
       setShowImportModal(false);
       setSpotifyUrl('');
       
-      navigate(`/custom/${newPlaylist.id}`);
+      navigate(`/custom/${targetPlaylistId}`);
     } catch (err) {
       let errorMessage = err.message || 'An unknown error occurred during import.';
       if (errorMessage.includes('Failed to fetch')) {

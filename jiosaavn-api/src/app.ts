@@ -107,7 +107,9 @@ export class App {
                   .filter((item: any) => item?.track?.name)
                   .map((item: any) => ({
                     title: item.track.name,
-                    artist: item.track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist'
+                    artist: (item.track.artists && Array.isArray(item.track.artists))
+                      ? item.track.artists.filter((a: any) => a && a.name).map((a: any) => a.name).join(', ')
+                      : 'Unknown Artist'
                   }))
 
                 if (tracks.length > 0) {
