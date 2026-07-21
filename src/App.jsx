@@ -219,10 +219,6 @@ function TunelyApp() {
 
   // Create new custom playlist (also triggers server push via the customPlaylists effect)
   const createNewPlaylist = () => {
-    if (user?.isGuest && customPlaylists.length >= 1) {
-      alert("Guest Mode Limitation: Guests can only create 1 custom playlist. Please sign in or register to create unlimited playlists.");
-      return;
-    }
     const name = prompt('Enter playlist name:', `My Playlist #${customPlaylists.length + 1}`);
     if (!name || name.trim() === '') return;
     const newPlaylist = { id: `custom_${Date.now()}`, name: name.trim(), type: 'custom', songs: [] };
