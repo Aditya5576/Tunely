@@ -256,7 +256,7 @@ function TunelyApp() {
             <p className="splash-tagline">Premium High-Fidelity Audio</p>
             <div className="splash-loader-bar"><div className="splash-loader-progress"></div></div>
           </div>
-          <div className="splash-footer"><span>Developed by Aditya Patil</span></div>
+          <div className="splash-footer">Developed by <span className="splash-dev-name">Aditya Patil</span></div>
         </div>
       )}
 

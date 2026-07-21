@@ -498,15 +498,19 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
         }
 
         .sidebar-dev-credit {
-          font-size: 10px;
+          font-size: 11px;
           color: var(--text-muted);
           text-align: center;
-          padding: 4px 0;
+          padding: 10px 0 4px;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          margin-top: 12px;
+          letter-spacing: 0.03em;
         }
 
         .sidebar-dev-credit .dev-name {
           color: var(--primary);
-          font-weight: 600;
+          font-weight: 700;
+          text-shadow: 0 0 8px var(--primary-glow);
         }
 
         @media (max-width: 768px) {

@@ -592,6 +592,12 @@ input[type="range"]:active::-moz-range-thumb {
   animation: splash-footer-fade 2s ease-in-out infinite alternate;
 }
 
+.splash-footer .splash-dev-name {
+  color: var(--primary);
+  font-weight: 700;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
 @keyframes splash-spin {
   to { transform: rotate(360deg); }
 }
