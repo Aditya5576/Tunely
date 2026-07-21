@@ -245,21 +245,36 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
           padding: 12px 16px;
           justify-content: flex-start;
           gap: 16px;
-          border-radius: 10px;
+          border-radius: 8px;
           color: var(--text-muted);
           font-weight: 500;
           font-size: 14px;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
         }
 
         .nav-item:hover {
           color: var(--text-main);
-          background: var(--bg-hover);
+          background: rgba(255, 255, 255, 0.03);
+          transform: translateX(2px);
         }
 
         .nav-item.active {
-          color: var(--primary);
-          background: rgba(0, 229, 255, 0.1);
+          color: var(--text-main);
+          background: rgba(0, 229, 255, 0.04);
+          font-weight: 600;
+        }
+
+        .nav-item.active::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 25%;
+          height: 50%;
+          width: 3px;
+          background: var(--primary);
+          border-radius: 0 4px 4px 0;
+          box-shadow: 0 0 10px var(--primary-glow);
         }
 
         .library-section {

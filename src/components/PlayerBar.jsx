@@ -739,8 +739,10 @@ const decodeHtml = (text) => {
         .player-bar {
           height: var(--player-height);
           width: 100%;
-          border-top: 1px solid var(--border-color);
-          background: rgba(12, 12, 18, 0.85);
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(8, 8, 12, 0.6);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
           display: flex;
           align-items: center;
           justify-content: space-between;

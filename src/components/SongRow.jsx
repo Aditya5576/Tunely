@@ -226,8 +226,7 @@ export default function SongRow({
           display: flex;
           align-items: center;
           padding: 8px 16px;
-          border-left: 3px solid transparent;
-          border-radius: 6px;
+          border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
@@ -235,9 +234,7 @@ export default function SongRow({
         }
 
         .song-row.active {
-          background-color: rgba(0, 229, 255, 0.05);
-          border-left-color: var(--primary);
-          padding-left: 13px;
+          background-color: rgba(0, 229, 255, 0.04);
         }
 
         .song-row.active .song-name-text {

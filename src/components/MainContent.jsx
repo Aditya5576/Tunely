@@ -2074,10 +2074,17 @@ export default function MainContent({
           align-items: center;
           gap: 10px;
           padding: 8px 16px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid var(--border-color);
+          border-radius: 24px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.06);
           width: 100%;
+          transition: all 0.25s ease;
+        }
+
+        .header-search-input-wrapper:focus-within {
+          border-color: var(--primary);
+          background: rgba(255, 255, 255, 0.06);
+          box-shadow: 0 0 12px var(--primary-glow);
         }
 
         .header-search-input-wrapper input {
