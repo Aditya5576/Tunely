@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download } from 'lucide-react';
+import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download, RefreshCw } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
@@ -254,6 +254,27 @@ export default function MainContent({
   const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed } = useAudio();
   const navigate = useNavigate();
   const { user } = useAuth() || {};
+
+  const handleHardRefresh = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    sessionStorage.clear();
+    const keysToKeep = new Set(['spotify_custom_playlists', 'tunely_token', 'tunely_user', 'liked_songs_metadata']);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !keysToKeep.has(key)) {
+        localStorage.removeItem(key);
+      }
+    }
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('u', Date.now().toString());
+    window.location.href = currentUrl.toString();
+  };
   
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -880,7 +901,17 @@ export default function MainContent({
         </div>
 
         {/* Right Side: Profile Capsule (Desktop) / Actions (Mobile) */}
-        <div className="header-right">
+        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Quick Update / Hard Refresh Button */}
+          <button 
+            className="header-update-btn" 
+            onClick={handleHardRefresh}
+            title="Clear Cache & Hard Refresh App"
+          >
+            <RefreshCw size={14} className="update-icon" />
+            <span className="update-text">Update</span>
+          </button>
+
           {/* Desktop Profile capsule */}
           <div className="desktop-profile-capsule" onClick={() => setIsAccountOpen && setIsAccountOpen(true)}>
             <div className="profile-avatar-circle" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
@@ -1934,6 +1965,40 @@ export default function MainContent({
           flex: 1;
           overflow-y: auto;
           padding: 24px 32px 140px; /* Buffer bottom space for the player bar */
+        }
+
+        .header-update-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 20px;
+          padding: 6px 12px;
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-right: 4px;
+        }
+
+        .header-update-btn:hover {
+          background: rgba(255, 255, 255, 0.15);
+          border-color: var(--primary);
+          box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .header-update-btn:active {
+          transform: scale(0.95);
+        }
+
+        .update-icon {
+          transition: transform 0.5s ease;
+        }
+
+        .header-update-btn:hover .update-icon {
+          transform: rotate(360deg);
         }
 
         /* App Header Styles */
@@ -3131,6 +3196,16 @@ export default function MainContent({
             width: 34px;
             height: 34px;
             border-radius: 50%;
+          }
+
+          .header-update-btn {
+            padding: 8px;
+            border-radius: 50%;
+            margin-right: 0px;
+          }
+
+          .header-update-btn .update-text {
+            display: none;
           }
 
           button, 
