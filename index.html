@@ -28,13 +28,6 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Strictly block pinch-to-zoom on mobile devices
-      document.addEventListener('touchmove', function (event) {
-        if (event.scale !== 1 || event.touches.length > 1) {
-          event.preventDefault();
-        }
-      }, { passive: false });
-    </script>
+
   </body>
 </html>
