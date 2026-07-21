@@ -204,7 +204,8 @@ export const AuthModal = ({ onClose, required = false }) => {
         background: rgba(0,0,0,0.75);
         backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
         z-index: 9999; display: flex; align-items: center; justify-content: center;
-        padding: 16px; animation: authFadeIn 0.2s ease;
+        padding: 40px 16px; animation: authFadeIn 0.2s ease;
+        overflow-y: auto; /* Enable scroll if modal is taller than screen */
       }
       .auth-modal-overlay.forced-login-screen {
         background: radial-gradient(circle at top right, rgba(124,58,237,0.12), transparent 50%),
@@ -223,6 +224,7 @@ export const AuthModal = ({ onClose, required = false }) => {
         border-radius: 20px; padding: 28px 28px 24px; width: 100%; max-width: 420px;
         position: relative; animation: authSlideUp 0.25s cubic-bezier(0.4,0,0.2,1);
         box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+        margin: auto; /* Clean scrolling alignment in flex overlay */
       }
       @keyframes authSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .auth-modal-header { text-align: center; margin-bottom: 20px; position: relative; }
