@@ -1,6 +1,29 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const mapFriendlyError = (rawError) => {
+  if (!rawError) return 'Something went wrong. Please try again.';
+  const lower = rawError.toLowerCase();
+  
+  if (lower.includes('limit exceeded') || lower.includes('kv put') || lower.includes('kv')) {
+    return 'Server is busy. Please try again later or continue as Guest.';
+  }
+  if (lower.includes('failed to fetch') || lower.includes('network error') || lower.includes('networkerror')) {
+    return 'Network Error: Could not connect to the server. Please check your connection.';
+  }
+  if (lower.includes('invalid credentials') || lower.includes('wrong password') || lower.includes('incorrect password')) {
+    return 'Invalid email or password. Please try again.';
+  }
+  if (lower.includes('user not found') || lower.includes('email not found')) {
+    return 'No account found with this email.';
+  }
+  if (lower.includes('email already exists') || lower.includes('email registered')) {
+    return 'An account with this email already exists.';
+  }
+  
+  return rawError;
+};
+
 // tab: 'login' | 'register' | 'forgot_step1' | 'forgot_step2'
 export const AuthModal = ({ onClose, required = false }) => {
   const { login, register, requestPasswordReset, confirmPasswordReset, loginAsGuest } = useAuth();
@@ -45,7 +68,7 @@ export const AuthModal = ({ onClose, required = false }) => {
     }
 
     setLoading(false);
-    setError(result?.error || 'Something went wrong');
+    setError(mapFriendlyError(result?.error));
   };
 
   const isForgot = tab === 'forgot_step1' || tab === 'forgot_step2';
