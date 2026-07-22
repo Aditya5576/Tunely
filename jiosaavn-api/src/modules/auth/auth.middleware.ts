@@ -47,7 +47,11 @@ export const authMiddleware = async (c: Context, next: Next) => {
   // ───────────────────────────────────────────────────────────────────────────
 
   // Slide session TTL on each request to keep active users logged in
-  await kv.put(token, sessionRaw, { expirationTtl: SESSION_TTL_SECONDS })
+  try {
+    await kv.put(token, sessionRaw, { expirationTtl: SESSION_TTL_SECONDS })
+  } catch (e) {
+    console.warn("Session extend KV write failed (limit exceeded):", e)
+  }
 
   c.set('userId', session.userId)
   c.set('token', token)

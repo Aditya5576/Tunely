@@ -9,6 +9,14 @@ export const userController = new Hono<{
   }
 }>()
 
+const safeKvPut = async (kv: KVNamespace, key: string, value: string, options?: any) => {
+  try {
+    await kv.put(key, value, options)
+  } catch (e) {
+    console.warn(`Safe KV Put error for key: ${key}`, e)
+  }
+}
+
 // ─── LIKED SONGS ─────────────────────────────────────────────────────────────
 
 /**
@@ -23,30 +31,31 @@ userController.get('/liked', authMiddleware, async (c) => {
     'SELECT song_id, song_data, created_at FROM liked_songs WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(userId).all()
 
-  const songs = (rows.results || []).map((r: any) => {
-    try { return JSON.parse(r.song_data) } catch { return null }
-  }).filter(Boolean)
-
-  return c.json({ success: true, data: songs })
+  return c.json({ success: true, data: rows.results || [] })
 })
 
 /**
  * POST /api/user/liked
- * Body: { song } — full song metadata snapshot
- * Adds a song to liked songs. Idempotent (upsert).
+ * Body: { song }
+ * Adds a song to liked songs.
  */
 userController.post('/liked', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   let body: { song?: any }
-  try { body = await c.req.json() } catch {
+  try {
+    body = await c.req.json()
+  } catch {
     return c.json({ success: false, message: 'Invalid JSON body' }, 400)
   }
 
   const { song } = body
-  if (!song?.id) return c.json({ success: false, message: 'Song data with id is required' }, 400)
+  if (!song || !song.id) {
+    return c.json({ success: false, message: 'Song object required' }, 400)
+  }
 
   const db = (c.env as any).DB as D1Database
   const nowStr = new Date().toISOString()
+
   await db.prepare(
     `INSERT INTO liked_songs (user_id, song_id, song_data, created_at)
      VALUES (?, ?, ?, ?)
@@ -56,7 +65,7 @@ userController.post('/liked', authMiddleware, async (c) => {
   // Track overall liked songs update time in KV to prevent sync deletions
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(`user:${userId}:liked_updated_at`, nowStr)
+    await safeKvPut(kv, `user:${userId}:liked_updated_at`, nowStr)
   }
 
   return c.json({ success: true, message: 'Song liked' })
@@ -76,7 +85,7 @@ userController.delete('/liked/:songId', authMiddleware, async (c) => {
   // Update KV timestamp to track deletion
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(`user:${userId}:liked_updated_at`, new Date().toISOString())
+    await safeKvPut(kv, `user:${userId}:liked_updated_at`, new Date().toISOString())
   }
 
   return c.json({ success: true, message: 'Song unliked' })
@@ -134,7 +143,7 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
     const newTs = localUpdatedAt || new Date().toISOString()
     if (kv) {
-      await kv.put(`user:${userId}:liked_updated_at`, newTs)
+      await safeKvPut(kv, `user:${userId}:liked_updated_at`, newTs)
     }
 
     return c.json({ success: true, data: { source: 'local', songs: localSongs, serverUpdatedAt: newTs } })
@@ -151,7 +160,7 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
   // Initialize KV if missing
   if (serverUpdatedAt && kv && isKvMissing) {
-    await kv.put(`user:${userId}:liked_updated_at`, serverUpdatedAt)
+    await safeKvPut(kv, `user:${userId}:liked_updated_at`, serverUpdatedAt)
   }
 
   return c.json({ success: true, data: { source: 'server', songs: serverSongs, serverUpdatedAt } })
@@ -209,7 +218,7 @@ userController.post('/playlists', authMiddleware, async (c) => {
   // Track overall playlists update time in KV to prevent sync deletions
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(`user:${userId}:playlists_updated_at`, now)
+    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, now)
   }
 
   return c.json({ success: true, data: { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' } }, 201)
@@ -245,7 +254,7 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
   // Update KV timestamp
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(`user:${userId}:playlists_updated_at`, nowStr)
+    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, nowStr)
   }
 
   return c.json({ success: true, message: 'Playlist updated' })
@@ -265,7 +274,7 @@ userController.delete('/playlists/:id', authMiddleware, async (c) => {
   // Update KV timestamp to track deletion
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(`user:${userId}:playlists_updated_at`, new Date().toISOString())
+    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, new Date().toISOString())
   }
 
   return c.json({ success: true, message: 'Playlist deleted' })
@@ -320,7 +329,7 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
     const newTs = localUpdatedAt || new Date().toISOString()
     if (kv) {
-      await kv.put(`user:${userId}:playlists_updated_at`, newTs)
+      await safeKvPut(kv, `user:${userId}:playlists_updated_at`, newTs)
     }
 
     return c.json({ success: true, data: { source: 'local', playlists: localPlaylists, serverUpdatedAt: newTs } })
@@ -342,7 +351,7 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
   // Initialize KV if missing
   if (serverUpdatedAt && kv && isKvMissing) {
-    await kv.put(`user:${userId}:playlists_updated_at`, serverUpdatedAt)
+    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, serverUpdatedAt)
   }
 
   return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists, serverUpdatedAt } })
@@ -376,8 +385,8 @@ userController.post('/activity', authMiddleware, async (c) => {
       lastActive: now
     }
     // Set TTL to 90 seconds (so if ping fails twice they go offline)
-    await kv.put(`user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 90 })
-    await kv.put(`user:${userId}:last_seen`, now)
+    await safeKvPut(kv, `user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 90 })
+    await safeKvPut(kv, `user:${userId}:last_seen`, now)
   }
 
   return c.json({ success: true, message: 'Activity logged' })
