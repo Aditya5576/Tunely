@@ -26,7 +26,7 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
   Object.keys(params).forEach((key) => url.searchParams.append(key, String(params[key])))
 
   const cacheKey = new Request(url.toString())
-  const cache = caches.default
+  const cache = (caches as any).default
 
   // Try Cloudflare edge cache first
   const cached = await cache.match(cacheKey)

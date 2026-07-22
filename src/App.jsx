@@ -191,11 +191,8 @@ function TunelyApp() {
   // Splash animation
   useEffect(() => {
     const hasSeen = sessionStorage.getItem('tunely_splash_shown');
-    if (hasSeen) {
-      setShowSplash(false);
-      setIsSplashMounted(false);
-      return;
-    }
+    if (hasSeen) return;
+
     const fadeTimer = setTimeout(() => {
       setShowSplash(false);
       sessionStorage.setItem('tunely_splash_shown', 'true');

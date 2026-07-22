@@ -29,7 +29,7 @@
   "scripts": {
     "dev": "bun run --hot src/server.ts",
     "start": "bun dist/server.js",
-    "prebuild": "rm -rf dist",
+    "prebuild": "npx rimraf dist",
     "build": "tsc && tsc-alias",
     "format": "prettier --write \"./**/*.{js,ts,json}\"",
     "lint": "eslint .",
@@ -56,6 +56,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@kolhe/eslint-config": "2.2.6",

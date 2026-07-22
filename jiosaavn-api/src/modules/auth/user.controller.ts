@@ -2,7 +2,12 @@ import { Hono } from 'hono'
 import { authMiddleware } from './auth.middleware'
 import { generatePlaylistId } from './crypto'
 
-export const userController = new Hono()
+export const userController = new Hono<{
+  Variables: {
+    userId: string
+    token: string
+  }
+}>()
 
 // ─── LIKED SONGS ─────────────────────────────────────────────────────────────
 

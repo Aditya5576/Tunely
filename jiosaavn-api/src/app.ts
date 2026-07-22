@@ -11,7 +11,7 @@ import type { Hono } from 'hono'
 export class App {
   private app: OpenAPIHono
 
-  constructor(routes: Routes[], authRouter?: Hono, userRouter?: Hono, adminRouter?: Hono) {
+  constructor(routes: Routes[], authRouter?: Hono<any, any, any>, userRouter?: Hono<any, any, any>, adminRouter?: Hono<any, any, any>) {
     this.app = new OpenAPIHono()
 
     this.initializeGlobalMiddlewares()

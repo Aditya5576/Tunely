@@ -13,7 +13,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
     setIsQueueVisible, setIsLyricsVisible,
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
-    likedSongs, toggleLikeTrack, audioOutputDevice, currentLyric
+    likedSongs, toggleLikeTrack, currentLyric
   } = useAudio();
   const { user } = useAuth() || {};
 

@@ -4,7 +4,12 @@ import { authMiddleware } from './auth.middleware'
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
-export const authController = new Hono()
+export const authController = new Hono<{
+  Variables: {
+    userId: string
+    token: string
+  }
+}>()
 
 /**
  * POST /api/auth/register
