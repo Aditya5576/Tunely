@@ -241,6 +241,11 @@ export const AudioProvider = ({ children }) => {
     if (!track) return;
     
     const isAlreadyLiked = likedSongs.includes(track.id);
+    
+    if (!isAlreadyLiked && user?.isGuest && likedSongs.length >= 10) {
+      alert("Guest Mode Limitation: Liked Songs are limited to 10 tracks in Guest Mode. Please register or sign in to like unlimited songs.");
+      return;
+    }
 
     let updatedIds;
     let updatedMeta;
@@ -346,6 +351,9 @@ export const AudioProvider = ({ children }) => {
 
   const getStreamUrlByQuality = (track, quality) => {
     let activeQuality = quality;
+    if (user?.isGuest && activeQuality === '320kbps') {
+      activeQuality = '160kbps';
+    }
     if (!track || !track.downloadUrl || track.downloadUrl.length === 0) return null;
     const target = track.downloadUrl.find(item => item.quality === activeQuality);
     if (target) return target.url;
@@ -363,6 +371,10 @@ export const AudioProvider = ({ children }) => {
   };
 
   const setAudioQuality = (quality) => {
+    if (quality === '320kbps' && user?.isGuest) {
+      alert("Guest Mode Limitation: Lossless 320kbps streaming is only available for registered users. Please sign in or register to enable high-fidelity audio.");
+      return;
+    }
     setAudioQualityState(quality);
     localStorage.setItem('tunely_audio_quality', quality);
     

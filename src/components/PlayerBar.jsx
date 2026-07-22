@@ -94,6 +94,10 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
   };
 
   const handleCreateNewPlaylistFromModal = () => {
+    if (user?.isGuest && customPlaylists.length >= 1) {
+      alert("Guest Mode Limitation: Guests can only create 1 custom playlist. Please sign in or register to create unlimited playlists.");
+      return;
+    }
     const name = prompt("Enter playlist name:");
     if (!name || name.trim() === "") return;
     
