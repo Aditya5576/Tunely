@@ -289,6 +289,7 @@ export default function SongRow({
         @media (hover: hover) {
           .song-row:hover {
             background-color: var(--bg-hover);
+            transform: translateX(4px);
           }
 
           .song-row:hover .index-number,

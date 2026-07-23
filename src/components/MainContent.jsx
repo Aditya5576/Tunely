@@ -2095,16 +2095,17 @@ export default function MainContent({
           align-items: center;
           gap: 8px;
           padding: 4px 12px 4px 4px;
-          border-radius: 20px;
-          background: rgba(0, 0, 0, 0.5);
+          border-radius: 24px;
+          background: rgba(255, 255, 255, 0.03);
           cursor: pointer;
-          border: 1px solid var(--border-color);
-          transition: all 0.2s ease;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .desktop-profile-capsule:hover {
-          background: rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.06);
           border-color: var(--primary);
+          box-shadow: 0 0 10px var(--primary-glow);
         }
 
         .profile-avatar-circle {
@@ -2220,9 +2221,9 @@ export default function MainContent({
           padding: 12px;
           border-radius: 12px;
           cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.3, 0.8, 0.4, 1);
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.04);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          background: rgba(255, 255, 255, 0.01);
+          border: 1px solid rgba(255, 255, 255, 0.03);
           position: relative;
           overflow: hidden;
         }
@@ -2234,19 +2235,19 @@ export default function MainContent({
           border-radius: 12px;
           background: linear-gradient(135deg, var(--primary-glow) 0%, transparent 60%);
           opacity: 0;
-          transition: opacity 0.3s;
+          transition: opacity 0.3s ease;
           pointer-events: none;
         }
 
         .featured-card:hover::before {
-          opacity: 0.8;
+          opacity: 0.5;
         }
 
         .featured-card:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(255, 255, 255, 0.1);
-          transform: translateY(-6px);
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4), 0 0 15px var(--primary-glow);
+          background: rgba(255, 255, 255, 0.04);
+          border-color: rgba(0, 229, 255, 0.2);
+          transform: translateY(-4px) scale(1.02);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 15px rgba(0, 229, 255, 0.1);
         }
 
         .featured-card-cover-container {

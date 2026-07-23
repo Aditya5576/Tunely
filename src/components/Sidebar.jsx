@@ -184,7 +184,9 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
           display: flex;
           flex-direction: column;
           border-right: 1px solid var(--border-color);
-          background: rgba(10, 10, 15, 0.7);
+          background: var(--bg-panel);
+          backdrop-filter: blur(var(--glass-blur));
+          -webkit-backdrop-filter: blur(var(--glass-blur));
           padding: 24px 16px;
           z-index: 10;
           overflow: hidden;

@@ -754,7 +754,7 @@ const decodeHtml = (text) => {
         .song-info {
           display: flex;
           align-items: center;
-          width: 25%;
+          width: 30%;
           min-width: 180px;
         }
 
@@ -948,7 +948,7 @@ const decodeHtml = (text) => {
           display: flex;
           align-items: center;
           gap: 12px;
-          width: 25%;
+          width: 30%;
           justify-content: flex-end;
           min-width: 180px;
         }
