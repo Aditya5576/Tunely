@@ -505,10 +505,14 @@ export const AudioProvider = ({ children }) => {
   // Smooth Volume Fade In
   const fadeInVolume = () => {
     clearInterval(fadeIntervalRef.current);
+    const targetVol = volumeRef.current;
+    if (document.hidden) {
+      audioRef.current.volume = targetVol;
+      return;
+    }
     audioRef.current.volume = 0;
     let currentVol = 0;
     fadeIntervalRef.current = setInterval(() => {
-      const targetVol = volumeRef.current;
       if (currentVol < targetVol) {
         currentVol = Math.min(targetVol, currentVol + 0.05);
         audioRef.current.volume = currentVol;
@@ -522,6 +526,11 @@ export const AudioProvider = ({ children }) => {
   // Smooth Volume Fade Out
   const fadeOutVolume = (callback) => {
     clearInterval(fadeIntervalRef.current);
+    if (document.hidden) {
+      audioRef.current.volume = 0;
+      callback();
+      return;
+    }
     let currentVol = audioRef.current.volume;
     if (currentVol === 0) {
       callback();
