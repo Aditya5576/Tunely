@@ -851,12 +851,15 @@ export const AudioProvider = ({ children }) => {
       }
     };
 
+    // Skip logging activity for guests entirely to save KV writes
+    if (user?.isGuest) return;
+
     // Send immediately on change
     sendActivity();
 
-    // Setup periodic updates every 15s if playing
+    // Setup periodic updates every 3 minutes (180,000ms) if playing to save KV writes
     if (isPlaying) {
-      intervalId = setInterval(sendActivity, 15000);
+      intervalId = setInterval(sendActivity, 180000);
     }
 
     return () => {

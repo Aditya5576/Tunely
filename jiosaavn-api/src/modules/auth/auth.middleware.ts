@@ -46,11 +46,16 @@ export const authMiddleware = async (c: Context, next: Next) => {
   }
   // ───────────────────────────────────────────────────────────────────────────
 
-  // Slide session TTL on each request to keep active users logged in
-  try {
-    await kv.put(token, sessionRaw, { expirationTtl: SESSION_TTL_SECONDS })
-  } catch (e) {
-    console.warn("Session extend KV write failed (limit exceeded):", e)
+  // Slide session TTL once every 24 hours to keep active users logged in (saves ~99% of KV writes)
+  const createdTime = new Date(session.createdAt || 0).getTime()
+  const oneDayAgo = Date.now() - (1000 * 60 * 60 * 24)
+  if (createdTime < oneDayAgo) {
+    try {
+      session.createdAt = new Date().toISOString()
+      await kv.put(token, JSON.stringify(session), { expirationTtl: SESSION_TTL_SECONDS })
+    } catch (e) {
+      console.warn("Session extend KV write failed (limit exceeded):", e)
+    }
   }
 
   c.set('userId', session.userId)
