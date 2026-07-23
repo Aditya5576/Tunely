@@ -596,12 +596,6 @@ export default function MainContent({
   };
 
   const handleStartImport = async () => {
-    if (user?.isGuest) {
-      alert("Guest Mode Limitation: Spotify Playlist Import is a premium feature. Please sign in or register to import playlists.");
-      setShowImportModal(false);
-      setSpotifyUrl('');
-      return;
-    }
 
     const playlistIdMatch = spotifyUrl.match(/playlist\/([a-zA-Z0-9]+)/);
     if (!playlistIdMatch) {
