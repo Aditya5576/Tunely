@@ -1,5 +1,5 @@
 import { useAudio } from '../context/AudioContext';
-import { X, Play, Trash2 } from 'lucide-react';
+import { X, Play, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function QueuePanel() {
   const { 
@@ -11,6 +11,7 @@ export default function QueuePanel() {
     setIsQueueVisible, 
     playQueueTrack, 
     removeFromQueue, 
+    reorderQueue,
     clearQueue 
   } = useAudio();
 
@@ -81,6 +82,22 @@ export default function QueuePanel() {
                       <span className="queue-artist-name">{getArtistsString(track)}</span>
                     </div>
                     <div className="queue-item-actions">
+                      <button 
+                        className="item-action-btn move-up" 
+                        onClick={() => reorderQueue(actualIndex, 'up')}
+                        disabled={actualIndex === currentIndex + 1}
+                        title="Move Up"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button 
+                        className="item-action-btn move-down" 
+                        onClick={() => reorderQueue(actualIndex, 'down')}
+                        disabled={actualIndex === queue.length - 1}
+                        title="Move Down"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
                       <button 
                         className="item-action-btn play" 
                         onClick={() => playQueueTrack(actualIndex)}
@@ -319,14 +336,24 @@ export default function QueuePanel() {
           height: 24px;
           border-radius: 50%;
           color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
         }
 
-        .item-action-btn:hover {
+        .item-action-btn:disabled {
+          opacity: 0.25;
+          cursor: not-allowed;
+          pointer-events: none;
+        }
+
+        .item-action-btn:hover:not(:disabled) {
           color: var(--text-main);
           background: rgba(255,255,255,0.05);
         }
         
-        .item-action-btn.delete:hover {
+        .item-action-btn.delete:hover:not(:disabled) {
           color: #ef4444;
           background: rgba(239, 68, 68, 0.1);
         }

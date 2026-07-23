@@ -28,6 +28,8 @@ export const AudioProvider = ({ children }) => {
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [loopMode, setLoopMode] = useState('none'); // 'none' | 'all' | 'one'
   const [isShuffle, setIsShuffle] = useState(false);
+  const [shuffledIndices, setShuffledIndices] = useState([]);
+  const [shuffledCurrentIndex, setShuffledCurrentIndex] = useState(-1);
   const [isQueueVisible, setIsQueueVisible] = useState(false);
   const [isLyricsVisible, setIsLyricsVisible] = useState(false);
   const [lyrics, setLyrics] = useState(null);
@@ -55,6 +57,30 @@ export const AudioProvider = ({ children }) => {
       return [];
     }
   });
+
+  // Generate shuffled indices when shuffle is turned on or queue changes
+  useEffect(() => {
+    if (isShuffle && queue.length > 0) {
+      // Create indices array [0, 1, 2, ..., N-1]
+      const indices = Array.from({ length: queue.length }, (_, i) => i);
+      // Remove current index from the pool so it doesn't get shuffled to the next spot
+      const filteredIndices = indices.filter(idx => idx !== currentIndex);
+      
+      // Shuffle the remaining indices
+      for (let i = filteredIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filteredIndices[i], filteredIndices[j]] = [filteredIndices[j], filteredIndices[i]];
+      }
+      
+      // Put current index at the beginning so playback continues seamlessly
+      const finalIndices = currentIndex !== -1 ? [currentIndex, ...filteredIndices] : filteredIndices;
+      setShuffledIndices(finalIndices);
+      setShuffledCurrentIndex(currentIndex !== -1 ? 0 : -1);
+    } else {
+      setShuffledIndices([]);
+      setShuffledCurrentIndex(-1);
+    }
+  }, [isShuffle, queue.length]);
 
   // Effect to record recently played tracks automatically when current track changes
   useEffect(() => {
@@ -448,8 +474,23 @@ export const AudioProvider = ({ children }) => {
   const getNextIndex = () => {
     if (queue.length === 0) return -1;
     
-    if (isShuffle) {
-      return Math.floor(Math.random() * queue.length);
+    if (isShuffle && shuffledIndices.length > 0) {
+      const nextShuffledIdx = shuffledCurrentIndex + 1;
+      if (nextShuffledIdx < shuffledIndices.length) {
+        setShuffledCurrentIndex(nextShuffledIdx);
+        return shuffledIndices[nextShuffledIdx];
+      } else if (loopMode === 'all') {
+        // Re-shuffle for next loop
+        const indices = Array.from({ length: queue.length }, (_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        setShuffledIndices(indices);
+        setShuffledCurrentIndex(0);
+        return indices[0];
+      }
+      return -1;
     }
     
     const nextIdx = currentIndex + 1;
@@ -465,6 +506,18 @@ export const AudioProvider = ({ children }) => {
   // Computes the previous track index
   const getPrevIndex = () => {
     if (queue.length === 0) return -1;
+    
+    if (isShuffle && shuffledIndices.length > 0) {
+      const prevShuffledIdx = shuffledCurrentIndex - 1;
+      if (prevShuffledIdx >= 0) {
+        setShuffledCurrentIndex(prevShuffledIdx);
+        return shuffledIndices[prevShuffledIdx];
+      } else if (loopMode === 'all') {
+        setShuffledCurrentIndex(shuffledIndices.length - 1);
+        return shuffledIndices[shuffledIndices.length - 1];
+      }
+      return -1;
+    }
     
     const prevIdx = currentIndex - 1;
     if (prevIdx >= 0) {
@@ -541,6 +594,12 @@ export const AudioProvider = ({ children }) => {
     
     const track = queue[index];
     setCurrentIndex(index);
+    if (isShuffle && shuffledIndices.length > 0) {
+      const shuffledPos = shuffledIndices.indexOf(index);
+      if (shuffledPos !== -1) {
+        setShuffledCurrentIndex(shuffledPos);
+      }
+    }
     setCurrentTrack(track);
     setIsLoadingTrack(true);
 
@@ -723,6 +782,27 @@ export const AudioProvider = ({ children }) => {
       }
       return updated;
     });
+  };
+
+  const reorderQueue = (index, direction) => {
+    setQueue(prev => {
+      const updated = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex >= 0 && targetIndex < updated.length) {
+        const temp = updated[index];
+        updated[index] = updated[targetIndex];
+        updated[targetIndex] = temp;
+      }
+      return updated;
+    });
+
+    if (index === currentIndex) {
+      setCurrentIndex(direction === 'up' ? currentIndex - 1 : currentIndex + 1);
+    } else if (direction === 'up' && index - 1 === currentIndex) {
+      setCurrentIndex(index);
+    } else if (direction === 'down' && index + 1 === currentIndex) {
+      setCurrentIndex(index);
+    }
   };
 
   const playQueueTrack = (index) => {
@@ -1050,6 +1130,7 @@ export const AudioProvider = ({ children }) => {
       setIsLyricsVisible,
       addToQueue,
       removeFromQueue,
+      reorderQueue,
       playQueueTrack,
       clearQueue,
       audioQuality,

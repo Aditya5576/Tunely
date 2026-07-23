@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download, RefreshCw, Shuffle } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
@@ -251,7 +251,7 @@ export default function MainContent({
   setIsAccountOpen,
   createNewPlaylist
 }) {
-  const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed } = useAudio();
+  const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed, isShuffle, toggleShuffle } = useAudio();
   const navigate = useNavigate();
   const { user } = useAuth() || {};
 
@@ -771,6 +771,19 @@ export default function MainContent({
   const playAllTracks = (tracks) => {
     if (!tracks || tracks.length === 0) return;
     playTrack(tracks[0], tracks);
+  };
+
+  const shufflePlayAllTracks = (tracks) => {
+    if (!tracks || tracks.length === 0) return;
+    const shuffled = [...tracks];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    if (!isShuffle) {
+      toggleShuffle();
+    }
+    playTrack(shuffled[0], shuffled);
   };
 
   const getGreeting = () => {
@@ -1563,6 +1576,14 @@ export default function MainContent({
                     <Play size={20} fill="currentColor" />
                     <span>Play All</span>
                   </button>
+                  <button 
+                    className="detail-shuffle-btn"
+                    onClick={() => shufflePlayAllTracks(detailData.songs)}
+                    disabled={!detailData.songs || detailData.songs.length === 0}
+                  >
+                    <Shuffle size={20} />
+                    <span>Shuffle Play</span>
+                  </button>
                 </div>
 
                 {/* Tracklist List */}
@@ -1628,6 +1649,14 @@ export default function MainContent({
                   >
                     <Play size={20} fill="currentColor" />
                     <span>Play Mix</span>
+                  </button>
+                  <button 
+                    className="detail-shuffle-btn"
+                    onClick={() => shufflePlayAllTracks(detailData.songs)}
+                    disabled={!detailData.songs || detailData.songs.length === 0}
+                  >
+                    <Shuffle size={20} />
+                    <span>Shuffle Play</span>
                   </button>
                 </div>
 
@@ -2934,22 +2963,41 @@ export default function MainContent({
 
         .detail-actions {
           margin-bottom: 24px;
+          display: flex;
+          gap: 12px;
         }
 
-        .detail-play-btn {
-          background: var(--primary);
-          color: var(--bg-darker);
+        .detail-play-btn, .detail-shuffle-btn {
+          display: flex;
+          align-items: center;
           font-weight: 600;
           padding: 12px 28px;
           border-radius: 24px;
           gap: 8px;
           font-size: 15px;
+          transition: all 0.2s ease;
+        }
+
+        .detail-play-btn {
+          background: var(--primary);
+          color: var(--bg-darker);
           box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .detail-shuffle-btn {
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-main);
+          border: 1px solid var(--border-color);
         }
 
         @media (hover: hover) {
           .detail-play-btn:hover:not(:disabled) {
             background: var(--primary-hover);
+            transform: scale(1.03);
+          }
+          .detail-shuffle-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
             transform: scale(1.03);
           }
         }
