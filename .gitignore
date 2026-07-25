@@ -26,4 +26,11 @@ dist-ssr
 # Local backups
 backups/
 
+# Environment configs
+.env
+.env.local
+.env.*
+jiosaavn-api/.dev.vars
+jiosaavn-api/.wrangler/
+
 

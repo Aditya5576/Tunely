@@ -328,39 +328,43 @@ export const AudioProvider = ({ children }) => {
 
       const ctx = new AudioContextClass();
 
-      // Create a premium 3-band parametric enhancer
-      // 1. Warm Sub-Bass/Punch (80 Hz, peaking, +2.5dB)
+      // Create a premium 3-band parametric enhancer with preamp headroom
+      const preamp = ctx.createGain();
+      preamp.gain.value = 0.7; // -3dB preamp attenuation to prevent clipping/distortion
+
+      // 1. Warm Sub-Bass/Punch (80 Hz, peaking, +1.5dB)
       const bassFilter = ctx.createBiquadFilter();
       bassFilter.type = 'peaking';
       bassFilter.frequency.value = 80;
       bassFilter.Q.value = 0.8;
-      bassFilter.gain.value = 2.5;
+      bassFilter.gain.value = 1.5;
 
-      // 2. Crystal Vocal Presence (3000 Hz, peaking, +2.0dB)
+      // 2. Crystal Vocal Presence (3000 Hz, peaking, +1.0dB)
       const presenceFilter = ctx.createBiquadFilter();
       presenceFilter.type = 'peaking';
       presenceFilter.frequency.value = 3000;
       presenceFilter.Q.value = 1.0;
-      presenceFilter.gain.value = 2.0;
+      presenceFilter.gain.value = 1.0;
 
-      // 3. High-End Studio Air/Sparkle (15000 Hz, highshelf, +2.5dB)
+      // 3. High-End Studio Air/Sparkle (15000 Hz, highshelf, +1.5dB)
       const airFilter = ctx.createBiquadFilter();
       airFilter.type = 'highshelf';
       airFilter.frequency.value = 15000;
-      airFilter.gain.value = 2.5;
+      airFilter.gain.value = 1.5;
 
-      // 4. Dynamics Compressor & Limiter to prevent clipping and glue the sound
+      // 4. Soft Limiter to prevent clipping and glue the sound
       const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
-      compressor.knee.setValueAtTime(12, ctx.currentTime);
-      compressor.ratio.setValueAtTime(2.0, ctx.currentTime);
-      compressor.attack.setValueAtTime(0.01, ctx.currentTime);
-      compressor.release.setValueAtTime(0.25, ctx.currentTime);
+      compressor.threshold.setValueAtTime(-1.5, ctx.currentTime); // Limit peaks at -1.5dB
+      compressor.knee.setValueAtTime(30, ctx.currentTime);
+      compressor.ratio.setValueAtTime(12.0, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+      compressor.release.setValueAtTime(0.08, ctx.currentTime);
 
       const source = ctx.createMediaElementSource(audioRef.current);
 
-      // Connect: source -> bass -> presence -> air -> compressor -> speakers
-      source.connect(bassFilter);
+      // Connect: source -> preamp -> bass -> presence -> air -> compressor -> speakers
+      source.connect(preamp);
+      preamp.connect(bassFilter);
       bassFilter.connect(presenceFilter);
       presenceFilter.connect(airFilter);
       airFilter.connect(compressor);
@@ -368,7 +372,7 @@ export const AudioProvider = ({ children }) => {
 
       sourceNodeRef.current = source;
       audioContextRef.current = ctx;
-      console.log("Tunely Hi-Fi Enhancer: Web Audio dynamic processing active on Desktop.");
+      console.log("Tunely Hi-Fi Enhancer: Web Audio dynamic processing active on Desktop (clipping prevention enabled).");
     } catch (e) {
       console.warn("Failed to initialize desktop Web Audio enhancer:", e);
     }

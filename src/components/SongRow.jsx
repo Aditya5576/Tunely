@@ -68,6 +68,7 @@ export default function SongRow({
       className={`song-row ${isCurrentTrack ? 'active' : ''}`} 
       onClick={handlePlayClick}
       onMouseLeave={() => setIsDropdownOpen(false)}
+      style={isDropdownOpen ? { zIndex: 10 } : {}}
     >
       {/* Index / Play Button */}
       <div className="song-index-col">
