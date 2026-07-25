@@ -772,7 +772,6 @@ export const AudioProvider = ({ children }) => {
   };
 
   const addToQueue = (track) => {
-    if (queue.some(t => t.id === track.id)) return;
     setQueue(prev => [...prev, track]);
   };
 

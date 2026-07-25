@@ -14,6 +14,7 @@ export default function SongRow({
 }) {
   const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack, addToQueue } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isAddedToQueue, setIsAddedToQueue] = useState(false);
 
   useEffect(() => {
     if (!isDropdownOpen) return;
@@ -198,13 +199,17 @@ export default function SongRow({
                   onClick={(e) => {
                     e.stopPropagation();
                     addToQueue(track);
-                    setIsDropdownOpen(false);
+                    setIsAddedToQueue(true);
+                    setTimeout(() => {
+                      setIsAddedToQueue(false);
+                      setIsDropdownOpen(false);
+                    }, 800);
                   }}
                   onTouchStart={(e) => { e.stopPropagation(); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: isAddedToQueue ? '#00e5ff' : '#fff', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
                 >
-                  <Plus size={14} />
-                  <span>Add to Queue</span>
+                  {isAddedToQueue ? <Check size={14} /> : <Plus size={14} />}
+                  <span>{isAddedToQueue ? 'Added to Queue!' : 'Add to Queue'}</span>
                 </button>
                 
                 <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
