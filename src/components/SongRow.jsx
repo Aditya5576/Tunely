@@ -18,11 +18,19 @@ export default function SongRow({
 
   useEffect(() => {
     if (!isDropdownOpen) return;
-    const handleOutsideClick = () => {
-      setIsDropdownOpen(false);
+    const handleOutsideClick = (e) => {
+      const isDropdownClick = e.target.closest('.playlist-dropdown') || e.target.closest('.row-action-btn');
+      if (!isDropdownClick) {
+        setIsDropdownOpen(false);
+      }
     };
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleOutsideClick);
+    };
   }, [isDropdownOpen]);
 
   const isCurrentTrack = currentTrack && currentTrack.id === track.id;
