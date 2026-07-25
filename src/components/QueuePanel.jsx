@@ -371,6 +371,9 @@ export default function QueuePanel() {
             background: rgba(10, 10, 15, 0.98);
             border-left: none;
           }
+          .queue-item-actions {
+            opacity: 1 !important;
+          }
         }
       `}</style>
     </div>

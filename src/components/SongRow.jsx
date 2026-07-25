@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, Plus, Check, Music, Heart, X } from 'lucide-react';
+import { Play, Pause, Plus, Check, Music, Heart, X, MoreVertical } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { decodeHtml } from '../utils/lyrics';
 
@@ -12,7 +12,7 @@ export default function SongRow({
   showRemove = false,
   onRemove = null
 }) {
-  const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack } = useAudio();
+  const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack, addToQueue } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const isCurrentTrack = currentTrack && currentTrack.id === track.id;
@@ -161,7 +161,7 @@ export default function SongRow({
             <X size={15} />
           </button>
         ) : (
-          /* Add to Playlist Popup Trigger */
+          /* Add to Queue / Playlist Popup Trigger */
           <div className="add-to-playlist-container">
             <button 
               className="row-action-btn"
@@ -172,9 +172,9 @@ export default function SongRow({
               onTouchStart={(e) => {
                 e.stopPropagation();
               }}
-              title="Add to playlist"
+              title="More options"
             >
-              <Plus size={16} />
+              <MoreVertical size={16} />
             </button>
 
             {isDropdownOpen && (
@@ -182,12 +182,29 @@ export default function SongRow({
                 className="playlist-dropdown glass-panel"
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
+                style={{ right: 0, top: '100%', minWidth: 180, display: 'flex', flexDirection: 'column', gap: 2 }}
               >
-                <span className="dropdown-header">Add to Playlist</span>
+                <button
+                  className="dropdown-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addToQueue(track);
+                    setIsDropdownOpen(false);
+                  }}
+                  onTouchStart={(e) => { e.stopPropagation(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
+                >
+                  <Plus size={14} />
+                  <span>Add to Queue</span>
+                </button>
+                
+                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                
+                <span className="dropdown-header" style={{ padding: '6px 12px', display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add to Playlist</span>
                 {customPlaylists.length === 0 ? (
-                  <span className="dropdown-empty">No playlists created</span>
+                  <span className="dropdown-empty" style={{ padding: '8px 12px', display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No playlists created</span>
                 ) : (
-                  <div className="dropdown-list">
+                  <div className="dropdown-list" style={{ maxHeight: 150, overflowY: 'auto' }}>
                     {customPlaylists.map(p => {
                       const alreadyAdded = p.songs.some(s => s.id === track.id);
                       return (
