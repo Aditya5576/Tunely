@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Pause, Plus, Check, Music, Heart, X, MoreVertical } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { decodeHtml } from '../utils/lyrics';
@@ -14,6 +14,15 @@ export default function SongRow({
 }) {
   const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack, addToQueue } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleOutsideClick = () => {
+      setIsDropdownOpen(false);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [isDropdownOpen]);
 
   const isCurrentTrack = currentTrack && currentTrack.id === track.id;
   const isLiked = likedSongs?.includes(track.id);
@@ -67,7 +76,6 @@ export default function SongRow({
     <div 
       className={`song-row ${isCurrentTrack ? 'active' : ''}`} 
       onClick={handlePlayClick}
-      onMouseLeave={() => setIsDropdownOpen(false)}
       style={isDropdownOpen ? { zIndex: 10 } : {}}
     >
       {/* Index / Play Button */}
