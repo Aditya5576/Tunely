@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
-import { useAuth } from '../context/AuthContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
   Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle, Clock
@@ -15,7 +14,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
     likedSongs, toggleLikeTrack, currentLyric
   } = useAudio();
-  const { user } = useAuth() || {};
+
 
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.8);

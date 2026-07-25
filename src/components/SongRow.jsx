@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Play, Pause, Plus, Check, Music, Heart, X } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import { useAuth } from '../context/AuthContext';
 import { decodeHtml } from '../utils/lyrics';
 
 export default function SongRow({ 
@@ -14,7 +13,6 @@ export default function SongRow({
   onRemove = null
 }) {
   const { currentTrack, isPlaying, playTrack, likedSongs, toggleLikeTrack } = useAudio();
-  const { user } = useAuth() || {};
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const isCurrentTrack = currentTrack && currentTrack.id === track.id;
@@ -34,8 +32,6 @@ export default function SongRow({
   };
 
   const addToCustomPlaylist = (playlistId) => {
-    const targetPlaylist = customPlaylists.find(p => p.id === playlistId);
-
     const updatedPlaylists = customPlaylists.map(playlist => {
       if (playlist.id === playlistId) {
         // Prevent duplicate songs in custom playlist

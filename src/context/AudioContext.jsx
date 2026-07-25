@@ -74,13 +74,17 @@ export const AudioProvider = ({ children }) => {
       
       // Put current index at the beginning so playback continues seamlessly
       const finalIndices = currentIndex !== -1 ? [currentIndex, ...filteredIndices] : filteredIndices;
-      setShuffledIndices(finalIndices);
-      setShuffledCurrentIndex(currentIndex !== -1 ? 0 : -1);
+      Promise.resolve().then(() => {
+        setShuffledIndices(finalIndices);
+        setShuffledCurrentIndex(currentIndex !== -1 ? 0 : -1);
+      });
     } else {
-      setShuffledIndices([]);
-      setShuffledCurrentIndex(-1);
+      Promise.resolve().then(() => {
+        setShuffledIndices([]);
+        setShuffledCurrentIndex(-1);
+      });
     }
-  }, [isShuffle, queue.length]);
+  }, [isShuffle, queue.length, currentIndex]);
 
   // Effect to record recently played tracks automatically when current track changes
   useEffect(() => {
