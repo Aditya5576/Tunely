@@ -163,7 +163,7 @@ export default function SongRow({
           <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
         </button>
 
-        {showRemove ? (
+        {showRemove && (
           /* Remove from playlist button */
           <button 
             className="row-action-btn remove-btn"
@@ -178,76 +178,95 @@ export default function SongRow({
           >
             <X size={15} />
           </button>
-        ) : (
-          /* Add to Queue / Playlist Popup Trigger */
-          <div className="add-to-playlist-container">
-            <button 
-              className="row-action-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsDropdownOpen(!isDropdownOpen);
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-              }}
-              title="More options"
-            >
-              <MoreVertical size={16} />
-            </button>
-
-            {isDropdownOpen && (
-              <div 
-                className="playlist-dropdown glass-panel"
-                onClick={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                style={{ right: 0, top: '100%', minWidth: 180, display: 'flex', flexDirection: 'column', gap: 2 }}
-              >
-                <button
-                  className="dropdown-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addToQueue(track);
-                    setIsAddedToQueue(true);
-                    setTimeout(() => {
-                      setIsAddedToQueue(false);
-                      setIsDropdownOpen(false);
-                    }, 800);
-                  }}
-                  onTouchStart={(e) => { e.stopPropagation(); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: isAddedToQueue ? '#00e5ff' : '#fff', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
-                >
-                  {isAddedToQueue ? <Check size={14} /> : <Plus size={14} />}
-                  <span>{isAddedToQueue ? 'Added to Queue!' : 'Add to Queue'}</span>
-                </button>
-                
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-                
-                <span className="dropdown-header" style={{ padding: '6px 12px', display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add to Playlist</span>
-                {customPlaylists.length === 0 ? (
-                  <span className="dropdown-empty" style={{ padding: '8px 12px', display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No playlists created</span>
-                ) : (
-                  <div className="dropdown-list" style={{ maxHeight: 150, overflowY: 'auto' }}>
-                    {customPlaylists.map(p => {
-                      const alreadyAdded = p.songs.some(s => s.id === track.id);
-                      return (
-                        <button 
-                          key={p.id} 
-                          className="dropdown-item"
-                          onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
-                          onTouchStart={(e) => { e.stopPropagation(); }}
-                          disabled={alreadyAdded}
-                        >
-                          <span>{p.name}</span>
-                          {alreadyAdded && <Check size={14} className="check-icon" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         )}
+
+        /* Add to Queue / Playlist / More Options Popup Trigger (ALWAYS AVAILABLE) */
+        <div className="add-to-playlist-container">
+          <button 
+            className="row-action-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDropdownOpen(!isDropdownOpen);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
+            title="More options"
+          >
+            <MoreVertical size={16} />
+          </button>
+
+          {isDropdownOpen && (
+            <div 
+              className="playlist-dropdown glass-panel"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              style={{ right: 0, top: '100%', minWidth: 180, display: 'flex', flexDirection: 'column', gap: 2 }}
+            >
+              <button
+                className="dropdown-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToQueue(track);
+                  setIsAddedToQueue(true);
+                  setTimeout(() => {
+                    setIsAddedToQueue(false);
+                    setIsDropdownOpen(false);
+                  }, 800);
+                }}
+                onTouchStart={(e) => { e.stopPropagation(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: isAddedToQueue ? '#00e5ff' : '#fff', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
+              >
+                {isAddedToQueue ? <Check size={14} /> : <Plus size={14} />}
+                <span>{isAddedToQueue ? 'Added to Queue!' : 'Add to Queue'}</span>
+              </button>
+              
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+              
+              <span className="dropdown-header" style={{ padding: '6px 12px', display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add to Playlist</span>
+              {customPlaylists.length === 0 ? (
+                <span className="dropdown-empty" style={{ padding: '8px 12px', display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No playlists created</span>
+              ) : (
+                <div className="dropdown-list" style={{ maxHeight: 150, overflowY: 'auto' }}>
+                  {customPlaylists.map(p => {
+                    const alreadyAdded = p.songs.some(s => s.id === track.id);
+                    return (
+                      <button 
+                        key={p.id} 
+                        className="dropdown-item"
+                        onClick={(e) => { e.stopPropagation(); addToCustomPlaylist(p.id); }}
+                        onTouchStart={(e) => { e.stopPropagation(); }}
+                        disabled={alreadyAdded}
+                      >
+                        <span>{p.name}</span>
+                        {alreadyAdded && <Check size={14} className="check-icon" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showRemove && onRemove && (
+                <>
+                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                  <button
+                    className="dropdown-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDropdownOpen(false);
+                      onRemove();
+                    }}
+                    onTouchStart={(e) => { e.stopPropagation(); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', width: '100%', background: 'none', border: 'none', color: '#ef4444', fontSize: 12, cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
+                  >
+                    <X size={14} />
+                    <span>Remove from Playlist</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Embedded CSS for SongRow styling */}
