@@ -3010,14 +3010,16 @@ export default function MainContent({
 
         .tracklist-header-row {
           display: flex;
-          padding: 8px 16px;
+          align-items: center;
+          padding: 8px 12px;
           border-bottom: 1px solid var(--border-color);
           color: var(--text-dimmed);
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
           margin-bottom: 8px;
+          gap: 12px;
         }
 
         .header-col {
@@ -3025,10 +3027,19 @@ export default function MainContent({
           align-items: center;
         }
 
-        .index-col { width: 40px; }
-        .title-col { flex: 2; }
-        .album-col { flex: 1.5; padding: 0 16px; }
-        .duration-col { width: 100px; justify-content: flex-end; }
+        .index-col { width: 32px; flex-shrink: 0; justify-content: center; }
+        .title-col { flex: 1; min-width: 0; }
+        .album-col { flex: 1.5; padding: 0 16px; min-width: 0; }
+        .duration-col { width: auto; flex-shrink: 0; justify-content: flex-end; margin-left: auto; }
+
+        @media (max-width: 768px) {
+          .tracklist-header-row {
+            padding: 8px 8px;
+            gap: 8px;
+          }
+          .index-col { width: 20px; margin-right: 4px; }
+          .album-col { display: none; }
+        }
 
         .tracklist-body {
           display: flex;

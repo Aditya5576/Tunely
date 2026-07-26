@@ -445,6 +445,7 @@ export default function SongRow({
           align-items: center;
           gap: 6px;
           overflow: hidden;
+          min-width: 0;
         }
 
         .song-name-text {
@@ -455,6 +456,7 @@ export default function SongRow({
           overflow: hidden;
           text-overflow: ellipsis;
           min-width: 0;
+          flex: 1;
         }
 
         .hq-badge {
@@ -476,6 +478,7 @@ export default function SongRow({
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          min-width: 0;
         }
 
         .song-album-col {
@@ -488,17 +491,18 @@ export default function SongRow({
           white-space: nowrap;
           text-overflow: ellipsis;
           padding: 0 16px;
+          min-width: 0;
         }
 
         .song-duration-col {
-          width: 100px;
           display: flex;
           align-items: center;
           justify-content: flex-end;
           color: var(--text-muted);
           font-size: 13px;
-          gap: 16px;
+          gap: 12px;
           flex-shrink: 0;
+          margin-left: auto;
         }
 
         .row-heart-btn {
@@ -620,20 +624,25 @@ export default function SongRow({
             display: none;
           }
           .song-row {
-            padding: 8px 10px;
+            padding: 8px 8px;
+            gap: 8px;
           }
           .song-title-col {
-            flex: 3;
+            flex: 1;
+            min-width: 0;
+            gap: 8px;
           }
           .song-index-col {
-            width: 24px;
-            margin-right: 8px;
+            width: 20px;
+            margin-right: 4px;
             justify-content: center;
+            flex-shrink: 0;
           }
           .song-duration-col {
-            width: 104px;
-            gap: 12px;
+            width: auto;
+            gap: 6px;
             flex-shrink: 0;
+            margin-left: auto;
           }
           .row-action-btn,
           .row-heart-btn {
