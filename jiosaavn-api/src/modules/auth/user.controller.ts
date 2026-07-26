@@ -10,11 +10,9 @@ export const userController = new Hono<{
 }>()
 
 const safeKvPut = async (kv: KVNamespace, key: string, value: string, options?: any) => {
-  try {
-    await kv.put(key, value, options)
-  } catch (e) {
-    console.warn(`Safe KV Put error for key: ${key}`, e)
-  }
+  // Silent no-op to conserve 100% of Cloudflare KV daily write quota
+  // Cloudflare D1 Database handles all persistent storage and timestamps natively
+  return;
 }
 
 // ─── LIKED SONGS ─────────────────────────────────────────────────────────────
