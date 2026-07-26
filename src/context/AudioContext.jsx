@@ -772,7 +772,12 @@ export const AudioProvider = ({ children }) => {
   };
 
   const addToQueue = (track) => {
-    setQueue(prev => [...prev, track]);
+    setQueue(prev => {
+      const updated = [...prev];
+      const insertPos = currentIndex === -1 ? 0 : currentIndex + 1;
+      updated.splice(insertPos, 0, track);
+      return updated;
+    });
   };
 
   const removeFromQueue = (index) => {

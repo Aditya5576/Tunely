@@ -186,7 +186,7 @@ export default function SongRow({
             className="row-action-btn"
             onClick={(e) => {
               e.stopPropagation();
-              setIsDropdownOpen(true);
+              setIsDropdownOpen(!isDropdownOpen);
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
@@ -198,151 +198,103 @@ export default function SongRow({
 
           {isDropdownOpen && (
             <div 
-              className="spotify-action-backdrop"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsDropdownOpen(false);
-                setShowPlaylistSelector(false);
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-              }}
+              className="playlist-dropdown glass-panel"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             >
-              <div 
-                className="spotify-action-sheet"
-                onClick={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
+              {/* Option 1: Add to Queue */}
+              <button
+                className="dropdown-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToQueue(track);
+                  setIsAddedToQueue(true);
+                  setTimeout(() => {
+                    setIsAddedToQueue(false);
+                    setIsDropdownOpen(false);
+                    setShowPlaylistSelector(false);
+                  }, 600);
+                }}
+                onTouchStart={(e) => { e.stopPropagation(); }}
               >
-                {/* Header Track Info */}
-                <div className="spotify-sheet-header">
-                  {getThumbnail() ? (
-                    <img src={getThumbnail()} alt={decodeHtml(track.name)} className="spotify-sheet-cover" />
+                {isAddedToQueue ? <Check size={14} color="#00e5ff" /> : <Plus size={14} />}
+                <span style={{ color: isAddedToQueue ? '#00e5ff' : '#fff' }}>
+                  {isAddedToQueue ? 'Added to Queue!' : 'Add to Queue'}
+                </span>
+              </button>
+              
+              {/* Option 2: Add to Playlist */}
+              <button
+                className="dropdown-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlaylistSelector(!showPlaylistSelector);
+                }}
+                onTouchStart={(e) => { e.stopPropagation(); }}
+              >
+                <ListPlus size={14} />
+                <span>Add to Playlist</span>
+              </button>
+
+              {/* Sub-list of Playlists */}
+              {showPlaylistSelector && (
+                <div className="dropdown-sublist">
+                  {customPlaylists.length === 0 ? (
+                    <span className="dropdown-empty">No playlists created</span>
                   ) : (
-                    <div className="spotify-sheet-cover-placeholder"><Music size={22} /></div>
+                    customPlaylists.map(p => {
+                      const alreadyAdded = p.songs.some(s => s.id === track.id);
+                      return (
+                        <button 
+                          key={p.id} 
+                          className="dropdown-item sub-item"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToCustomPlaylist(p.id);
+                            setIsDropdownOpen(false);
+                            setShowPlaylistSelector(false);
+                          }}
+                          onTouchStart={(e) => { e.stopPropagation(); }}
+                          disabled={alreadyAdded}
+                        >
+                          <span>{p.name}</span>
+                          {alreadyAdded && <Check size={13} className="check-icon" />}
+                        </button>
+                      );
+                    })
                   )}
-                  <div className="spotify-sheet-meta">
-                    <h4 className="spotify-sheet-title">{decodeHtml(track.name)}</h4>
-                    <p className="spotify-sheet-artist">{getArtistsString()}</p>
-                  </div>
                 </div>
+              )}
 
-                <div className="spotify-sheet-divider" />
+              {/* Option 3: Save to Liked Songs */}
+              <button
+                className="dropdown-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleLikeTrack(track);
+                }}
+                onTouchStart={(e) => { e.stopPropagation(); }}
+              >
+                <Heart size={14} fill={isLiked ? "#00e5ff" : "none"} color={isLiked ? "#00e5ff" : "currentColor"} />
+                <span>{isLiked ? 'Unlike' : 'Save to Liked'}</span>
+              </button>
 
-                {/* Option 1: Add to Queue */}
+              {/* Option 4: Remove from Playlist (if applicable) */}
+              {showRemove && onRemove && (
                 <button
-                  className="spotify-sheet-option"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addToQueue(track);
-                    setIsAddedToQueue(true);
-                    setTimeout(() => {
-                      setIsAddedToQueue(false);
-                      setIsDropdownOpen(false);
-                      setShowPlaylistSelector(false);
-                    }, 600);
-                  }}
-                  onTouchStart={(e) => { e.stopPropagation(); }}
-                >
-                  <div className="spotify-option-icon">
-                    {isAddedToQueue ? <Check size={20} color="#00e5ff" /> : <Plus size={20} />}
-                  </div>
-                  <span style={{ color: isAddedToQueue ? '#00e5ff' : '#fff' }}>
-                    {isAddedToQueue ? 'Added to Queue!' : 'Add to Queue'}
-                  </span>
-                </button>
-
-                {/* Option 2: Add to Playlist */}
-                <button
-                  className="spotify-sheet-option"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowPlaylistSelector(!showPlaylistSelector);
-                  }}
-                  onTouchStart={(e) => { e.stopPropagation(); }}
-                >
-                  <div className="spotify-option-icon">
-                    <ListPlus size={20} />
-                  </div>
-                  <span>Add to Playlist</span>
-                </button>
-
-                {/* Nested Playlist Selector */}
-                {showPlaylistSelector && (
-                  <div className="spotify-playlist-sublist">
-                    {customPlaylists.length === 0 ? (
-                      <span className="spotify-sublist-empty">No custom playlists created yet</span>
-                    ) : (
-                      customPlaylists.map(p => {
-                        const alreadyAdded = p.songs.some(s => s.id === track.id);
-                        return (
-                          <button 
-                            key={p.id} 
-                            className="spotify-sublist-item"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCustomPlaylist(p.id);
-                              setIsDropdownOpen(false);
-                              setShowPlaylistSelector(false);
-                            }}
-                            onTouchStart={(e) => { e.stopPropagation(); }}
-                            disabled={alreadyAdded}
-                          >
-                            <span>{p.name}</span>
-                            {alreadyAdded && <Check size={16} className="check-icon" />}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-
-                {/* Option 3: Save to Liked Songs */}
-                <button
-                  className="spotify-sheet-option"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLikeTrack(track);
-                  }}
-                  onTouchStart={(e) => { e.stopPropagation(); }}
-                >
-                  <div className="spotify-option-icon">
-                    <Heart size={20} fill={isLiked ? "#00e5ff" : "none"} color={isLiked ? "#00e5ff" : "#fff"} />
-                  </div>
-                  <span>{isLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}</span>
-                </button>
-
-                {/* Option 4: Remove from Playlist (if applicable) */}
-                {showRemove && onRemove && (
-                  <button
-                    className="spotify-sheet-option danger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsDropdownOpen(false);
-                      setShowPlaylistSelector(false);
-                      onRemove();
-                    }}
-                    onTouchStart={(e) => { e.stopPropagation(); }}
-                  >
-                    <div className="spotify-option-icon">
-                      <Trash2 size={20} color="#ef4444" />
-                    </div>
-                    <span style={{ color: '#ef4444' }}>Remove from Playlist</span>
-                  </button>
-                )}
-
-                {/* Cancel / Close button */}
-                <button 
-                  className="spotify-sheet-close-btn"
+                  className="dropdown-item danger"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsDropdownOpen(false);
                     setShowPlaylistSelector(false);
+                    onRemove();
                   }}
                   onTouchStart={(e) => { e.stopPropagation(); }}
                 >
-                  Cancel
+                  <Trash2 size={14} color="#ef4444" />
+                  <span style={{ color: '#ef4444' }}>Remove</span>
                 </button>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -600,203 +552,67 @@ export default function SongRow({
           position: relative;
         }
 
-        .spotify-action-backdrop {
-          position: fixed;
-          top: 0;
-          left: 0;
+        .playlist-dropdown {
+          position: absolute;
           right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.75);
+          top: 100%;
+          min-width: 180px;
+          background: rgba(14, 15, 23, 0.96);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          z-index: 99999;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          animation: spotify-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes spotify-fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .spotify-action-sheet {
-          width: 100%;
-          max-width: 480px;
-          background: #10111a;
-          border-top-left-radius: 24px;
-          border-top-right-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-bottom: none;
-          padding: 20px 20px 24px;
-          box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 10px;
+          padding: 6px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75);
+          z-index: 999;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          animation: spotify-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          max-height: 85vh;
+          gap: 2px;
+        }
+
+        .dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          background: transparent;
+          border: none;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          width: 100%;
+          text-align: left;
+          transition: background 0.15s;
+        }
+
+        .dropdown-item:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .dropdown-item.sub-item {
+          padding-left: 16px;
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        .dropdown-sublist {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 6px;
+          padding: 4px;
+          max-height: 140px;
           overflow-y: auto;
         }
 
-        @keyframes spotify-slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-
-        .spotify-sheet-header {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 4px 0 8px;
-          text-align: left;
-        }
-
-        .spotify-sheet-cover {
-          width: 54px;
-          height: 54px;
-          border-radius: 8px;
-          object-fit: cover;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-          flex-shrink: 0;
-        }
-
-        .spotify-sheet-cover-placeholder {
-          width: 54px;
-          height: 54px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--text-dimmed);
-          flex-shrink: 0;
-        }
-
-        .spotify-sheet-meta {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          overflow: hidden;
-          text-align: left;
-        }
-
-        .spotify-sheet-title {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 700;
-          color: #ffffff;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .spotify-sheet-artist {
-          margin: 0;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.6);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .spotify-sheet-divider {
-          height: 1px;
-          background: rgba(255, 255, 255, 0.08);
-          margin: 6px 0 10px;
-        }
-
-        .spotify-sheet-option {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 14px 16px;
-          border-radius: 12px;
-          background: transparent;
-          border: none;
-          color: #ffffff;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s;
-          text-align: left;
-          width: 100%;
-        }
-
-        .spotify-sheet-option:hover,
-        .spotify-sheet-option:active {
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        .spotify-option-icon {
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .spotify-playlist-sublist {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding: 8px 12px 8px 56px;
-          background: rgba(0, 0, 0, 0.25);
-          border-radius: 12px;
-          margin-bottom: 4px;
-        }
-
-        .spotify-sublist-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 12px;
-          border-radius: 8px;
-          background: transparent;
-          border: none;
-          color: #e0e0e0;
-          font-size: 13px;
-          cursor: pointer;
-          width: 100%;
-          text-align: left;
-        }
-
-        .spotify-sublist-item:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-
-        .spotify-sublist-item:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-
-        .spotify-sublist-empty {
-          font-size: 12px;
+        .dropdown-empty {
+          font-size: 11px;
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
-          padding: 6px 0;
-        }
-
-        .spotify-sheet-close-btn {
-          margin-top: 8px;
-          padding: 14px;
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgba(255, 255, 255, 0.8);
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          text-align: center;
-          width: 100%;
-          transition: background 0.2s;
-        }
-
-        .spotify-sheet-close-btn:hover {
-          background: rgba(255, 255, 255, 0.12);
-          color: #fff;
+          padding: 6px 10px;
         }
 
         @media (max-width: 768px) {
