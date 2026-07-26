@@ -180,7 +180,6 @@ export default function SongRow({
           </button>
         )}
 
-        /* Add to Queue / Playlist / More Options Popup Trigger (ALWAYS AVAILABLE) */
         <div className="add-to-playlist-container">
           <button 
             className="row-action-btn"
