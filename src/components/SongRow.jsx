@@ -164,23 +164,6 @@ export default function SongRow({
           <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
         </button>
 
-        {showRemove && (
-          /* Remove from playlist button */
-          <button 
-            className="row-action-btn remove-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onRemove) onRemove();
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-            }}
-            title="Remove from playlist"
-          >
-            <X size={15} />
-          </button>
-        )}
-
         <div className="add-to-playlist-container">
           <button 
             className="row-action-btn"
