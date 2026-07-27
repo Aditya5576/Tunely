@@ -12,6 +12,7 @@ import ThemeModal from './components/ThemeModal';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
 import NetworkErrorOverlay from './components/NetworkErrorOverlay';
+import ProfileModal from './components/ProfileModal';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -25,6 +26,7 @@ function TunelyApp() {
   const [activeBroadcast, setActiveBroadcast] = useState(null);
 
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
 
   const changeTheme = (themeId) => {
@@ -283,25 +285,30 @@ function TunelyApp() {
           <QueuePanel />
           <LyricsPanel />
           <NetworkErrorOverlay />
+          <ProfileModal 
+            isOpen={showProfileModal} 
+            onClose={() => setShowProfileModal(false)} 
+            setShowAuthModal={setShowAuthModal} 
+          />
 
           {/* Account drawer */}
           {isAccountOpen && <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>}
           <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
-            <div className="drawer-header">
+            <div className="drawer-header" onClick={() => { setIsAccountOpen(false); setShowProfileModal(true); }} style={{ cursor: 'pointer' }}>
               <div className="profile-badge-large" style={{
                 background: user ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'
               }}>{(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}</div>
               <div className="profile-details-large">
                 <h3>{user ? user.name : 'Guest'}</h3>
-                <span className="view-profile-link">{user ? user.email : 'Not signed in'}</span>
+                <span className="view-profile-link">{user ? 'Tap to view profile' : 'Not signed in'}</span>
               </div>
-              <button className="close-drawer-btn" onClick={() => setIsAccountOpen(false)}><X size={24} /></button>
+              <button className="close-drawer-btn" onClick={(e) => { e.stopPropagation(); setIsAccountOpen(false); }}><X size={24} /></button>
             </div>
             <div className="drawer-divider"></div>
             <div className="drawer-content">
               {user ? (
                 <>
-                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert(`Logged in as ${user.email}\nMember since ${new Date(user.createdAt || Date.now()).toLocaleDateString()}`); }}>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowProfileModal(true); }}>
                     <User size={18} /><span>View profile</span>
                   </div>
                   {user.email === 'aditya@admin.com' && (
