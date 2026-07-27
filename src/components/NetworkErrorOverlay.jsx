@@ -17,7 +17,8 @@ export default function NetworkErrorOverlay() {
     // Subscribe to new error events
     const unsubscribe = subscribeNetworkErrors((latestLog, updatedLogs) => {
       setLogs(updatedLogs);
-      if (latestLog) {
+      const isBackgroundSync = latestLog?.url?.includes('/sync') || latestLog?.url?.includes('/broadcast');
+      if (latestLog && !isBackgroundSync) {
         setActiveToast(latestLog);
       }
     });
@@ -382,30 +383,37 @@ export default function NetworkErrorOverlay() {
         /* 2. Floating Inspector Trigger Button */
         .network-inspector-trigger-btn {
           position: fixed;
-          bottom: 90px;
-          left: 20px;
+          top: 64px;
+          right: 16px;
           z-index: 999;
           display: flex;
           align-items: center;
-          gap: 8px;
-          background: rgba(239, 68, 68, 0.18);
-          border: 1px solid rgba(239, 68, 68, 0.4);
+          gap: 6px;
+          background: rgba(239, 68, 68, 0.22);
+          border: 1px solid rgba(239, 68, 68, 0.5);
           color: #f87171;
-          font-size: 12px;
-          font-weight: 600;
-          padding: 8px 14px;
-          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 5px 11px;
+          border-radius: 16px;
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           cursor: pointer;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
           transition: all 0.2s ease;
         }
 
+        @media (max-width: 768px) {
+          .network-inspector-trigger-btn {
+            top: 54px;
+            right: 12px;
+          }
+        }
+
         .network-inspector-trigger-btn:hover {
-          background: rgba(239, 68, 68, 0.3);
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+          background: rgba(239, 68, 68, 0.35);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
         }
 
         .pulse-alert-icon {
