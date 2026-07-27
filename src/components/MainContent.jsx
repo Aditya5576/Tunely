@@ -3150,7 +3150,7 @@ export default function MainContent({
             background: rgba(8, 10, 18, 0.65);
           }
 
-          .desktop-nav-arrows, .desktop-profile-capsule, .header-search-container {
+          .desktop-nav-arrows, .desktop-profile-capsule, .header-search-container, .filter-pills-container {
             display: none !important;
           }
 
