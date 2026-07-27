@@ -27,6 +27,7 @@ function TunelyApp() {
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
 
   const changeTheme = (themeId) => {
@@ -215,7 +216,6 @@ function TunelyApp() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Create new custom playlist (also triggers server push via the customPlaylists effect)
   const createNewPlaylist = () => {
