@@ -11,6 +11,7 @@ import { AuthModal } from './components/AuthModal';
 import ThemeModal from './components/ThemeModal';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
+import NetworkErrorOverlay from './components/NetworkErrorOverlay';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -281,6 +282,7 @@ function TunelyApp() {
 
           <QueuePanel />
           <LyricsPanel />
+          <NetworkErrorOverlay />
 
           {/* Account drawer */}
           {isAccountOpen && <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>}
