@@ -35,6 +35,11 @@ export const clearNetworkLogs = () => {
 };
 
 export const recordNetworkError = (logItem) => {
+  // Ignore background sync / polling endpoints from error inspector logs
+  if (logItem?.url?.includes('/sync') || logItem?.url?.includes('/broadcast')) {
+    return;
+  }
+
   const fullLog = {
     id: `err_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: new Date().toLocaleTimeString(),

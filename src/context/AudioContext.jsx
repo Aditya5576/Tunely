@@ -179,8 +179,7 @@ export const AudioProvider = ({ children }) => {
     }
 
     // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
-    if (user?.isGuest) return;
-    if (!authFetch) return;
+    if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
 
     const syncLikedSongs = async () => {
       try {
