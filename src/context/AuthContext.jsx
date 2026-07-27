@@ -26,7 +26,11 @@ export const AuthProvider = ({ children }) => {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        return parsed.user || null;
+        if (parsed.user) return parsed.user;
+      }
+      const guestRaw = localStorage.getItem('tunely_guest_profile');
+      if (guestRaw) {
+        return JSON.parse(guestRaw);
       }
     } catch {
       // ignore
@@ -39,6 +43,21 @@ export const AuthProvider = ({ children }) => {
 
   const persistSession = (t, u) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
+  };
+
+  const updateUserProfile = (updatedFields) => {
+    setUser(prev => {
+      const current = prev || { name: 'Guest Listener', email: 'Guest Mode', isGuest: true };
+      const updated = { ...current, ...updatedFields };
+      if (token && token !== 'guest_token') {
+        persistSession(token, updated);
+      } else {
+        try {
+          localStorage.setItem('tunely_guest_profile', JSON.stringify(updated));
+        } catch (e) {}
+      }
+      return updated;
+    });
   };
 
   const clearSession = () => {
@@ -254,6 +273,7 @@ export const AuthProvider = ({ children }) => {
       requestPasswordReset,
       confirmPasswordReset,
       loginAsGuest,
+      updateUserProfile,
       authFetch
     }}>
       {/* Banned overlay — shown immediately when account is suspended */}

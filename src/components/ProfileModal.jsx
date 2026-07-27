@@ -131,8 +131,7 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
           <div className="profile-divider"></div>
 
           {/* VIEW MODE VS EDIT MODE TOGGLE */}
-          {user && !user.isGuest && (
-            <div className="profile-mode-actions">
+          <div className="profile-mode-actions">
               <button 
                 className={`profile-tab-btn ${!isEditing ? 'active' : ''}`}
                 onClick={() => setIsEditing(false)}
@@ -148,7 +147,6 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
                 <span>Edit Profile</span>
               </button>
             </div>
-          )}
 
           {/* FEATURE 6: EDIT PROFILE FORM */}
           {isEditing && (
