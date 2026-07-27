@@ -13,7 +13,7 @@ const AVATAR_GRADIENTS = [
 ];
 
 export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
-  const { user, logout, updateUserProfile, requestPasswordReset } = useAuth() || {};
+  const { user, logout, updateUserProfile, requestPasswordReset, confirmPasswordReset } = useAuth() || {};
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -21,8 +21,18 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
   const [editBio, setEditBio] = useState(user?.bio || 'Music is the soundtrack of life 🎧');
   const [selectedGradient, setSelectedGradient] = useState(user?.avatarBg || AVATAR_GRADIENTS[0].value);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Password Reset Form States
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [devOtpCode, setDevOtpCode] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPasswordVal, setConfirmPasswordVal] = useState('');
+  const [isSubmittingReset, setIsSubmittingReset] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -50,14 +60,17 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
     }, 1200);
   };
 
-  const handlePasswordReset = async () => {
+  const handlePasswordResetRequest = async () => {
     if (!user?.email || user?.isGuest) return;
     setIsResettingPassword(true);
     setResetMessage('');
+    setPasswordError('');
     try {
       const res = await requestPasswordReset(user.email);
       if (res.success) {
-        setResetMessage('Reset code sent to your email!');
+        setResetMessage(`Reset OTP sent to ${user.email}`);
+        setShowResetForm(true);
+        if (res.devOtp) setDevOtpCode(res.devOtp);
       } else {
         setResetMessage(res.error || 'Failed to send reset code');
       }
@@ -65,6 +78,45 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
       setResetMessage('Connection error');
     } finally {
       setIsResettingPassword(false);
+    }
+  };
+
+  const handleConfirmPasswordReset = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPasswordVal) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (!otpCode.trim()) {
+      setPasswordError('Please enter the 6-digit OTP code');
+      return;
+    }
+
+    setIsSubmittingReset(true);
+    setPasswordError('');
+    try {
+      const res = await confirmPasswordReset(user.email, otpCode.trim(), newPassword);
+      if (res.success) {
+        setPasswordSuccess(true);
+        setTimeout(() => {
+          setShowResetForm(false);
+          setPasswordSuccess(false);
+          setOtpCode('');
+          setNewPassword('');
+          setConfirmPasswordVal('');
+          setResetMessage('');
+        }, 2200);
+      } else {
+        setPasswordError(res.error || 'Invalid OTP code or reset failed');
+      }
+    } catch {
+      setPasswordError('Network error updating password');
+    } finally {
+      setIsSubmittingReset(false);
     }
   };
 
@@ -207,17 +259,68 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
                 {/* 1. Change / Reset Password */}
                 <button 
                   className="security-btn"
-                  onClick={handlePasswordReset}
+                  onClick={handlePasswordResetRequest}
                   disabled={isResettingPassword}
                 >
                   <Key size={16} className="security-icon" />
                   <div className="security-btn-text">
                     <span className="btn-title">Password & Security</span>
-                    <span className="btn-sub">Send password reset OTP code</span>
+                    <span className="btn-sub">{showResetForm ? 'Resend reset OTP code' : 'Send password reset OTP code'}</span>
                   </div>
                 </button>
+
                 {resetMessage && (
-                  <div className="security-msg">{resetMessage}</div>
+                  <div className="security-msg">
+                    {resetMessage}
+                    {devOtpCode && <strong style={{ display: 'block', color: '#00e5ff', marginTop: 4 }}>Dev Code: {devOtpCode}</strong>}
+                  </div>
+                )}
+
+                {/* Inline Change Password Form */}
+                {showResetForm && (
+                  <form onSubmit={handleConfirmPasswordReset} className="reset-password-form">
+                    <div className="form-group">
+                      <label>6-Digit Reset Code (OTP)</label>
+                      <input 
+                        type="text" 
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        placeholder="Enter OTP code"
+                        maxLength={6}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>New Password</label>
+                      <input 
+                        type="password" 
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 6 chars)"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Confirm New Password</label>
+                      <input 
+                        type="password" 
+                        value={confirmPasswordVal}
+                        onChange={(e) => setConfirmPasswordVal(e.target.value)}
+                        placeholder="Confirm new password"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+
+                    {passwordError && <div className="password-error-msg">{passwordError}</div>}
+                    {passwordSuccess && <div className="password-success-msg">✅ Password updated successfully!</div>}
+
+                    <button type="submit" className="save-profile-btn" disabled={isSubmittingReset || passwordSuccess}>
+                      {passwordSuccess ? <Check size={16} color="#10b981" /> : <Key size={16} />}
+                      <span>{passwordSuccess ? 'Password Updated!' : isSubmittingReset ? 'Updating...' : 'Update Password'}</span>
+                    </button>
+                  </form>
                 )}
 
                 {/* 2. Admin Panel Shortcut (if Admin) */}
@@ -618,6 +721,38 @@ export default function ProfileModal({ isOpen, onClose, setShowAuthModal }) {
           color: #10b981;
           font-weight: 600;
           padding: 4px 8px;
+        }
+
+        .reset-password-form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          background: rgba(0, 229, 255, 0.04);
+          border: 1px solid rgba(0, 229, 255, 0.2);
+          border-radius: 14px;
+          padding: 16px;
+          margin-top: 6px;
+          animation: profileModalIn 0.25s ease forwards;
+        }
+
+        .password-error-msg {
+          font-size: 12px;
+          color: #f87171;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 8px;
+          padding: 8px 12px;
+          font-weight: 600;
+        }
+
+        .password-success-msg {
+          font-size: 12px;
+          color: #34d399;
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 8px;
+          padding: 8px 12px;
+          font-weight: 600;
         }
 
         .guest-security-box {
