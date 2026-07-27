@@ -1250,30 +1250,32 @@ export default function MainContent({
               </div>
             )}
 
-            {/* Trending / Episode Section */}
-            <div className="trending-section" style={{ marginTop: '24px' }}>
-              <h2>{homeFilter === 'podcasts' ? 'Latest Podcast Episodes' : '📈 Trending Today 2026'}</h2>
-              {homeLoading ? (
-                <div className="main-loading">
-                  <div className="bounce-loader">
-                    <div></div><div></div><div></div>
+            {/* Podcast Episode Section (only when homeFilter is podcasts) */}
+            {homeFilter === 'podcasts' && (
+              <div className="trending-section" style={{ marginTop: '24px' }}>
+                <h2>Latest Podcast Episodes</h2>
+                {homeLoading ? (
+                  <div className="main-loading">
+                    <div className="bounce-loader">
+                      <div></div><div></div><div></div>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="song-list-table">
-                  {(homeFilter === 'podcasts' ? ALL_MOCK_EPISODES : homeTrending).map((track, idx) => (
-                    <SongRow 
-                      key={track.id} 
-                      track={track} 
-                      index={idx}
-                      customPlaylists={customPlaylists}
-                      setCustomPlaylists={setCustomPlaylists}
-                      playlistTracks={homeFilter === 'podcasts' ? ALL_MOCK_EPISODES : homeTrending}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="song-list-table">
+                    {ALL_MOCK_EPISODES.map((track, idx) => (
+                      <SongRow 
+                        key={track.id} 
+                        track={track} 
+                        index={idx}
+                        customPlaylists={customPlaylists}
+                        setCustomPlaylists={setCustomPlaylists}
+                        playlistTracks={ALL_MOCK_EPISODES}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
 
