@@ -281,6 +281,92 @@ input[type="range"]:active::-moz-range-thumb {
   }
 }
 
+/* ===== SPOTIFY MOBILE UI REDESIGN STYLES ===== */
+.featured-section-header.clickable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding-right: 4px;
+}
+
+.featured-section-header .section-chevron {
+  color: var(--text-dimmed);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.featured-section-header.clickable:hover .section-chevron {
+  color: var(--text-main);
+  transform: translateX(3px);
+}
+
+.spotify-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+@media (max-width: 768px) {
+  .spotify-browse-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+.spotify-genre-card {
+  height: 104px;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.spotify-genre-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.spotify-genre-card:active {
+  transform: scale(0.97);
+}
+
+.genre-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.genre-card-img {
+  width: 68px;
+  height: 68px;
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  transform: rotate(22deg);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.liked-songs-gradient-art {
+  background: linear-gradient(135deg, #450af5, #8e8e8e) !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 14px rgba(69, 10, 245, 0.4) !important;
+}
+
 /* ===== MOBILE BOTTOM TAB BAR ===== */
 .mobile-tab-bar {
   display: none;

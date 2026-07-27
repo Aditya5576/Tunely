@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ListMusic, Trash2, Download, RefreshCw, Shuffle } from 'lucide-react';
+import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ChevronRight, ListMusic, Trash2, Download, RefreshCw, Shuffle, Home, Library, Settings, Radio } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
@@ -11,6 +11,24 @@ import { motion } from 'framer-motion';
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
 import { decodeHtml } from '../utils/lyrics';
+
+const SPOTIFY_GENRES = [
+  { name: 'Pop', gradient: 'linear-gradient(135deg, #ff416c, #ff4b2b)', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80', query: 'Pop Hits' },
+  { name: 'Rock', gradient: 'linear-gradient(135deg, #e52d27, #b31217)', img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&auto=format&fit=crop&q=80', query: 'Rock' },
+  { name: 'Hip-Hop', gradient: 'linear-gradient(135deg, #f12711, #f5af19)', img: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&auto=format&fit=crop&q=80', query: 'Hip Hop' },
+  { name: 'Indie', gradient: 'linear-gradient(135deg, #11998e, #38ef7d)', img: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300&auto=format&fit=crop&q=80', query: 'Indie' },
+  { name: 'Electronic', gradient: 'linear-gradient(135deg, #00c6ff, #0072ff)', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=80', query: 'EDM' },
+  { name: 'Jazz', gradient: 'linear-gradient(135deg, #8a2387, #e94057, #f27121)', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=300&auto=format&fit=crop&q=80', query: 'Jazz' },
+  { name: 'Discover Weekly', gradient: 'linear-gradient(135deg, #7F00FF, #E100FF)', img: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=300&auto=format&fit=crop&q=80', query: 'Trending' },
+  { name: 'Mood', gradient: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)', img: 'https://images.unsplash.com/photo-1518972559570-7cc1324b32a3?w=300&auto=format&fit=crop&q=80', query: 'Chill' }
+];
+
+const getGreetingTime = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning!';
+  if (hour < 18) return 'Good Afternoon!';
+  return 'Good Evening!';
+};
 
 const deduplicateTracks = (tracks) => {
   if (!Array.isArray(tracks)) return [];
@@ -956,14 +974,14 @@ export default function MainContent({
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            {/* Home Greeting Header (visible on both Desktop and Mobile, styled beautifully) */}
+            {/* Home Greeting Header */}
             <motion.div
               className="home-greeting"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
             >
-              <h1>{getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'} 👋</h1>
+              <h1>{getGreetingTime()}</h1>
               <span className="home-live-badge">Live</span>
             </motion.div>
 
@@ -995,8 +1013,9 @@ export default function MainContent({
                 {/* Recently Played Section */}
                 {recentlyPlayed && recentlyPlayed.length > 0 && (
                   <div className="featured-section recently-played-section" style={{ marginBottom: '24px' }}>
-                    <div className="featured-section-header">
-                      <h2>🕐 Recently Played</h2>
+                    <div className="featured-section-header clickable" onClick={() => navigate('/search')}>
+                      <h2>Recently Played</h2>
+                      <ChevronRight size={18} className="section-chevron" />
                     </div>
                     <div className="featured-cards-scroll">
                       {recentlyPlayed.map(track => (
@@ -1054,8 +1073,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable Featured row */}
                 <div className="featured-section">
-                  <div className="featured-section-header">
-                    <h2>🔥 Bollywood Hits 2026</h2>
+                  <div className="featured-section-header clickable" onClick={() => navigate('/library')}>
+                    <h2>Your Playlists</h2>
+                    <ChevronRight size={18} className="section-chevron" />
                   </div>
                   {homeFeaturedLoading ? (
                     <div className="main-loading">
@@ -1092,8 +1112,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable New Releases row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
-                  <div className="featured-section-header">
-                    <h2>✨ Fresh Drops 2026</h2>
+                  <div className="featured-section-header clickable">
+                    <h2>New Releases</h2>
+                    <ChevronRight size={18} className="section-chevron" />
                   </div>
                   {homeNewReleasesLoading ? (
                     <div className="main-loading">
@@ -1130,8 +1151,9 @@ export default function MainContent({
 
                 {/* Horizontal scrollable Chill Vibes row */}
                 <div className="featured-section" style={{ marginTop: '24px' }}>
-                  <div className="featured-section-header">
-                    <h2>🔥 Bollywood Hits 2025</h2>
+                  <div className="featured-section-header clickable">
+                    <h2>Top Bollywood Hits</h2>
+                    <ChevronRight size={18} className="section-chevron" />
                   </div>
                   {homeChillLoading ? (
                     <div className="main-loading">
@@ -1333,24 +1355,16 @@ export default function MainContent({
             {!searchResults && !searchLoading && (
               <div className="categories-grid-section">
                 <h2>Browse All</h2>
-                <div className="categories-grid">
-                  {[
-                    { name: 'Pop Hits', color: 'from-pink-500 to-indigo-600' },
-                    { name: 'Lo-Fi Chill', color: 'from-purple-600 to-blue-500' },
-                    { name: 'Arijit Hits', color: 'from-emerald-500 to-teal-600' },
-                    { name: 'Workout Beats', color: 'from-orange-500 to-rose-600' },
-                    { name: 'Hip Hop', color: 'from-yellow-500 to-amber-600' },
-                    { name: 'Retro Vibes', color: 'from-cyan-500 to-blue-600' }
-                  ].map((cat, idx) => (
+                <div className="spotify-browse-grid">
+                  {SPOTIFY_GENRES.map((cat) => (
                     <div 
-                      key={idx} 
-                      className={`category-card bg-gradient-to-br ${cat.color}`}
-                      onClick={() => handleCategoryClick(cat.name)}
+                      key={cat.name} 
+                      className="spotify-genre-card"
+                      style={{ background: cat.gradient }}
+                      onClick={() => handleCategoryClick(cat.query)}
                     >
-                      <h3>{cat.name}</h3>
-                      <div className="category-overlay-icon">
-                        <Compass size={24} />
-                      </div>
+                      <span className="genre-card-title">{cat.name}</span>
+                      <img src={cat.img} alt={cat.name} className="genre-card-img" />
                     </div>
                   ))}
                 </div>
@@ -1804,7 +1818,9 @@ export default function MainContent({
             {/* Filter pills */}
             <div className="library-filter-pills">
               <button className="lib-pill active">Playlists</button>
+              <button className="lib-pill">Artists</button>
               <button className="lib-pill">Albums</button>
+              <button className="lib-pill">Podcasts</button>
             </div>
 
             {/* Custom Playlists */}
@@ -1822,27 +1838,13 @@ export default function MainContent({
             <div
               className="lib-item liked-songs-lib-card"
               onClick={() => { navigate('/custom/liked'); }}
-              style={{ 
-                background: 'rgba(0, 229, 255, 0.03)',
-                border: '1px solid rgba(0, 229, 255, 0.15)',
-                borderRadius: '10px',
-                marginBottom: '12px'
-              }}
             >
-              <div className="lib-item-art" style={{
-                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 229, 255, 0.3))',
-                color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '6px',
-                boxShadow: '0 0 10px rgba(0, 229, 255, 0.2)'
-              }}>
-                <Heart size={20} fill="currentColor" />
+              <div className="lib-item-art liked-songs-gradient-art">
+                <Heart size={22} fill="#ffffff" color="#ffffff" />
               </div>
               <div className="lib-item-meta">
-                <span className="lib-item-name" style={{ color: '#fff', fontWeight: '600' }}>Liked Songs</span>
-                <span className="lib-item-sub">Auto-populated playlist · {likedSongsMetadata.length} songs</span>
+                <span className="lib-item-name">Liked Songs</span>
+                <span className="lib-item-sub">Auto-populated • {likedSongsMetadata.length} songs</span>
               </div>
             </div>
 
