@@ -18,7 +18,7 @@ const LYRICS_FALLBACK = {
 };
 
 export const AudioProvider = ({ children }) => {
-  const { user, isLoggedIn, isLoading, authFetch } = useAuth() || {};
+  const { user, token, isLoggedIn, isLoading, authFetch } = useAuth() || {};
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
