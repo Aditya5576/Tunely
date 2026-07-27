@@ -282,6 +282,25 @@ input[type="range"]:active::-moz-range-thumb {
 }
 
 /* ===== SPOTIFY MOBILE UI REDESIGN STYLES ===== */
+.spotify-premium-pill-btn {
+  background: #1db954;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(29, 185, 84, 0.4);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.spotify-premium-pill-btn:active {
+  transform: scale(0.95);
+  background: #1aa34a;
+}
+
 .featured-section-header.clickable {
   display: flex;
   align-items: center;

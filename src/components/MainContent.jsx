@@ -947,11 +947,15 @@ export default function MainContent({
 
           {/* Mobile Right Action Icons */}
           <div className="mobile-right-actions">
-            {currentView === 'library' ? (
+            {currentView === 'home' ? (
+              <button className="spotify-premium-pill-btn" onClick={() => alert("Tunely Pro is active!")}>
+                GO PREMIUM
+              </button>
+            ) : currentView === 'library' ? (
               <button className="mobile-icon-btn" onClick={createNewPlaylist} title="New Playlist">
                 <Plus size={22} />
               </button>
-            ) : currentView === 'home' || currentView === 'search' ? (
+            ) : currentView === 'search' ? (
               <button className="mobile-icon-btn" onClick={() => { navigate('/search'); }} title="Search">
                 <SearchIcon size={20} />
               </button>
@@ -982,7 +986,6 @@ export default function MainContent({
               transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
             >
               <h1>{getGreetingTime()}</h1>
-              <span className="home-live-badge">Live</span>
             </motion.div>
 
             {/* Hero banner - visible on desktop, hidden on mobile */}
@@ -1011,28 +1014,26 @@ export default function MainContent({
             {(homeFilter === 'all' || homeFilter === 'music') && (
               <>
                 {/* Recently Played Section */}
-                {recentlyPlayed && recentlyPlayed.length > 0 && (
-                  <div className="featured-section recently-played-section" style={{ marginBottom: '24px' }}>
-                    <div className="featured-section-header clickable" onClick={() => navigate('/search')}>
-                      <h2>Recently Played</h2>
-                      <ChevronRight size={18} className="section-chevron" />
-                    </div>
-                    <div className="featured-cards-scroll">
-                      {recentlyPlayed.map(track => (
-                        <div key={`recent-${track.id}`} className="featured-card glass-panel" onClick={() => playTrack(track, recentlyPlayed)}>
-                          <div className="featured-card-cover-container">
-                            <img src={track.image?.[2]?.url || track.image?.[1]?.url || track.image?.[0]?.url} alt={track.name} className="featured-card-cover" />
-                            <button className="featured-card-play-btn" title="Play">
-                              <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
-                            </button>
-                          </div>
-                          <span className="featured-card-title">{decodeHtml(track.name)}</span>
-                          <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="featured-section recently-played-section" style={{ marginBottom: '24px' }}>
+                  <div className="featured-section-header clickable" onClick={() => navigate('/search')}>
+                    <h2>Recently Played</h2>
+                    <ChevronRight size={18} className="section-chevron" />
                   </div>
-                )}
+                  <div className="featured-cards-scroll">
+                    {(recentlyPlayed && recentlyPlayed.length > 0 ? recentlyPlayed : homeTrending.slice(0, 8)).map(track => (
+                      <div key={`recent-${track.id}`} className="featured-card glass-panel" onClick={() => playTrack(track, recentlyPlayed && recentlyPlayed.length > 0 ? recentlyPlayed : homeTrending)}>
+                        <div className="featured-card-cover-container">
+                          <img src={track.image?.[2]?.url || track.image?.[1]?.url || track.image?.[0]?.url} alt={track.name} className="featured-card-cover" />
+                          <button className="featured-card-play-btn" title="Play">
+                            <Play size={16} fill="currentColor" style={{ marginLeft: '1px' }} />
+                          </button>
+                        </div>
+                        <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                        <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                  {/* Quick shortcuts */}
                 <div className="shortcuts-grid">
