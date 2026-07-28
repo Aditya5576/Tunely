@@ -33,6 +33,21 @@ const fmtDate = (iso) => {
   });
 };
 
+const formatTimeAgo = (iso) => {
+  if (!iso) return 'Never active';
+  const time = new Date(iso).getTime();
+  if (isNaN(time)) return 'Never active';
+  const diffSecs = Math.floor((Date.now() - time) / 1000);
+  
+  if (diffSecs < 30) return '🟢 Active Now';
+  if (diffSecs < 60) return 'Active 1m ago';
+  if (diffSecs < 3600) return `Active ${Math.floor(diffSecs / 60)}m ago`;
+  if (diffSecs < 86400) return `Active ${Math.floor(diffSecs / 3600)}h ago`;
+  if (diffSecs < 604800) return `Active ${Math.floor(diffSecs / 86400)}d ago`;
+  
+  return fmtDate(iso);
+};
+
 const formatDuration = (secs) => {
   if (!secs) return '0:00';
   const m = Math.floor(secs / 60);
@@ -238,8 +253,8 @@ function UserRow({ user, onBan, onUnban, onDelete, onResetPassword, onViewDetail
           </span>
         </div>
 
-        <div style={{ fontSize: 12, color: isOnline ? '#00e5ff' : 'rgba(255,255,255,0.4)', fontWeight: isOnline ? 600 : 400 }}>
-          {isOnline ? '🟢 Active Now' : 'Offline'}
+        <div style={{ fontSize: 12, color: isOnline ? '#00e5ff' : 'rgba(255,255,255,0.6)', fontWeight: isOnline ? 600 : 500 }} title={`Exact last active: ${fmtDate(user.lastSeen || user.activity?.lastActive || user.createdAt)}`}>
+          {isOnline ? '🟢 Active Now' : formatTimeAgo(user.lastSeen || user.activity?.lastActive || user.createdAt)}
         </div>
 
         <div className="user-row-actions">
@@ -280,8 +295,8 @@ function UserRow({ user, onBan, onUnban, onDelete, onResetPassword, onViewDetail
           </div>
           <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 10px' }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Last Active</div>
-            <div style={{ fontSize: 12, color: isOnline ? '#00e5ff' : '#fff', fontWeight: isOnline ? 600 : 500 }}>
-              {isOnline ? '🟢 Active Now' : 'Offline'}
+            <div style={{ fontSize: 11, color: isOnline ? '#00e5ff' : '#00e5ff', fontWeight: isOnline ? 700 : 600 }} title={`Exact last active: ${fmtDate(user.lastSeen || user.activity?.lastActive || user.createdAt)}`}>
+              {isOnline ? '🟢 Active Now' : formatTimeAgo(user.lastSeen || user.activity?.lastActive || user.createdAt)}
             </div>
           </div>
         </div>
@@ -393,7 +408,7 @@ function UserDetailModal({ user, onClose, onBan, onUnban, onDelete, onResetPassw
             ['Status', isBanned ? '🚫 Banned' : '✅ Active'],
             ['Email', user.email],
             ['Joined', fmtDate(user.createdAt)],
-            ['Last Seen', fmtDate(user.lastSeen)],
+            ['Last Active', isOnline ? '🟢 Active Now' : `${formatTimeAgo(user.lastSeen || user.activity?.lastActive || user.createdAt)} (${fmtDate(user.lastSeen || user.activity?.lastActive || user.createdAt)})`],
             ['Device', activity?.device || 'Offline'],
             ['Password', '🔒 PBKDF2 Hashed (use Reset to set)'],
           ].map(([label, val]) => (
