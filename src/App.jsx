@@ -202,7 +202,7 @@ function TunelyApp() {
       sessionStorage.setItem('tunely_splash_shown', 'true');
       const unmountTimer = setTimeout(() => setIsSplashMounted(false), 600);
       return () => clearTimeout(unmountTimer);
-    }, 1500);
+    }, 3500);
     return () => clearTimeout(fadeTimer);
   }, []);
 
