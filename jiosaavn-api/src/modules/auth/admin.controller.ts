@@ -77,13 +77,18 @@ adminController.get('/users', async (c) => {
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
   try {
-    const { results: users } = await db.prepare(
-      'SELECT id, email, name, created_at FROM users ORDER BY created_at DESC'
-    ).all()
+    let users: any[] = []
+    try {
+      const res = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users ORDER BY created_at DESC').all()
+      users = res.results || []
+    } catch {
+      const res = await db.prepare('SELECT id, email, name, created_at FROM users ORDER BY created_at DESC').all()
+      users = res.results || []
+    }
 
     const enrichedUsers = await Promise.all(
       users.map(async (u: any) => {
-        let activity = null
+        let activity: any = null
         let lastSeen = null
         let banned = false
 
@@ -102,7 +107,7 @@ adminController.get('/users', async (c) => {
           email: u.email,
           name: u.name,
           createdAt: u.created_at,
-          lastSeen: lastSeen || u.created_at,
+          lastSeen: lastSeen || activity?.lastActive || u.last_seen_at || u.created_at,
           banned,
           activity
         }

@@ -278,7 +278,14 @@ authController.post('/login', async (c) => {
   // ───────────────────────────────────────────────────────────────────────────
 
   const token = generateToken()
-  await kv.put(token, JSON.stringify({ userId: user.id, createdAt: new Date().toISOString() }), { expirationTtl: SESSION_TTL_SECONDS })
+  const now = new Date().toISOString()
+  await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+
+  // Record last_seen in KV & DB
+  await kv.put(`user:${user.id}:last_seen`, now)
+  try {
+    await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, user.id).run()
+  } catch {}
 
   return c.json({
     success: true,
@@ -308,9 +315,19 @@ authController.post('/logout', authMiddleware, async (c) => {
 authController.get('/me', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const db = (c.env as any).DB as D1Database
-  const user = await db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?').bind(userId).first() as any
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+
+  const now = new Date().toISOString()
+  if (kv) {
+    await kv.put(`user:${userId}:last_seen`, now)
+  }
+  try {
+    await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, userId).run()
+  } catch {}
+
+  const user = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users WHERE id = ?').bind(userId).first() as any
   if (!user) {
     return c.json({ success: false, message: 'User not found' }, 404)
   }
-  return c.json({ success: true, data: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at } })
+  return c.json({ success: true, data: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at, lastSeen: now } })
 })
