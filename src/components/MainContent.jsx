@@ -6,6 +6,7 @@ import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import SongRow from './SongRow';
 import { motion } from 'framer-motion';
+import TunelyLogo from './TunelyLogo';
 
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
@@ -865,8 +866,8 @@ export default function MainContent({
             </button>
           </div>
 
-          {/* Mobile Back or Avatar */}
-          <div className="mobile-left-nav">
+          {/* Mobile Back or Avatar & Mobile Brand Logo */}
+          <div className="mobile-left-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
               <button className="mobile-back-btn" onClick={() => { navigate('/library'); }} title="Back">
                 <ChevronLeft size={24} />
@@ -878,6 +879,10 @@ export default function MainContent({
                 </div>
               </button>
             )}
+            <div className="mobile-header-brand" onClick={() => navigate('/home')} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <TunelyLogo size={26} />
+              <span className="mobile-brand-title" style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span></span>
+            </div>
           </div>
         </div>
 

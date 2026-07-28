@@ -175,7 +175,10 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
             <span>Sign in to sync</span>
           </button>
         )}
-        <div className="sidebar-dev-credit">Developed by <span className="dev-name">Aditya Patil</span></div>
+        <div className="sidebar-dev-credit" style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+          <div>Developed by <span className="dev-name">Aditya Patil</span></div>
+          <span className="sidebar-version-badge" style={{ fontSize: 10, color: 'rgba(0, 229, 255, 0.7)', fontWeight: 600, background: 'rgba(0, 229, 255, 0.08)', padding: '2px 8px', borderRadius: 8, border: '1px solid rgba(0, 229, 255, 0.18)' }}>v2.3.0-stable</span>
+        </div>
       </div>
 
       {/* Embedded CSS for Sidebar styling */}
