@@ -40,7 +40,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
     <div className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-header" onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
-        <div className="logo-icon"></div>
+        <img src="/logo.jpg" alt="Tunely Logo" className="app-brand-logo" />
         <h2>Tunely<span className="dot">.</span></h2>
       </div>
 

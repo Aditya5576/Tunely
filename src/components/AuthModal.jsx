@@ -96,7 +96,7 @@ export const AuthModal = ({ onClose, required = false }) => {
       <div className="auth-modal">
         {/* Header */}
         <div className="auth-modal-header">
-          <div className="auth-logo">🎵</div>
+          <img src="/logo.jpg" alt="Tunely Logo" className="auth-brand-logo" />
           {!required && <button className="auth-close-btn" onClick={onClose}>✕</button>}
         </div>
 
