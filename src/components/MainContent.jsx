@@ -866,8 +866,8 @@ export default function MainContent({
             </button>
           </div>
 
-          {/* Mobile Back or Avatar & Mobile Brand Logo */}
-          <div className="mobile-left-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Mobile Back or Avatar */}
+          <div className="mobile-left-nav">
             {(currentView === 'playlist' || currentView === 'album' || currentView === 'custom') ? (
               <button className="mobile-back-btn" onClick={() => { navigate('/library'); }} title="Back">
                 <ChevronLeft size={24} />
@@ -879,10 +879,6 @@ export default function MainContent({
                 </div>
               </button>
             )}
-            <div className="mobile-header-brand" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-              <TunelyLogo size={26} />
-              <span className="mobile-brand-title" style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span></span>
-            </div>
           </div>
         </div>
 

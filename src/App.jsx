@@ -295,6 +295,10 @@ function TunelyApp() {
           {/* Account drawer */}
           {isAccountOpen && <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>}
           <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
+            <div className="drawer-top-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px 8px 20px' }}>
+              <TunelyLogo size={30} />
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span></span>
+            </div>
             <div className="drawer-header" onClick={() => { setIsAccountOpen(false); setShowProfileModal(true); }} style={{ cursor: 'pointer' }}>
               <div className="profile-badge-large" style={{
                 background: user ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'
