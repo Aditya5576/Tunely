@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
   };
 
-  const updateUserProfile = (updatedFields) => {
+  const updateUserProfile = async (updatedFields) => {
     setUser(prev => {
       const current = prev || { name: 'Guest Listener', email: 'Guest Mode', isGuest: true };
       const updated = { ...current, ...updatedFields };
@@ -58,6 +58,22 @@ export const AuthProvider = ({ children }) => {
       }
       return updated;
     });
+
+    // Save profile to backend D1 database & Cloudflare KV permanently
+    if (token && token !== 'guest_token') {
+      try {
+        await fetch(`${API_BASE}/api/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updatedFields)
+        });
+      } catch (e) {
+        console.error('Failed to sync profile changes to backend:', e);
+      }
+    }
   };
 
   const clearSession = () => {

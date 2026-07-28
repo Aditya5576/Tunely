@@ -335,5 +335,61 @@ authController.get('/me', authMiddleware, async (c) => {
   if (!user) {
     return c.json({ success: false, message: 'User not found' }, 404)
   }
-  return c.json({ success: true, data: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at, lastSeen: user?.last_seen_at || now } })
+
+  let profileMeta: any = null
+  if (kv) {
+    try {
+      const rawMeta = await kv.get(`user:${user.id}:profile`)
+      if (rawMeta) profileMeta = JSON.parse(rawMeta)
+    } catch {}
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      id: user.id,
+      email: user.email,
+      name: profileMeta?.name || user.name,
+      bio: profileMeta?.bio || null,
+      avatarBg: profileMeta?.avatarBg || null,
+      createdAt: user.created_at,
+      lastSeen: user?.last_seen_at || now
+    }
+  })
+})
+
+/**
+ * PUT /api/auth/profile
+ * Updates the logged-in user's profile info (name, bio, avatarBg) in D1 SQL & KV.
+ */
+authController.put('/profile', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  const db = (c.env as any).DB as D1Database
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  const body = await c.req.json() as any
+
+  const name = typeof body.name === 'string' ? body.name.trim() : null
+  const bio = typeof body.bio === 'string' ? body.bio.trim() : null
+  const avatarBg = typeof body.avatarBg === 'string' ? body.avatarBg.trim() : null
+
+  if (!name) {
+    return c.json({ success: false, message: 'Name is required' }, 400)
+  }
+
+  // Update in D1 Database
+  try {
+    await db.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, userId).run()
+  } catch (e) {
+    console.error('Failed to update user name in D1:', e)
+  }
+
+  // Save profile metadata in KV for instant fast lookup
+  if (kv) {
+    await kv.put(`user:${userId}:profile`, JSON.stringify({ name, bio, avatarBg }))
+  }
+
+  return c.json({
+    success: true,
+    data: { id: userId, name, bio, avatarBg }
+  })
 })
