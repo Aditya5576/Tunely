@@ -325,9 +325,15 @@ authController.get('/me', authMiddleware, async (c) => {
     await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, userId).run()
   } catch {}
 
-  const user = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users WHERE id = ?').bind(userId).first() as any
+  let user: any = null
+  try {
+    user = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users WHERE id = ?').bind(userId).first()
+  } catch {
+    user = await db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?').bind(userId).first()
+  }
+
   if (!user) {
     return c.json({ success: false, message: 'User not found' }, 404)
   }
-  return c.json({ success: true, data: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at, lastSeen: now } })
+  return c.json({ success: true, data: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at, lastSeen: user?.last_seen_at || now } })
 })
