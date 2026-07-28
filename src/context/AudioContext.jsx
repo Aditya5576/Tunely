@@ -436,12 +436,14 @@ export const AudioProvider = ({ children }) => {
     setLyrics(null);
 
     try {
-      // 1. Try JioSaavn lyrics first
-      const response = await fetch(`${API_BASE}/api/songs/${trackId}/lyrics`);
+      // 1. Try JioSaavn song details first
+      const response = await fetch(`${API_BASE}/api/songs/${trackId}`);
       if (response.ok) {
         const resObj = await response.json();
-        if (resObj.success && resObj.data && resObj.data.lyrics) {
-          setLyrics(resObj.data.lyrics);
+        const songData = Array.isArray(resObj?.data) ? resObj.data[0] : resObj?.data;
+        const lyricsText = songData?.lyrics || songData?.lyrics_snippet || songData?.hasLyrics === 'true' ? songData?.lyrics : null;
+        if (lyricsText) {
+          setLyrics(lyricsText);
           setIsLoadingLyrics(false);
           return;
         }
@@ -449,7 +451,6 @@ export const AudioProvider = ({ children }) => {
 
       // 2. Fallback to free public lyrics API (lyrics.ovh)
       if (artistName && trackName) {
-        // Clean title (remove "From...", "Feat...", etc.)
         const titleClean = trackName
           .replace(/\(From.*?\)/gi, '')
           .replace(/&quot;/g, '"')
@@ -457,14 +458,18 @@ export const AudioProvider = ({ children }) => {
           .replace(/&amp;/g, '&')
           .trim();
         
-        const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(titleClean)}`);
-        if (fallbackRes.ok) {
-          const fallbackObj = await fallbackRes.json();
-          if (fallbackObj.lyrics) {
-            setLyrics(fallbackObj.lyrics);
-            setIsLoadingLyrics(false);
-            return;
+        try {
+          const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(titleClean)}`);
+          if (fallbackRes.ok) {
+            const fallbackObj = await fallbackRes.json();
+            if (fallbackObj.lyrics) {
+              setLyrics(fallbackObj.lyrics);
+              setIsLoadingLyrics(false);
+              return;
+            }
           }
+        } catch (e) {
+          // Ignore lyrics.ovh 404/network errors - fallback to standard message
         }
       }
 

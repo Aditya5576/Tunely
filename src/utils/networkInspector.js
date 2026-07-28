@@ -35,8 +35,11 @@ export const clearNetworkLogs = () => {
 };
 
 export const recordNetworkError = (logItem) => {
-  // Ignore background sync / polling endpoints from error inspector logs
-  if (logItem?.url?.includes('/sync') || logItem?.url?.includes('/broadcast')) {
+  // Ignore background sync / polling endpoints and optional lyrics 404 lookups from error inspector logs
+  const isBackgroundSync = logItem?.url?.includes('/sync') || logItem?.url?.includes('/broadcast');
+  const isLyricsLookup = logItem?.url?.includes('/lyrics') || logItem?.url?.includes('lyrics.ovh');
+
+  if (isBackgroundSync || (isLyricsLookup && (logItem?.status === 404 || logItem?.status === 0))) {
     return;
   }
 
