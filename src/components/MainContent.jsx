@@ -879,7 +879,7 @@ export default function MainContent({
                 </div>
               </button>
             )}
-            <div className="mobile-header-brand" onClick={() => navigate('/home')} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <div className="mobile-header-brand" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
               <TunelyLogo size={26} />
               <span className="mobile-brand-title" style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span></span>
             </div>

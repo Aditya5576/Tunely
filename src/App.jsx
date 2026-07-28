@@ -429,6 +429,7 @@ export default function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<TunelyApp />} />
+            <Route path="/home" element={<TunelyApp />} />
             <Route path="/search" element={<TunelyApp />} />
             <Route path="/library" element={<TunelyApp />} />
             <Route path="/playlist/:id" element={<TunelyApp />} />
@@ -436,6 +437,7 @@ export default function App() {
             <Route path="/custom/:id" element={<TunelyApp />} />
             <Route path="/podcast-show/:id" element={<TunelyApp />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="*" element={<TunelyApp />} />
           </Routes>
         </BrowserRouter>
       </AudioProvider>
