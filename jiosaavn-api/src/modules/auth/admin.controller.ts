@@ -86,18 +86,20 @@ adminController.get('/users', async (c) => {
       users = res.results || []
     }
 
+    let activeMap: Record<string, any> = {}
+    if (kv) {
+      const activeMapRaw = await kv.get('active_sessions_map')
+      if (activeMapRaw) {
+        try { activeMap = JSON.parse(activeMapRaw) } catch {}
+      }
+    }
+
     const enrichedUsers = await Promise.all(
       users.map(async (u: any) => {
-        let activity: any = null
-        let lastSeen = null
+        const activity = activeMap[u.id] || null
         let banned = false
 
         if (kv) {
-          const actRaw = await kv.get(`user:${u.id}:activity`)
-          if (actRaw) {
-            try { activity = JSON.parse(actRaw) } catch {}
-          }
-          lastSeen = await kv.get(`user:${u.id}:last_seen`)
           const isBanned = await kv.get(`user:${u.id}:banned`)
           banned = isBanned === 'true'
         }
@@ -107,7 +109,7 @@ adminController.get('/users', async (c) => {
           email: u.email,
           name: u.name,
           createdAt: u.created_at,
-          lastSeen: lastSeen || activity?.lastActive || u.last_seen_at || u.created_at,
+          lastSeen: activity?.lastActive || u.last_seen_at || u.created_at,
           banned,
           activity
         }
