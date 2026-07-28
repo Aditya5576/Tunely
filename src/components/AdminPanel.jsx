@@ -1168,7 +1168,7 @@ function AdminDashboard({ onLogout }) {
             <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
 
-          <button onClick={() => { sessionStorage.removeItem(ADMIN_TOKEN_KEY); onLogout(); }} style={{
+          <button onClick={() => { sessionStorage.removeItem(ADMIN_TOKEN_KEY); if (onLogout) onLogout(); window.location.href = '/'; }} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
             borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)',
             color: '#f87171', cursor: 'pointer', fontWeight: 700, fontSize: 12

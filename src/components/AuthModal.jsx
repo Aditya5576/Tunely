@@ -48,11 +48,21 @@ export const AuthModal = ({ onClose, required = false }) => {
 
     if (tab === 'login') {
       result = await login(email.trim(), password);
-      if (result.success) { onClose(); setLoading(false); return; }
+      if (result.success) {
+        setLoading(false);
+        if (onClose) onClose();
+        window.location.href = '/';
+        return;
+      }
     } else if (tab === 'register') {
       if (!name.trim()) { setError('Please enter your name'); setLoading(false); return; }
       result = await register(email.trim(), name.trim(), password);
-      if (result.success) { onClose(); setLoading(false); return; }
+      if (result.success) {
+        setLoading(false);
+        if (onClose) onClose();
+        window.location.href = '/';
+        return;
+      }
     } else if (tab === 'forgot_step1') {
       result = await requestPasswordReset(email.trim());
       if (result.success) {
@@ -64,7 +74,12 @@ export const AuthModal = ({ onClose, required = false }) => {
       if (!otp.trim()) { setError('Please enter the reset code'); setLoading(false); return; }
       if (!password) { setError('Please enter a new password'); setLoading(false); return; }
       result = await confirmPasswordReset(email.trim(), otp.trim(), password);
-      if (result.success) { onClose(); setLoading(false); return; }
+      if (result.success) {
+        setLoading(false);
+        if (onClose) onClose();
+        window.location.href = '/';
+        return;
+      }
     }
 
     setLoading(false);
