@@ -245,7 +245,7 @@ function TunelyApp() {
         <div className={`splash-screen ${!showSplash ? 'fade-out' : ''}`}>
           <div className="splash-logo-container">
             <div className="splash-logo-circle" style={{ background: 'transparent', border: 'none', boxShadow: 'none' }}>
-              <img src="/logo.jpg" alt="Tunely Logo" className="splash-brand-logo" />
+              <img src="/logo.svg" alt="Tunely Logo" className="splash-brand-logo" />
             </div>
             <h1 className="splash-title">Tunely</h1>
             <p className="splash-tagline">Premium High-Fidelity Audio</p>

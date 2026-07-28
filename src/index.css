@@ -1088,37 +1088,31 @@ body.theme-gold #root {
   animation: viewFadeIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-/* ===== 🎨 OFFICIAL APP LOGO STYLES ===== */
+/* ===== 🎨 OFFICIAL APP LOGO STYLES (Clean Transparent Vector) ===== */
 .app-brand-logo {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  object-fit: cover;
-  box-shadow: 0 0 15px rgba(0, 229, 255, 0.35);
-  border: 1px solid rgba(0, 229, 255, 0.4);
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.45));
 }
 
 .auth-brand-logo {
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
-  object-fit: cover;
-  box-shadow: 0 0 25px rgba(0, 229, 255, 0.4);
-  border: 1.5px solid rgba(0, 229, 255, 0.5);
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.55));
   margin-bottom: 8px;
 }
 
 .splash-brand-logo {
-  width: 76px;
-  height: 76px;
-  border-radius: 22px;
-  object-fit: cover;
-  box-shadow: 0 0 35px rgba(0, 229, 255, 0.5);
-  border: 2px solid rgba(0, 229, 255, 0.6);
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 24px rgba(0, 229, 255, 0.65));
   animation: pulse-logo-glow 2.5s ease-in-out infinite;
 }
 
 @keyframes pulse-logo-glow {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(0, 229, 255, 0.4); }
-  50% { transform: scale(1.06); box-shadow: 0 0 45px rgba(0, 229, 255, 0.7); }
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.5)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 32px rgba(0, 229, 255, 0.85)); }
 }

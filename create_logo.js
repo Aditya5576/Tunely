@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+import fs from 'fs';
+import path from 'path';
+
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="tunelyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00e5ff" />
@@ -22,4 +25,12 @@
 
   <!-- Sleek Curved Music Wave Accent -->
   <path d="M 90 256 C 180 140, 332 370, 422 256" fill="none" stroke="url(#tunelyGrad)" stroke-width="14" stroke-linecap="round" opacity="0.75" />
-</svg>
+</svg>`;
+
+const targetSvg = 'C:/Users/adity/Desktop/Project - S/public/logo.svg';
+const targetFavicon = 'C:/Users/adity/Desktop/Project - S/public/favicon.svg';
+
+fs.writeFileSync(targetSvg, svgContent);
+fs.writeFileSync(targetFavicon, svgContent);
+
+console.log('Transparent minimalist SVG logo created successfully!');
