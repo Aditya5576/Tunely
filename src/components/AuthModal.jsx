@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import TunelyLogo from './TunelyLogo';
 
 const mapFriendlyError = (rawError) => {
   if (!rawError) return 'Something went wrong. Please try again.';
@@ -96,7 +97,7 @@ export const AuthModal = ({ onClose, required = false }) => {
       <div className="auth-modal">
         {/* Header */}
         <div className="auth-modal-header">
-          <img src="/logo.svg" alt="Tunely Logo" className="auth-brand-logo" />
+          <TunelyLogo size={56} className="auth-brand-logo-component" />
           {!required && <button className="auth-close-btn" onClick={onClose}>✕</button>}
         </div>
 

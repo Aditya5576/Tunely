@@ -2,6 +2,8 @@ import { Home, Search, Library, Plus, Music, Trash2, Heart, LogIn, LogOut, Palet
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+import TunelyLogo from './TunelyLogo';
+
 const PRE_CONFIGURED_PLAYLISTS = [
   { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
   { id: '83313988', name: 'Top Hindi Hits', type: 'playlist' },
@@ -40,7 +42,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
     <div className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-header" onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
-        <img src="/logo.svg" alt="Tunely Logo" className="app-brand-logo" />
+        <TunelyLogo size={34} />
         <h2>Tunely<span className="dot">.</span></h2>
       </div>
 

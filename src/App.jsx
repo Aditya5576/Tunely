@@ -13,6 +13,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import AdminPanel from './components/AdminPanel';
 import NetworkErrorOverlay from './components/NetworkErrorOverlay';
 import ProfileModal from './components/ProfileModal';
+import TunelyLogo from './components/TunelyLogo';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -245,7 +246,7 @@ function TunelyApp() {
         <div className={`splash-screen ${!showSplash ? 'fade-out' : ''}`}>
           <div className="splash-logo-container">
             <div className="splash-logo-circle" style={{ background: 'transparent', border: 'none', boxShadow: 'none' }}>
-              <img src="/logo.svg" alt="Tunely Logo" className="splash-brand-logo" />
+              <TunelyLogo size={80} className="splash-brand-logo" />
             </div>
             <h1 className="splash-title">Tunely</h1>
             <p className="splash-tagline">Premium High-Fidelity Audio</p>

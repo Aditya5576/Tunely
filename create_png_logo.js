@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+import fs from 'fs';
+
+// A high-res, beautifully styled SVG logo with an integrated squircle container, 
+// neon gradient glow, and minimal soundwave note icon that matches Tunely's cyan/purple vibe.
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -45,4 +49,12 @@
     <!-- Connecting Music Wave Arc -->
     <path d="M 116 256 C 200 130, 312 382, 396 256" fill="none" stroke="url(#neonGrad)" stroke-width="12" stroke-linecap="round" opacity="0.8" />
   </g>
-</svg>
+</svg>`;
+
+const targetSvg = 'C:/Users/adity/Desktop/Project - S/public/logo.svg';
+const targetFavicon = 'C:/Users/adity/Desktop/Project - S/public/favicon.svg';
+
+fs.writeFileSync(targetSvg, svgContent);
+fs.writeFileSync(targetFavicon, svgContent);
+
+console.log('Clean squircle vector logo created!');
