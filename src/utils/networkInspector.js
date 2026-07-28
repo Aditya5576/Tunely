@@ -13,13 +13,18 @@ const shouldIgnoreLog = (url) => {
   return isBackgroundSync || isLyricsLookup;
 };
 
-// Load existing logs from sessionStorage if available, automatically purging legacy entries
+// Load existing logs from sessionStorage if available (Wipe completely on production domains)
 try {
-  const saved = sessionStorage.getItem('tunely_network_logs');
-  if (saved) {
-    const parsed = JSON.parse(saved);
-    networkLogs = Array.isArray(parsed) ? parsed.filter(item => !shouldIgnoreLog(item?.url)) : [];
-    sessionStorage.setItem('tunely_network_logs', JSON.stringify(networkLogs));
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    sessionStorage.removeItem('tunely_network_logs');
+    networkLogs = [];
+  } else {
+    const saved = sessionStorage.getItem('tunely_network_logs');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      networkLogs = Array.isArray(parsed) ? parsed.filter(item => !shouldIgnoreLog(item?.url)) : [];
+      sessionStorage.setItem('tunely_network_logs', JSON.stringify(networkLogs));
+    }
   }
 } catch (e) {
   networkLogs = [];

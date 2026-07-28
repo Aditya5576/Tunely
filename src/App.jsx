@@ -284,7 +284,8 @@ function TunelyApp() {
 
           <QueuePanel />
           <LyricsPanel />
-          <NetworkErrorOverlay />
+          {/* Network Debug Overlay (Local Dev Only) */}
+          {(import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) && <NetworkErrorOverlay />}
           <ProfileModal 
             isOpen={showProfileModal} 
             onClose={() => setShowProfileModal(false)} 
