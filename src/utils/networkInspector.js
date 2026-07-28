@@ -45,6 +45,12 @@ export const clearNetworkLogs = () => {
 };
 
 export const recordNetworkError = (logItem) => {
+  // Completely disable recording debug network errors in Production mode (tunely.pages.dev)
+  const isDev = import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+  if (!isDev) {
+    return;
+  }
+
   // Ignore background sync / polling endpoints and optional lyrics lookups from error inspector logs
   if (shouldIgnoreLog(logItem?.url)) {
     return;

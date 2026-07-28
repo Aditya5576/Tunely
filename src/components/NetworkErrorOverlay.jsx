@@ -3,6 +3,8 @@ import { AlertTriangle, Copy, Check, X, Terminal, Trash2, ChevronDown, ChevronUp
 import { subscribeNetworkErrors, getNetworkLogs, clearNetworkLogs } from '../utils/networkInspector';
 
 export default function NetworkErrorOverlay() {
+  const isDev = import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+
   const [activeToast, setActiveToast] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -63,6 +65,8 @@ export default function NetworkErrorOverlay() {
       return url;
     }
   };
+
+  if (!isDev) return null;
 
   return (
     <>
