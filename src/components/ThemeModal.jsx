@@ -6,7 +6,12 @@ export default function ThemeModal({ onClose, activeTheme, onChangeTheme }) {
     { id: 'cyberpunk', name: 'Cyberpunk Neon', color: '#ff007f', bg: '#06030c' },
     { id: 'nordic', name: 'Nordic Emerald', color: '#00e676', bg: '#030806' },
     { id: 'rose', name: 'Sunset Rose', color: '#ff4d6d', bg: '#080405' },
-    { id: 'solar', name: 'Solar Amber', color: '#ffa000', bg: '#060503' }
+    { id: 'solar', name: 'Solar Amber', color: '#ffa000', bg: '#060503' },
+    { id: 'amethyst', name: 'Royal Amethyst', color: '#a855f7', bg: '#08030f' },
+    { id: 'amoled', name: 'Midnight AMOLED', color: '#10b981', bg: '#000000' },
+    { id: 'vaporwave', name: 'Tokyo Vaporwave', color: '#f43f5e', bg: '#09040e' },
+    { id: 'abyss', name: 'Deep Ocean Abyss', color: '#0284c7', bg: '#020712' },
+    { id: 'gold', name: 'Champagne Gold', color: '#eab308', bg: '#0a0803' }
   ];
 
   return (

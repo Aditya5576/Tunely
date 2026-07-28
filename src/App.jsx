@@ -31,7 +31,7 @@ function TunelyApp() {
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
 
   const changeTheme = (themeId) => {
-    document.body.classList.remove('theme-cyberpunk', 'theme-nordic', 'theme-rose', 'theme-solar');
+    document.body.className = '';
     if (themeId !== 'default') document.body.classList.add(`theme-${themeId}`);
     localStorage.setItem('tunely_theme', themeId);
     _setActiveTheme(themeId);
