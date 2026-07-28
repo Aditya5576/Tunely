@@ -5,11 +5,21 @@ const MAX_LOGS = 50;
 const listeners = new Set();
 let networkLogs = [];
 
-// Load existing logs from sessionStorage if available
+// Filter helper to prune background sync/polling and optional lyrics lookups
+const shouldIgnoreLog = (url) => {
+  if (!url) return false;
+  const isBackgroundSync = url.includes('/sync') || url.includes('/broadcast');
+  const isLyricsLookup = url.includes('/lyrics') || url.includes('lyrics.ovh');
+  return isBackgroundSync || isLyricsLookup;
+};
+
+// Load existing logs from sessionStorage if available, automatically purging legacy entries
 try {
   const saved = sessionStorage.getItem('tunely_network_logs');
   if (saved) {
-    networkLogs = JSON.parse(saved);
+    const parsed = JSON.parse(saved);
+    networkLogs = Array.isArray(parsed) ? parsed.filter(item => !shouldIgnoreLog(item?.url)) : [];
+    sessionStorage.setItem('tunely_network_logs', JSON.stringify(networkLogs));
   }
 } catch (e) {
   networkLogs = [];
@@ -35,11 +45,8 @@ export const clearNetworkLogs = () => {
 };
 
 export const recordNetworkError = (logItem) => {
-  // Ignore background sync / polling endpoints and optional lyrics 404 lookups from error inspector logs
-  const isBackgroundSync = logItem?.url?.includes('/sync') || logItem?.url?.includes('/broadcast');
-  const isLyricsLookup = logItem?.url?.includes('/lyrics') || logItem?.url?.includes('lyrics.ovh');
-
-  if (isBackgroundSync || (isLyricsLookup && (logItem?.status === 404 || logItem?.status === 0))) {
+  // Ignore background sync / polling endpoints and optional lyrics lookups from error inspector logs
+  if (shouldIgnoreLog(logItem?.url)) {
     return;
   }
 
