@@ -103,6 +103,7 @@ export const AudioProvider = ({ children }) => {
   const [sleepTimer, setSleepTimer] = useState(null); // value in minutes
   const [sleepTimeLeft, setSleepTimeLeft] = useState(null); // value in seconds
   const sleepTimerRef = useRef(null);
+  const lastTimeUpdateRef = useRef(0);
 
   const [likedSongs, setLikedSongs] = useState(() => {
     try {
@@ -840,11 +841,16 @@ export const AudioProvider = ({ children }) => {
     const audio = audioRef.current;
 
     const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
+      const now = audio.currentTime;
+      // Throttle React state updates to 250ms interval to eliminate 60 FPS re-render UI freezing
+      if (Math.abs(now - lastTimeUpdateRef.current) >= 0.25 || now === 0) {
+        lastTimeUpdateRef.current = now;
+        setCurrentTime(now);
+      }
       
       // Gapless preloader logic:
       // When the current song reaches 90% completion and we have a next song, preload its media chunks once
-      if (audio.duration && (audio.currentTime / audio.duration > 0.90)) {
+      if (audio.duration && (now / audio.duration > 0.90)) {
         if (hasPreloadedRef.current !== currentTrack?.id) {
           preloadNextTrack();
           hasPreloadedRef.current = currentTrack?.id;
@@ -1118,49 +1124,59 @@ export const AudioProvider = ({ children }) => {
     return activeText;
   }, [parsedLyrics, currentTime]);
 
+  const contextValue = useMemo(() => ({
+    isPlaying,
+    currentTrack,
+    currentTime,
+    duration,
+    volume,
+    queue,
+    currentIndex,
+    loopMode,
+    isShuffle,
+    isQueueVisible,
+    isLyricsVisible,
+    lyrics,
+    isLoadingLyrics,
+    isLoadingTrack,
+    playTrack,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    setTrackTime,
+    setTrackVolume,
+    toggleLoop,
+    toggleShuffle,
+    setIsQueueVisible,
+    setIsLyricsVisible,
+    addToQueue,
+    removeFromQueue,
+    reorderQueue,
+    playQueueTrack,
+    clearQueue,
+    audioQuality,
+    setAudioQuality,
+    sleepTimer,
+    setSleepTimer,
+    sleepTimeLeft,
+    likedSongs,
+    likedSongsMetadata,
+    toggleLikeTrack,
+    recentlyPlayed,
+    audioOutputDevice,
+    currentLyric
+  }), [
+    isPlaying, currentTrack, currentTime, duration, volume, queue, currentIndex,
+    loopMode, isShuffle, isQueueVisible, isLyricsVisible, lyrics, isLoadingLyrics,
+    isLoadingTrack, playTrack, togglePlay, nextTrack, prevTrack, setTrackTime,
+    setTrackVolume, toggleLoop, toggleShuffle, setIsQueueVisible, setIsLyricsVisible,
+    addToQueue, removeFromQueue, reorderQueue, playQueueTrack, clearQueue,
+    audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
+    likedSongs, likedSongsMetadata, toggleLikeTrack, recentlyPlayed, audioOutputDevice, currentLyric
+  ]);
+
   return (
-    <AudioContext.Provider value={{
-      isPlaying,
-      currentTrack,
-      currentTime,
-      duration,
-      volume,
-      queue,
-      currentIndex,
-      loopMode,
-      isShuffle,
-      isQueueVisible,
-      isLyricsVisible,
-      lyrics,
-      isLoadingLyrics,
-      isLoadingTrack,
-      playTrack,
-      togglePlay,
-      nextTrack,
-      prevTrack,
-      setTrackTime,
-      setTrackVolume,
-      toggleLoop,
-      toggleShuffle,
-      setIsQueueVisible,
-      setIsLyricsVisible,
-      addToQueue,
-      removeFromQueue,
-      reorderQueue,
-      playQueueTrack,
-      clearQueue,
-      audioQuality,
-      setAudioQuality,
-      sleepTimer,
-      setSleepTimer,
-      sleepTimeLeft,
-      likedSongs,
-      likedSongsMetadata,
-      toggleLikeTrack,
-      recentlyPlayed,
-      audioOutputDevice,
-      currentLyric
-    }}>
+    <AudioContext.Provider value={contextValue}>
       {children}
     </AudioContext.Provider>
   );
