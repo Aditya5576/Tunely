@@ -936,10 +936,13 @@ const decodeHtml = (text) => {
         }
 
         .time-display {
+          font-family: var(--font-mono);
           font-size: 11px;
+          font-weight: 500;
           color: var(--text-dimmed);
-          min-width: 35px;
+          min-width: 38px;
           text-align: center;
+          font-feature-settings: "tnum";
         }
 
         /* Right Section: Extras & Volume */
