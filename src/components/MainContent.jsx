@@ -1982,14 +1982,14 @@ export default function MainContent({
           min-width: 0;
           display: flex;
           flex-direction: column;
-          background: rgba(7, 7, 10, 0.25);
+          background: rgba(7, 7, 10, 0.15);
           position: relative;
         }
 
         .content-scroll {
           flex: 1;
           overflow-y: auto;
-          padding: 24px 32px 140px; /* Buffer bottom space for the player bar */
+          padding: 32px 48px 140px; /* Generous 48px side padding for desktop layout breathing room */
         }
 
         .header-update-btn {
@@ -1999,7 +1999,7 @@ export default function MainContent({
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 20px;
-          padding: 6px 12px;
+          padding: 6px 14px;
           color: var(--text-main);
           font-size: 12px;
           font-weight: 600;
@@ -2011,7 +2011,7 @@ export default function MainContent({
         .header-update-btn:hover {
           background: rgba(255, 255, 255, 0.15);
           border-color: var(--primary);
-          box-shadow: 0 0 10px var(--primary-glow);
+          box-shadow: 0 0 12px var(--primary-glow);
         }
 
         .header-update-btn:active {
@@ -2031,16 +2031,17 @@ export default function MainContent({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 32px;
-          height: 64px;
-          background: rgba(5, 6, 11, 0.35);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border-bottom: 1px solid var(--border-color);
+          padding: 0 48px;
+          height: 72px;
+          background: rgba(5, 6, 12, 0.65);
+          backdrop-filter: blur(28px);
+          -webkit-backdrop-filter: blur(28px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;
           z-index: 100;
           width: 100%;
+          box-sizing: border-box;
           transition: all 0.2s ease;
         }
 
@@ -2366,17 +2367,18 @@ export default function MainContent({
         }
 
         .hero-banner {
-          background: linear-gradient(135deg, rgba(0,229,255,0.12) 0%, rgba(0,176,255,0.06) 40%, rgba(255,255,255,0.02) 80%, transparent 100%);
-          border: 1px solid rgba(0,229,255,0.15);
-          border-radius: 16px;
-          padding: 36px 40px;
-          margin-bottom: 32px;
+          background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(0, 176, 255, 0.05) 45%, rgba(12, 14, 24, 0.5) 100%);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 24px;
+          padding: 40px 48px;
+          margin-bottom: 36px;
           display: flex;
           flex-direction: column;
           align-items: flex-start;
           text-align: left;
           position: relative;
           overflow: hidden;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
         }
 
         .hero-banner::before {
