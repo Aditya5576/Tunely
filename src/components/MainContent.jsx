@@ -3225,10 +3225,14 @@ export default function MainContent({
         }
 
         @media (max-width: 768px) {
+          .content-scroll {
+            padding: 16px 16px 140px !important;
+          }
+
           .app-header {
-            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-            height: auto;
-            background: rgba(8, 10, 18, 0.65);
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px !important;
+            height: auto !important;
+            background: rgba(8, 10, 18, 0.65) !important;
           }
 
           .desktop-nav-arrows, .desktop-profile-capsule, .header-search-container, .filter-pills-container {
@@ -3585,51 +3589,54 @@ export default function MainContent({
             font-size: 24px;
           }
 
-          /* Library View */
+          /* Library View Mobile Overrides */
           .view-library {
             text-align: left;
           }
 
+          .library-top-bar {
+            margin-bottom: 16px !important;
+          }
+
+          .library-top-bar h1 {
+            font-size: 24px !important;
+          }
+
           .library-filter-pills {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px !important;
+            margin-bottom: 16px !important;
           }
 
-          .lib-pill {
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            background: rgba(255,255,255,0.07);
-            color: var(--text-muted);
-            border: 1px solid rgba(255,255,255,0.08);
-            transition: all 0.2s;
+          .library-grid-container {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+            gap: 12px !important;
           }
 
-          .lib-pill.active {
-            background: var(--primary);
-            color: #000;
-            font-weight: 700;
-            border-color: var(--primary);
-            box-shadow: 0 0 12px var(--primary-glow);
+          .liked-songs-grid-card {
+            grid-column: span 2 !important;
+            min-height: 160px !important;
+            padding: 20px !important;
+            border-radius: 18px !important;
           }
 
-          .playlist-grid-card:hover {
-            background: rgba(255, 255, 255, 0.05) !important;
-            border-color: rgba(0, 229, 255, 0.25) !important;
-            transform: translateY(-4px);
-            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+          .liked-songs-grid-card h2 {
+            font-size: 22px !important;
           }
 
-          .playlist-grid-card:hover .grid-card-play-btn {
+          .playlist-grid-card {
+            padding: 12px !important;
+            gap: 8px !important;
+            border-radius: 14px !important;
+          }
+
+          .grid-card-play-btn {
             opacity: 1 !important;
-            transform: translateY(0) !important;
-          }
-
-          .liked-songs-grid-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 16px 45px rgba(69, 10, 245, 0.5) !important;
+            transform: none !important;
+            width: 34px !important;
+            height: 34px !important;
+            right: 8px !important;
+            bottom: 8px !important;
           }
 
           .lib-section-title {
