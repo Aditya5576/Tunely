@@ -250,8 +250,8 @@ export const AudioProvider = ({ children }) => {
       }
     };
 
-    // Poll every 30 seconds
-    intervalId = setInterval(performLikedSongsSync, 30000);
+    // Poll every 8 seconds for ultra-fast cross-device sync
+    intervalId = setInterval(performLikedSongsSync, 8000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {

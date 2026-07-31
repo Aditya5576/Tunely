@@ -152,7 +152,7 @@ function TunelyApp() {
         console.warn('Playlist poll failed:', e);
       }
     };
-    const intervalId = setInterval(poll, 30000);
+    const intervalId = setInterval(poll, 8000);
     const onVisible = () => { if (document.visibilityState === 'visible') poll(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
