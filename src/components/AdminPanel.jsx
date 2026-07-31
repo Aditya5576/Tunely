@@ -762,107 +762,128 @@ function AdminDashboard({ onLogout }) {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 32px;
-          height: 72px;
-          background: rgba(10, 11, 20, 0.85);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          padding: 14px 32px;
+          max-width: 1400px;
+          margin: 0 auto;
+          min-height: 74px;
+          background: rgba(8, 10, 18, 0.85);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;
           z-index: 100;
           backdrop-filter: blur(30px);
+          width: 100%;
+          box-sizing: border-box;
         }
         .admin-main-container {
-          max-width: 1300px;
+          max-width: 1400px;
           margin: 0 auto;
-          padding: 36px 24px 80px;
+          padding: 32px 32px 90px;
           display: flex;
           flex-direction: column;
           gap: 32px;
+          box-sizing: border-box;
+          width: 100%;
         }
         .stats-grid {
-          display: flex;
-          gap: 16px;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
           width: 100%;
         }
         .stat-card {
-          flex: 1 1 220px;
-          min-width: 200px;
-          background: rgba(15, 17, 28, 0.75);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(12, 14, 26, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 20px;
-          padding: 24px;
+          padding: 22px 24px;
           backdrop-filter: blur(20px);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-          transition: transform 0.2s;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-height: 110px;
         }
         .stat-card:hover {
-          transform: translateY(-2px);
-          border-color: rgba(255, 255, 255, 0.12);
+          transform: translateY(-3px);
+          border-color: rgba(0, 229, 255, 0.3);
+          box-shadow: 0 14px 40px rgba(0, 229, 255, 0.08);
         }
         .stat-card-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
         .stat-card-label {
-          font-size: 12px;
-          color: rgba(255,255,255,0.4);
-          font-weight: 600;
-          letter-spacing: 0.05em;
+          font-size: 11px;
+          color: rgba(255,255,255,0.45);
+          font-weight: 700;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
         }
         .stat-card-icon-container {
           width: 38px;
           height: 38px;
-          border-radius: 10px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
         .stat-card-value {
           font-size: 32px;
           font-weight: 800;
           letter-spacing: -0.03em;
+          color: #ffffff;
+          line-height: 1.1;
         }
         .stat-card-sub {
           font-size: 11px;
-          color: rgba(255,255,255,0.3);
+          color: rgba(255,255,255,0.4);
           margin-top: 4px;
+          font-weight: 500;
         }
         .active-user-card {
           background: linear-gradient(135deg, rgba(16, 18, 30, 0.85) 0%, rgba(10, 11, 19, 0.85) 100%);
-          border: 1px solid rgba(0, 229, 255, 0.15);
+          border: 1px solid rgba(0, 229, 255, 0.18);
           border-radius: 20px;
-          padding: 20px;
+          padding: 22px;
           display: flex;
           flex-direction: column;
-          gap: 14px;
-          box-shadow: 0 8px 30px rgba(0, 229, 255, 0.04);
+          gap: 16px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
           position: relative;
+          backdrop-filter: blur(20px);
+          transition: border-color 0.25s ease, transform 0.25s ease;
+        }
+        .active-user-card:hover {
+          border-color: rgba(0, 229, 255, 0.4);
+          transform: translateY(-2px);
         }
         .admin-layout-split {
           display: grid;
-          grid-template-columns: 2fr 1fr;
+          grid-template-columns: 1fr 380px;
           gap: 24px;
           align-items: start;
+          width: 100%;
         }
         .user-directory-card {
-          background: rgba(10, 12, 20, 0.65);
-          border: 1px solid rgba(255,255,255,0.06);
-          borderRadius: 24px;
+          background: rgba(10, 12, 22, 0.75);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 24px;
           overflow: hidden;
-          backdrop-filter: blur(20px);
+          backdrop-filter: blur(24px);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.35);
         }
         .user-row-desktop {
           display: grid;
-          grid-template-columns: 48px 1fr 1.2fr 120px 140px 180px;
+          grid-template-columns: 48px 2fr 1.3fr 110px 150px 170px;
           align-items: center;
-          gap: 16px;
-          padding: 14px 24px;
+          gap: 20px;
+          padding: 16px 24px;
           border-bottom: 1px solid rgba(255,255,255,0.04);
-          transition: background 0.2s;
+          transition: background 0.2s ease;
         }
         .user-row-desktop:hover {
           background: rgba(255,255,255,0.015) !important;
@@ -1258,7 +1279,7 @@ function AdminDashboard({ onLogout }) {
             </div>
 
             {/* Desktop Table Headers */}
-            <div className="user-row-desktop-headers" style={{ display: 'grid', gridTemplateColumns: '48px 1fr 1.2fr 120px 140px 180px', gap: 16, padding: '10px 24px', background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <div className="user-row-desktop-headers" style={{ display: 'grid', gridTemplateColumns: '48px 2fr 1.3fr 110px 150px 170px', gap: 20, padding: '12px 24px', background: 'rgba(255,255,255,0.015)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', alignItems: 'center' }}>
               <div />
               <button onClick={() => toggleSort('name')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 'inherit', textTransform: 'inherit' }}>
                 Name/Email {renderSortIcon('name')}
