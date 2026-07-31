@@ -11,7 +11,7 @@ const PRE_CONFIGURED_PLAYLISTS = [
   { id: '69996470', name: 'AiSh, Vol. 4', type: 'album' }
 ];
 
-export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal }) {
+export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustomPlaylists, isSidebarOpen, setIsSidebarOpen, createNewPlaylist, onShowAuthModal, onShowThemeModal, onShowWhatsNew }) {
   const { user, isLoggedIn, logout } = useAuth() || {};
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,91 +19,82 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
   // Handles deleting a custom playlist
   const deletePlaylist = (e, playlistId) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this playlist?")) return;
-    
-    const updated = customPlaylists.filter(p => p.id !== playlistId);
-    setCustomPlaylists(updated);
-    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-    
-    // If the deleted playlist was selected, reset view to home
-    if (selectedPlaylistId === playlistId) {
-      navigate('/home');
-      if (setIsSidebarOpen) setIsSidebarOpen(false);
+    const playlistToDelete = customPlaylists.find(p => p.id === playlistId);
+    if (confirm(`Are you sure you want to delete "${playlistToDelete?.name}"?`)) {
+      const updatedPlaylists = customPlaylists.filter(p => p.id !== playlistId);
+      setCustomPlaylists(updatedPlaylists);
+      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updatedPlaylists));
     }
   };
 
   const handlePlaylistClick = (playlist) => {
-    const view = playlist.type === 'album' ? 'album' : (playlist.type === 'custom' ? 'custom' : 'playlist');
-    navigate(`/${view}-${playlist.id}`);
+    if (playlist.id === 'liked') {
+      navigate('/custom/liked');
+    } else if (playlist.type) {
+      navigate(`/${playlist.type}/${playlist.id}`);
+    } else {
+      navigate(`/custom/${playlist.id}`);
+    }
     if (setIsSidebarOpen) setIsSidebarOpen(false);
   };
 
   return (
-    <div className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`}>
-      {/* Brand Header */}
-      <div className="sidebar-header" onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}>
-        <TunelyLogo size={34} />
+    <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+      {/* Sidebar Header / Brand Logo */}
+      <div className="sidebar-header" onClick={() => navigate('/')}>
+        <TunelyLogo size={28} />
         <h2>Tunely<span className="dot">.</span></h2>
       </div>
 
-      {/* Main Navigation */}
-      <div className="nav-menu">
-        <button 
-          className={`nav-item ${location.pathname === '/home' ? 'active' : ''}`}
-          onClick={() => { navigate('/home'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+      {/* Main Navigation Menu */}
+      <nav className="nav-menu">
+        <div 
+          className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
+          onClick={() => { navigate('/'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
-          <Home size={20} />
+          <Home size={18} />
           <span>Home</span>
-        </button>
-        <button 
+        </div>
+        <div 
           className={`nav-item ${location.pathname === '/search' ? 'active' : ''}`}
           onClick={() => { navigate('/search'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
-          <Search size={20} />
+          <Search size={18} />
           <span>Search</span>
-        </button>
-        <button 
-          className="nav-item"
-          onClick={() => { if (onShowThemeModal) onShowThemeModal(); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
+        </div>
+        <div 
+          className={`nav-item ${location.pathname === '/library' ? 'active' : ''}`}
+          onClick={() => { navigate('/library'); if (setIsSidebarOpen) setIsSidebarOpen(false); }}
         >
-          <Palette size={20} />
-          <span>Switch Theme</span>
-        </button>
-      </div>
+          <Library size={18} />
+          <span>Your Library</span>
+        </div>
+      </nav>
 
-      {/* Library Title */}
-      <div className="library-section">
-        <div className="library-header">
-          <div className="library-title">
-            <Library size={20} />
-            <span>Your Library</span>
-          </div>
-          <button className="add-playlist-btn" title="Create Playlist" onClick={createNewPlaylist}>
-            <Plus size={18} />
+      {/* Playlists Section */}
+      <div className="sidebar-playlists">
+        <div className="playlists-header">
+          <span>PLAYLISTS</span>
+          <button className="create-playlist-btn" onClick={createNewPlaylist} title="Create Playlist">
+            <Plus size={16} />
           </button>
         </div>
 
-        {/* Playlists Container */}
-        <div className="playlists-container">
+        <div className="playlists-scroll">
           {/* Static Liked Songs Playlist */}
-          <div className="playlist-group" style={{ marginBottom: '8px' }}>
-            <div 
-              className={`playlist-item ${selectedPlaylistId === 'liked' ? 'active' : ''}`}
-              onClick={() => handlePlaylistClick({ id: 'liked', type: 'custom' })}
-            >
-              <div className="playlist-icon liked-songs-icon" style={{ 
-                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.2))', 
-                color: 'var(--primary)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                border: '1px solid rgba(0, 229, 255, 0.25)',
-                boxShadow: '0 0 10px rgba(0, 229, 255, 0.15)'
-              }}>
-                <Heart size={11} fill="currentColor" />
-              </div>
-              <span className="playlist-name" style={{ fontWeight: selectedPlaylistId === 'liked' ? '600' : 'normal' }}>Liked Songs</span>
+          <div 
+            className={`playlist-item ${selectedPlaylistId === 'liked' ? 'active' : ''}`}
+            onClick={() => handlePlaylistClick({ id: 'liked' })}
+          >
+            <div className="playlist-icon liked" style={{ 
+              background: 'linear-gradient(135deg, #450af5 0%, #8e2de2 100%)',
+              color: '#ffffff',
+              border: '1px solid rgba(0, 229, 255, 0.25)',
+              boxShadow: '0 0 10px rgba(0, 229, 255, 0.15)'
+            }}>
+              <Heart size={11} fill="currentColor" />
             </div>
+            <span className="playlist-name" style={{ fontWeight: selectedPlaylistId === 'liked' ? '600' : 'normal' }}>Liked Songs</span>
           </div>
 
           {/* Custom Playlists */}
@@ -175,9 +166,16 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
             <span>Sign in to sync</span>
           </button>
         )}
-        <div className="sidebar-dev-credit" style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-          <div>Developed by <span className="dev-name">Aditya Patil</span></div>
-          <span className="sidebar-version-badge" style={{ fontSize: 10, color: 'rgba(0, 229, 255, 0.7)', fontWeight: 600, background: 'rgba(0, 229, 255, 0.08)', padding: '2px 8px', borderRadius: 8, border: '1px solid rgba(0, 229, 255, 0.18)' }}>v2.3.0-stable</span>
+        <div className="sidebar-dev-credit" style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Developed by <span className="dev-name" style={{ color: '#fff', fontWeight: 600 }}>Aditya Patil</span></div>
+          <span 
+            className="sidebar-version-badge" 
+            onClick={onShowWhatsNew}
+            title="View latest updates"
+            style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, background: 'rgba(0, 229, 255, 0.08)', padding: '3px 10px', borderRadius: 10, border: '1px solid rgba(0, 229, 255, 0.25)', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            v3.5.0-stable • What's New ✨
+          </span>
         </div>
       </div>
 
@@ -561,6 +559,6 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
           }
         }
       `}</style>
-    </div>
+    </aside>
   );
 }

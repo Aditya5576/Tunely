@@ -14,6 +14,7 @@ import AdminPanel from './components/AdminPanel';
 import NetworkErrorOverlay from './components/NetworkErrorOverlay';
 import ProfileModal from './components/ProfileModal';
 import TunelyLogo from './components/TunelyLogo';
+import WhatsNewModal from './components/WhatsNewModal';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -28,6 +29,7 @@ function TunelyApp() {
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
 
@@ -266,6 +268,7 @@ function TunelyApp() {
             createNewPlaylist={createNewPlaylist}
             onShowAuthModal={() => setShowAuthModal(true)}
             onShowThemeModal={() => setShowThemeModal(true)}
+            onShowWhatsNew={() => setShowWhatsNewModal(true)}
             isSidebarOpen={isSidebarOpen}
             setIsSidebarOpen={setIsSidebarOpen}
           />
@@ -324,8 +327,8 @@ function TunelyApp() {
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowThemeModal(true); }}>
                     <Palette size={18} /><span>Switch Theme</span>
                   </div>
-                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Tunely Music Player v2.3.0-stable\n\n- Mobile top header brand logo & title\n- Inline vector logo component rendering\n- 10 Ultra-Premium custom color themes\n- Real-time Last Active user activity logs\n- 99.3% KV read optimization engine'); }}>
-                    <Info size={18} /><span>What's new (v2.3.0)</span>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowWhatsNewModal(true); }}>
+                    <Info size={18} /><span>What's new (v3.5.0)</span>
                   </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Settings configuration coming soon!'); }}>
                     <Settings size={18} /><span>Settings and privacy</span>
@@ -343,8 +346,8 @@ function TunelyApp() {
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowThemeModal(true); }}>
                     <Palette size={18} /><span>Switch Theme</span>
                   </div>
-                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('You are on the latest version of Tunely!'); }}>
-                    <Info size={18} /><span>What's new</span>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowWhatsNewModal(true); }}>
+                    <Info size={18} /><span>What's new (v3.5.0)</span>
                   </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Settings configuration coming soon!'); }}>
                     <Settings size={18} /><span>Settings and privacy</span>
@@ -352,7 +355,7 @@ function TunelyApp() {
                 </>
               )}
             </div>
-            <div className="drawer-footer"><span className="app-version">Tunely Mobile v1.1.0</span></div>
+            <div className="drawer-footer"><span className="app-version">Tunely Mobile v3.5.0</span></div>
           </div>
 
           {/* Mobile Tab Bar */}
@@ -365,6 +368,9 @@ function TunelyApp() {
           {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
           {showThemeModal && (
             <ThemeModal onClose={() => setShowThemeModal(false)} activeTheme={activeTheme} onChangeTheme={changeTheme} />
+          )}
+          {showWhatsNewModal && (
+            <WhatsNewModal onClose={() => setShowWhatsNewModal(false)} />
           )}
 
           {activeBroadcast && (
