@@ -1587,8 +1587,8 @@ export default function MainContent({
                 {/* Detail Header Banner */}
                 <div className="detail-header">
                   <div className="detail-cover-container">
-                    {detailData.image?.[2]?.url ? (
-                      <img src={detailData.image[2].url} alt={detailData.name} className="detail-cover" />
+                    {(detailData.image?.[2]?.url || detailData.image?.[1]?.url || detailData.image?.[0]?.url) ? (
+                      <img src={detailData.image?.[2]?.url || detailData.image?.[1]?.url || detailData.image?.[0]?.url} alt={detailData.name} className="detail-cover" />
                     ) : (
                       <div className="detail-cover-placeholder">
                         <Music size={48} />
