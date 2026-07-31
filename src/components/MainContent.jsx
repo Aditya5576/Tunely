@@ -948,11 +948,7 @@ export default function MainContent({
 
           {/* Mobile Right Action Icons */}
           <div className="mobile-right-actions">
-            {currentView === 'home' ? (
-              <button className="spotify-premium-pill-btn" onClick={() => alert("Tunely Pro is active!")}>
-                GO PREMIUM
-              </button>
-            ) : currentView === 'library' ? (
+            {currentView === 'library' ? (
               <button className="mobile-icon-btn" onClick={createNewPlaylist} title="New Playlist">
                 <Plus size={22} />
               </button>
