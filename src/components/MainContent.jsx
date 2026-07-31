@@ -893,6 +893,14 @@ export default function MainContent({
                   onClick={() => setHomeFilter(label.toLowerCase())}
                 >{label}</button>
               ))}
+              <button
+                className="filter-pill"
+                onClick={() => navigate('/library')}
+                title="Go to Your Library"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              >
+                <Library size={13} /> Library
+              </button>
             </div>
           )}
           {currentView === 'search' && (

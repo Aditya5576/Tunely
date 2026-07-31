@@ -1,7 +1,9 @@
 import { useAudio } from '../context/AudioContext';
-import { X, Play, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Play, Trash2, ChevronUp, ChevronDown, ListMusic } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function QueuePanel() {
+  const navigate = useNavigate();
   const { 
     queue, 
     currentIndex, 
@@ -118,7 +120,27 @@ export default function QueuePanel() {
               })}
             </div>
           ) : (
-            <div className="queue-empty-text">Queue is empty</div>
+            <div className="queue-empty-container" style={{ padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                <ListMusic size={26} color="var(--primary)" />
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#fff', letterSpacing: '-0.02em' }}>Your Play Queue is Empty</div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5, maxWidth: 240 }}>
+                Play a song or album to populate your queue, or check your saved songs in Library!
+              </p>
+              <button 
+                onClick={() => { setIsQueueVisible(false); navigate('/library'); }}
+                style={{
+                  marginTop: 8, padding: '10px 20px', borderRadius: 20,
+                  background: 'var(--primary)', color: '#000', fontWeight: 800,
+                  fontSize: 12, border: 'none', cursor: 'pointer',
+                  boxShadow: '0 4px 16px var(--primary-glow)',
+                  transition: 'transform 0.2s'
+                }}
+              >
+                Open Your Library
+              </button>
+            </div>
           )}
         </div>
 
