@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Search as SearchIcon, Play, Music, Clock, Heart, Compass, Plus, ChevronLeft, ChevronRight, ListMusic, Trash2, Download, RefreshCw, Shuffle, Home, Library, Settings, Radio } from 'lucide-react';
@@ -322,6 +322,19 @@ export default function MainContent({
   const [homeWorkout, setHomeWorkout] = useState([]);
   const [homeWorkoutLoading, setHomeWorkoutLoading] = useState(true);
   const [homeFilter, setHomeFilter] = useState('all'); // 'all' | 'music' | 'podcasts'
+  const [libFilter, setLibFilter] = useState('all'); // 'all' | 'playlists' | 'albums' | 'podcasts'
+
+  // Deduplicate custom playlists by ID & Name
+  const uniqueCustomPlaylists = useMemo(() => {
+    const seen = new Set();
+    return customPlaylists.filter(p => {
+      if (!p || !p.id) return false;
+      const key = `${p.id}_${(p.name || '').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [customPlaylists]);
 
   // Playlist/Album detail states
   const [detailData, setDetailData] = useState(null);
@@ -1823,95 +1836,154 @@ export default function MainContent({
         {/* VIEW 6: LIBRARY */}
         {currentView === 'library' && (
           <div className="view-library view-animate-in">
-            {/* Filter pills */}
-            <div className="library-filter-pills">
-              <button className="lib-pill active">Playlists</button>
-              <button className="lib-pill">Artists</button>
-              <button className="lib-pill">Albums</button>
-              <button className="lib-pill">Podcasts</button>
-            </div>
-
-            {/* Custom Playlists */}
-            <div className="library-header-row">
-              <h3 className="lib-section-title">My Playlists</h3>
-              <div className="library-actions">
-                <button className="lib-action-btn-secondary" onClick={() => setShowImportModal(true)}>
-                  <Download size={13} style={{ marginRight: 6 }} />
+            {/* Library Top Header */}
+            <div className="library-top-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', margin: 0, fontFamily: 'var(--font-serif)' }}>Your Library</h1>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>Manage your playlists, albums, and saved tracks</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="lib-action-btn-secondary" onClick={() => setShowImportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 20, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  <Download size={14} color="var(--primary)" />
                   Import Spotify
                 </button>
-              </div>
-            </div>
-            
-            {/* Static Liked Songs Playlist Card */}
-            <div
-              className="lib-item liked-songs-lib-card"
-              onClick={() => { navigate('/custom/liked'); }}
-            >
-              <div className="lib-item-art liked-songs-gradient-art">
-                <Heart size={22} fill="#ffffff" color="#ffffff" />
-              </div>
-              <div className="lib-item-meta">
-                <span className="lib-item-name">Liked Songs</span>
-                <span className="lib-item-sub">Auto-populated • {likedSongsMetadata.length} songs</span>
-              </div>
-            </div>
-
-            {customPlaylists.map(playlist => (
-              <div
-                key={playlist.id}
-                className="lib-item"
-                onClick={() => { navigate(`/custom/${playlist.id}`); }}
-              >
-                <div className="lib-item-art custom-art">
-                  <Music size={20} />
-                </div>
-                <div className="lib-item-meta">
-                  <span className="lib-item-name">{playlist.name}</span>
-                  <span className="lib-item-sub">Playlist · {playlist.songs?.length || 0} songs</span>
-                </div>
-                <button
-                  className="lib-delete-btn"
-                  title="Delete playlist"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Are you sure you want to delete the playlist "${playlist.name}"?`)) {
-                      const updated = customPlaylists.filter(p => p.id !== playlist.id);
-                      setCustomPlaylists(updated);
-                      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-                    }
-                  }}
-                >
-                  <Trash2 size={16} />
+                <button onClick={createNewPlaylist} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 20, background: 'var(--primary)', border: 'none', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: '0 4px 15px var(--primary-glow)' }}>
+                  <Plus size={16} /> New Playlist
                 </button>
               </div>
-            ))}
+            </div>
 
-            {/* Featured Playlists */}
-            <h3 className="lib-section-title">Featured</h3>
-            {PRE_CONFIGURED_PLAYLISTS.map(playlist => (
-              <div
-                key={playlist.id}
-                className="lib-item"
-                onClick={() => { navigate(`/${playlist.type}/${playlist.id}`); }}
-              >
-                <div className="lib-item-art featured-art">
-                  <ListMusic size={20} />
+            {/* Filter pills */}
+            <div className="library-filter-pills" style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
+              {['All', 'Playlists', 'Albums', 'Podcasts'].map(label => (
+                <button
+                  key={label}
+                  className={`filter-pill ${libFilter === label.toLowerCase() ? 'active' : ''}`}
+                  onClick={() => setLibFilter(label.toLowerCase())}
+                >{label}</button>
+              ))}
+            </div>
+
+            {/* Library Card Grid */}
+            <div className="library-grid-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 24 }}>
+              
+              {/* Liked Songs Hero Showcase Card */}
+              {(libFilter === 'all' || libFilter === 'playlists') && (
+                <div
+                  className="liked-songs-grid-card"
+                  onClick={() => { navigate('/custom/liked'); }}
+                  style={{
+                    gridColumn: 'span 2', minHeight: 220, borderRadius: 24,
+                    background: 'linear-gradient(135deg, #450af5 0%, #8e2de2 50%, #4a00e0 100%)',
+                    padding: 28, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                    boxShadow: '0 12px 35px rgba(69, 10, 245, 0.35)', transition: 'transform 0.25s ease'
+                  }}
+                >
+                  <div style={{ position: 'absolute', right: -20, bottom: -20, opacity: 0.15, transform: 'rotate(-15deg)', pointerEvents: 'none' }}>
+                    <Heart size={160} fill="#fff" color="#fff" />
+                  </div>
+                  <div>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                      <Heart size={24} fill="#ffffff" color="#ffffff" />
+                    </div>
+                    <h2 style={{ fontSize: 30, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', fontFamily: 'var(--font-display)' }}>Liked Songs</h2>
+                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4, display: 'block', fontWeight: 500 }}>
+                      {likedSongsMetadata.length} saved tracks • Auto-synced across devices
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, zIndex: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Quick Play</span>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#450af5', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(0,0,0,0.3)' }}>
+                      <Play size={20} fill="currentColor" style={{ marginLeft: 2 }} />
+                    </div>
+                  </div>
                 </div>
-                <div className="lib-item-meta">
-                  <span className="lib-item-name">{playlist.name}</span>
-                  <span className="lib-item-sub">{playlist.type === 'album' ? 'Album' : 'Playlist'} · Tunely</span>
+              )}
+
+              {/* Custom Playlists Cards */}
+              {(libFilter === 'all' || libFilter === 'playlists') && uniqueCustomPlaylists.map(playlist => (
+                <div
+                  key={playlist.id}
+                  className="playlist-grid-card"
+                  onClick={() => { navigate(`/custom/${playlist.id}`); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+                    cursor: 'pointer', position: 'relative', transition: 'all 0.25s ease'
+                  }}
+                >
+                  <div style={{ width: '100%', aspectRatio: '1/1', borderRadius: 14, background: 'linear-gradient(135deg, rgba(0,229,255,0.15), rgba(13,148,136,0.15))', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                    <Music size={40} color="var(--primary)" />
+                    <button
+                      className="grid-card-play-btn"
+                      style={{ position: 'absolute', right: 12, bottom: 12, width: 42, height: 42, borderRadius: '50%', background: 'var(--primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 8px 20px rgba(0,0,0,0.4)', opacity: 0, transform: 'translateY(6px)', transition: 'all 0.2s ease' }}
+                    >
+                      <Play size={18} fill="currentColor" style={{ marginLeft: 2 }} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playlist.name}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Playlist • {playlist.songs?.length || 0} songs</span>
+                  </div>
+
+                  <button
+                    className="grid-card-delete-btn"
+                    title="Delete playlist"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Are you sure you want to delete "${playlist.name}"?`)) {
+                        const updated = customPlaylists.filter(p => p.id !== playlist.id);
+                        setCustomPlaylists(updated);
+                        localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                      }
+                    }}
+                    style={{ position: 'absolute', top: 22, right: 22, width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-                <ChevronLeft size={18} style={{ transform: 'rotate(180deg)', color: 'var(--text-dimmed)', flexShrink: 0 }} />
-              </div>
-            ))}
+              ))}
+
+              {/* Pre-configured Featured Playlists */}
+              {PRE_CONFIGURED_PLAYLISTS.filter(p => libFilter === 'all' || (libFilter === 'albums' && p.type === 'album') || (libFilter === 'playlists' && p.type === 'playlist')).map(playlist => (
+                <div
+                  key={playlist.id}
+                  className="playlist-grid-card"
+                  onClick={() => { navigate(`/${playlist.type}/${playlist.id}`); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+                    cursor: 'pointer', position: 'relative', transition: 'all 0.25s ease'
+                  }}
+                >
+                  <div style={{ width: '100%', aspectRatio: '1/1', borderRadius: 14, background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(99,102,241,0.15))', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                    <ListMusic size={40} color="#a855f7" />
+                    <button
+                      className="grid-card-play-btn"
+                      style={{ position: 'absolute', right: 12, bottom: 12, width: 42, height: 42, borderRadius: '50%', background: '#a855f7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 8px 20px rgba(0,0,0,0.4)', opacity: 0, transform: 'translateY(6px)', transition: 'all 0.2s ease' }}
+                    >
+                      <Play size={18} fill="currentColor" style={{ marginLeft: 2 }} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playlist.name}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{playlist.type === 'album' ? 'Album' : 'Playlist'} • Tunely</span>
+                  </div>
+                </div>
+              ))}
+
+            </div>
 
             {/* Create playlist CTA if empty */}
-            {customPlaylists.length === 0 && (
-              <div className="lib-empty-cta">
-                <div className="lib-empty-icon"><Plus size={28} /></div>
-                <h3>Create your first playlist</h3>
-                <p>Tap the + button above to get started</p>
-                <button className="lib-create-btn" onClick={createNewPlaylist}>Create Playlist</button>
+            {uniqueCustomPlaylists.length === 0 && (
+              <div className="lib-empty-cta" style={{ marginTop: 40, padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <div className="lib-empty-icon" style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={28} color="var(--primary)" /></div>
+                <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Create your first playlist</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>Tap below or import a Spotify playlist to build your library</p>
+                <button className="lib-create-btn" onClick={createNewPlaylist} style={{ padding: '10px 20px', borderRadius: 20, background: 'var(--primary)', color: '#000', fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px var(--primary-glow)', marginTop: 6 }}>Create Playlist</button>
               </div>
             )}
           </div>
@@ -3536,9 +3608,28 @@ export default function MainContent({
           }
 
           .lib-pill.active {
-            background: rgba(255,255,255,0.15);
-            color: var(--text-main);
-            border-color: rgba(255,255,255,0.2);
+            background: var(--primary);
+            color: #000;
+            font-weight: 700;
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+          }
+
+          .playlist-grid-card:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border-color: rgba(0, 229, 255, 0.25) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+          }
+
+          .playlist-grid-card:hover .grid-card-play-btn {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+          }
+
+          .liked-songs-grid-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 45px rgba(69, 10, 245, 0.5) !important;
           }
 
           .lib-section-title {
