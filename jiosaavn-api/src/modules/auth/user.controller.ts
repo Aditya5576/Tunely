@@ -382,8 +382,8 @@ userController.post('/activity', authMiddleware, async (c) => {
       ip,
       lastActive: now
     }
-    // Set TTL to 90 seconds (so if ping fails twice they go offline)
-    await safeKvPut(kv, `user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 90 })
+    // Set TTL to 300 seconds (5 minutes) so active sessions never drop unexpectedly
+    await safeKvPut(kv, `user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 300 })
     await safeKvPut(kv, `user:${userId}:last_seen`, now)
 
     // Batch activity into a single KV map key to cut Admin Panel KV reads by 99.3%
@@ -395,7 +395,7 @@ userController.post('/activity', authMiddleware, async (c) => {
       }
       const nowMs = Date.now()
       for (const id in activeMap) {
-        if (!activeMap[id]?.lastActive || (nowMs - new Date(activeMap[id].lastActive).getTime() > 90000)) {
+        if (!activeMap[id]?.lastActive || (nowMs - new Date(activeMap[id].lastActive).getTime() > 300000)) {
           delete activeMap[id]
         }
       }

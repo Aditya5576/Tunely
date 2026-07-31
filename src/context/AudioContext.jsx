@@ -950,9 +950,9 @@ export const AudioProvider = ({ children }) => {
     // Send immediately on change
     sendActivity();
 
-    // Setup periodic updates every 3 minutes (180,000ms) if playing to save KV writes
+    // Setup periodic activity pings every 15 seconds while playing music for live admin status
     if (isPlaying) {
-      intervalId = setInterval(sendActivity, 180000);
+      intervalId = setInterval(sendActivity, 15000);
     }
 
     return () => {

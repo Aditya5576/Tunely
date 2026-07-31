@@ -40,8 +40,7 @@ const formatTimeAgo = (iso) => {
   if (isNaN(time)) return 'Never active';
   const diffSecs = Math.floor((Date.now() - time) / 1000);
   
-  if (diffSecs < 30) return '🟢 Active Now';
-  if (diffSecs < 60) return 'Active 1m ago';
+  if (diffSecs < 120) return '🟢 Active Now';
   if (diffSecs < 3600) return `Active ${Math.floor(diffSecs / 60)}m ago`;
   if (diffSecs < 86400) return `Active ${Math.floor(diffSecs / 3600)}h ago`;
   if (diffSecs < 604800) return `Active ${Math.floor(diffSecs / 86400)}d ago`;
