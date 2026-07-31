@@ -584,19 +584,27 @@ export default function MainContent({
         const q = query.toLowerCase().trim();
         const getScore = (track) => {
           let score = 0;
-          const title = track.name.toLowerCase();
-          const primaryArtists = track.artists?.primary?.map(art => art.name.toLowerCase()) || [];
-          const allArtists = track.artists?.all?.map(art => art.name.toLowerCase()) || [];
+          const title = (track.name || '').toLowerCase();
+          const primaryStr = (track.artists?.primary?.map(art => art.name.toLowerCase()) || []).join(' ');
+          const allStr = (track.artists?.all?.map(art => art.name.toLowerCase()) || []).join(' ');
+          const combined = `${title} ${primaryStr} ${allStr}`;
+          const tokens = q.split(/\s+/).filter(Boolean);
+
+          // 1. Direct title matching
+          if (title === q) score += 120;
+          else if (title.startsWith(q)) score += 70;
+          else if (title.includes(q)) score += 40;
+
+          // 2. Multi-token match across title & artists combined (e.g., "kalyani shreya ghoshal")
+          const matchedTokens = tokens.filter(tok => combined.includes(tok));
+          if (tokens.length > 0 && matchedTokens.length === tokens.length) {
+            score += 80; // All search tokens match across song title and artist!
+          } else {
+            score += matchedTokens.length * 15;
+          }
+
+          // 3. Play count / popularity boost
           const playCount = Number(track.playCount) || 0;
-          if (title === q) score += 100;
-          else if (title.startsWith(q)) score += 60;
-          else if (title.includes(q)) score += 30;
-          const exactArtist = primaryArtists.some(n => n === q) || allArtists.some(n => n === q);
-          const startsArtist = primaryArtists.some(n => n.startsWith(q)) || allArtists.some(n => n.startsWith(q));
-          const includesArtist = primaryArtists.some(n => n.includes(q)) || allArtists.some(n => n.includes(q));
-          if (exactArtist) score += 80;
-          else if (startsArtist) score += 45;
-          else if (includesArtist) score += 15;
           if (playCount > 0) score += Math.log10(playCount) * 8;
           return score;
         };
