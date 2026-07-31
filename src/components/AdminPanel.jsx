@@ -4,8 +4,9 @@ import {
   Shield, LogOut, Users, Search, Ban, Trash2, CheckCircle,
   XCircle, RefreshCw, Eye, EyeOff, AlertTriangle,
   Activity, UserCheck, UserX, Clock, ChevronDown, ChevronUp,
-  Laptop, Smartphone, Network, Play, Pause, Radio, Zap, Key
+  Laptop, Smartphone, Network, Play, Pause, Radio, Zap, Key, Sparkles
 } from 'lucide-react';
+import TunelyLogo from './TunelyLogo';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -1131,21 +1132,17 @@ function AdminDashboard({ onLogout }) {
 
       {/* Header */}
       <header className="admin-page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #00f2fe, #4facfe)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(0, 242, 254, 0.2)'
-          }}>
-            <Shield size={18} color="#fff" />
-          </div>
+        <div className="admin-brand-container" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <TunelyLogo size={34} />
           <div style={{ textAlign: 'left' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Tunely Super Admin</span>
-              <span style={{ padding: '1px 6px', borderRadius: 6, background: 'rgba(239, 68, 68, 0.15)', color: '#ff6b6b', fontSize: 8, fontWeight: 700 }}>ROOT</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span> Admin</span>
+              <span style={{ padding: '2px 7px', borderRadius: 6, background: 'rgba(239, 68, 68, 0.18)', color: '#f87171', fontSize: 9, fontWeight: 800, border: '1px solid rgba(239, 68, 68, 0.3)' }}>ROOT</span>
+              <span style={{ padding: '2px 7px', borderRadius: 6, background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', fontSize: 9, fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 6px #34d399' }} /> D1 SQL Live
+              </span>
             </div>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', display: 'block' }}>Real-time Database Live Controller</span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', display: 'block', marginTop: 1 }}>Cloudflare KV & Real-time Database Controller</span>
           </div>
         </div>
 
