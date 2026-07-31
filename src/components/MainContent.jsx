@@ -1669,14 +1669,44 @@ export default function MainContent({
                 {/* Detail Header Banner */}
                 <div className="detail-header">
                   <div className="detail-cover-container custom-playlist-banner-art">
-                    <div className="detail-cover-placeholder">
-                      <Music size={48} />
-                    </div>
+                    {detailData.id === 'liked' ? (
+                      <div className="liked-detail-cover" style={{
+                        width: '160px',
+                        height: '160px',
+                        borderRadius: '20px',
+                        background: 'linear-gradient(135deg, #450af5 0%, #8e2de2 50%, #4a00e0 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 16px 40px rgba(69, 10, 245, 0.45)',
+                        position: 'relative'
+                      }}>
+                        <Heart size={56} fill="#ffffff" color="#ffffff" style={{ filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.35))' }} />
+                      </div>
+                    ) : (
+                      <div className="custom-detail-cover" style={{
+                        width: '160px',
+                        height: '160px',
+                        borderRadius: '20px',
+                        background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(168, 85, 247, 0.2))',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 16px 40px rgba(0, 229, 255, 0.2)'
+                      }}>
+                        <Music size={56} color="var(--primary)" />
+                      </div>
+                    )}
                   </div>
                   <div className="detail-header-meta">
-                    <span className="detail-type">Custom Playlist</span>
+                    <span className="detail-type">{detailData.id === 'liked' ? 'FAVORITES' : 'CUSTOM PLAYLIST'}</span>
                     <h1 className="detail-title">{detailData.name}</h1>
-                    <p className="detail-description">Create your own personal mixtape. Add any song search results to this playlist.</p>
+                    <p className="detail-description">
+                      {detailData.id === 'liked' 
+                        ? 'Your personal collection of saved favorite tracks.'
+                        : 'Create your own personal mixtape. Add any song search results to this playlist.'}
+                    </p>
                     <div className="detail-stats">
                       <span className="stat-highlight">{detailData.songs?.length || 0} songs</span>
                     </div>
@@ -3126,11 +3156,11 @@ export default function MainContent({
 
         @media (max-width: 768px) {
           .tracklist-header-row {
-            padding: 8px 8px;
+            padding: 8px 4px;
             gap: 8px;
           }
-          .index-col { width: 20px; margin-right: 4px; }
-          .album-col { display: none; }
+          .index-col { display: none !important; }
+          .album-col { display: none !important; }
         }
 
         .tracklist-body {
@@ -3234,7 +3264,40 @@ export default function MainContent({
 
         @media (max-width: 768px) {
           .content-scroll {
-            padding: 16px 16px 140px !important;
+            padding: 16px 16px 200px !important;
+          }
+
+          .detail-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 16px !important;
+            margin-bottom: 20px !important;
+          }
+          .detail-header-meta {
+            align-items: center !important;
+            text-align: center !important;
+            min-width: 100% !important;
+          }
+          .detail-title {
+            font-size: 26px !important;
+            margin-bottom: 6px !important;
+            font-family: var(--font-display);
+          }
+          .detail-description {
+            font-size: 13px !important;
+            margin-bottom: 8px !important;
+          }
+          .detail-actions {
+            justify-content: center !important;
+            width: 100% !important;
+            gap: 10px !important;
+          }
+          .detail-play-btn, .detail-shuffle-btn {
+            flex: 1 !important;
+            justify-content: center !important;
+            padding: 12px 14px !important;
+            font-size: 14px !important;
           }
 
           .app-header {

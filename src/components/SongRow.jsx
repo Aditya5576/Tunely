@@ -603,33 +603,40 @@ export default function SongRow({
         }
 
         @media (max-width: 768px) {
-          .song-album-col {
-            display: none;
+          .song-album-col,
+          .song-index-col {
+            display: none !important;
           }
           .song-row {
-            padding: 8px 8px;
-            gap: 8px;
+            padding: 8px 6px;
+            gap: 10px;
+            border-radius: 10px;
           }
           .song-title-col {
             flex: 1;
             min-width: 0;
-            gap: 8px;
+            gap: 10px;
           }
-          .song-index-col {
-            width: 20px;
-            margin-right: 4px;
-            justify-content: center;
+          .song-cover-container {
+            width: 46px;
+            height: 46px;
             flex-shrink: 0;
+            border-radius: 8px;
+          }
+          .song-cover {
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
           }
           .song-duration-col {
             width: auto;
-            gap: 6px;
+            gap: 8px;
             flex-shrink: 0;
             margin-left: auto;
           }
           .row-action-btn,
           .row-heart-btn {
-            opacity: 1;
+            opacity: 1 !important;
           }
         }
       `}</style>
