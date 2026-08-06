@@ -7,15 +7,16 @@ const ISSUE_BODY = process.env.ISSUE_BODY || '';
 const ISSUE_NUMBER = process.env.ISSUE_NUMBER || '';
 
 if (!GEMINI_API_KEY) {
-  console.error('❌ Error: GEMINI_API_KEY environment variable is missing.');
-  fs.writeFileSync('agent_summary.txt', `❌ **Error**: \`GEMINI_API_KEY\` secret is missing in GitHub Repository Secrets.\n\nPlease add \`GEMINI_API_KEY\` to your repo settings: https://github.com/Aditya5576/Tunely/settings/secrets/actions`);
-  process.exit(1);
+  console.error('❌ Error: GEMINI_API_KEY environment variable is missing in Repository Secrets.');
+  fs.writeFileSync('agent_summary.txt', `⚠️ **Tunely AI Agent Configuration Required**\n\nTo enable automated AI code fixes for GitHub Issues from your iPhone:\n\n1. Go to repository secrets: https://github.com/Aditya5576/Tunely/settings/secrets/actions\n2. Click **New repository secret**\n3. Set Name: \`GEMINI_API_KEY\` and paste your free key from https://aistudio.google.com/\n\nOnce added, your AI Agent will automatically resolve all issues!`);
+  // Exit with 0 so GitHub Actions can post the summary comment to the issue
+  process.exit(0);
 }
 
 if (!ISSUE_TITLE) {
   console.error('❌ Error: ISSUE_TITLE environment variable is empty.');
   fs.writeFileSync('agent_summary.txt', '❌ Error: Issue title was empty.');
-  process.exit(1);
+  process.exit(0);
 }
 
 console.log(`🤖 Starting AI Agent for GitHub Issue #${ISSUE_NUMBER}: "${ISSUE_TITLE}"`);
@@ -106,7 +107,7 @@ async function callGemini() {
       console.warn(`Model ${model} failed: ${e.message}`);
     }
   }
-  throw new Error("All Gemini model endpoints failed.");
+  throw new Error("All Gemini model endpoints failed. Please check your GEMINI_API_KEY quota.");
 }
 
 async function runAIAgent() {
@@ -136,9 +137,8 @@ async function runAIAgent() {
 
     console.log('✨ All file modifications applied successfully!');
   } catch (error) {
-    console.error('❌ AI Agent Failed:', error);
-    fs.writeFileSync('agent_summary.txt', `❌ **AI Agent Encountered an Error**:\n\`\`\`\n${error.message}\n\`\`\``);
-    process.exit(1);
+    console.error('❌ AI Agent Error:', error);
+    fs.writeFileSync('agent_summary.txt', `❌ **AI Agent Notice**:\n\`\`\`\n${error.message}\n\`\`\``);
   }
 }
 
