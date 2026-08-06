@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.ANTIGRAVITY_GITHUB_CONTROLLER;
 const ISSUE_TITLE = process.env.ISSUE_TITLE || '';
 const ISSUE_BODY = process.env.ISSUE_BODY || '';
 const ISSUE_NUMBER = process.env.ISSUE_NUMBER || '';

@@ -31,7 +31,8 @@ jobs:
 
       - name: 🤖 Run Tunely AI Issue Agent
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_GITHUB_CONTROLLER }}
+          ANTIGRAVITY_GITHUB_CONTROLLER: ${{ secrets.ANTIGRAVITY_GITHUB_CONTROLLER }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
