@@ -1,0 +1,9 @@
+⚠️ **Tunely AI Agent Configuration Required**
+
+To enable automated AI code fixes for GitHub Issues from your iPhone:
+
+1. Go to repository secrets: https://github.com/Aditya5576/Tunely/settings/secrets/actions
+2. Click **New repository secret**
+3. Set Name: `GEMINI_API_KEY` and paste your free key from https://aistudio.google.com/
+
+Once added, your AI Agent will automatically resolve all issues!
