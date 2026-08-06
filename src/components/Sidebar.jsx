@@ -43,7 +43,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
       {/* Sidebar Header / Brand Logo */}
       <div className="sidebar-header" onClick={() => navigate('/')}>
         <TunelyLogo size={28} />
-        <h2>Tunely<span className="dot">.</span></h2>
+        <h2>Tunely🎶<span className="dot">.</span></h2>
       </div>
 
       {/* Main Navigation Menu */}

@@ -250,7 +250,7 @@ function TunelyApp() {
             <div className="splash-logo-circle" style={{ background: 'transparent', border: 'none', boxShadow: 'none' }}>
               <TunelyLogo size={80} className="splash-brand-logo" />
             </div>
-            <h1 className="splash-title">Tunely</h1>
+            <h1 className="splash-title">Tunely🎶</h1>
             <p className="splash-tagline">Premium High-Fidelity Audio</p>
             <div className="splash-loader-bar"><div className="splash-loader-progress"></div></div>
           </div>
@@ -300,7 +300,7 @@ function TunelyApp() {
           <div className={`account-menu-drawer ${isAccountOpen ? 'open' : ''}`}>
             <div className="drawer-top-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px 8px 20px' }}>
               <TunelyLogo size={30} />
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely<span style={{ color: 'var(--primary)' }}>.</span></span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-serif)' }}>Tunely🎶<span style={{ color: 'var(--primary)' }}>.</span></span>
             </div>
             <div className="drawer-header" onClick={() => { setIsAccountOpen(false); setShowProfileModal(true); }} style={{ cursor: 'pointer' }}>
               <div className="profile-badge-large" style={{
