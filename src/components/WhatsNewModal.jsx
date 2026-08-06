@@ -40,7 +40,7 @@ export default function WhatsNewModal({ onClose }) {
             <div>
               <div className="whatsnew-title-row">
                 <h2>What's New in Tunely</h2>
-                <span className="whatsnew-version-badge">v3.5.0-stable</span>
+                <span className="whatsnew-version-badge">v4.1.0-stable</span>
               </div>
               <span className="whatsnew-subtitle">Latest product updates & performance engine enhancements</span>
             </div>

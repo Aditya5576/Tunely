@@ -174,7 +174,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
             title="View latest updates"
             style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, background: 'rgba(0, 229, 255, 0.08)', padding: '3px 10px', borderRadius: 10, border: '1px solid rgba(0, 229, 255, 0.25)', cursor: 'pointer', transition: 'all 0.2s' }}
           >
-            v3.5.0-stable • What's New ✨
+            v4.1.0-stable • What's New ✨
           </span>
         </div>
       </div>

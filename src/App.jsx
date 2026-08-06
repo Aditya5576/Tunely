@@ -347,7 +347,7 @@ function TunelyApp() {
                     <Palette size={18} /><span>Switch Theme</span>
                   </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowWhatsNewModal(true); }}>
-                    <Info size={18} /><span>What's new (v3.5.0)</span>
+                    <Info size={18} /><span>What's new (v4.1.0-stable)</span>
                   </div>
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Settings configuration coming soon!'); }}>
                     <Settings size={18} /><span>Settings and privacy</span>
@@ -355,7 +355,7 @@ function TunelyApp() {
                 </>
               )}
             </div>
-            <div className="drawer-footer"><span className="app-version">Tunely Mobile v3.5.0</span></div>
+            <div className="drawer-footer"><span className="app-version">Tunely Mobile v4.1.0-stable</span></div>
           </div>
 
           {/* Mobile Tab Bar */}
