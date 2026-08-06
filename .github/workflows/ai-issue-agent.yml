@@ -18,6 +18,7 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: 🟢 Setup Node.js
@@ -50,13 +51,14 @@ jobs:
             echo "No code changes to commit."
           else
             git commit -m "AI Fix Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
-            git push origin main
-            git push origin main:stable-release || true
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main:stable-release || true
           fi
 
       - name: 💬 Post AI Summary Comment on GitHub Issue
         uses: peter-evans/create-or-update-comment@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body-path: 'agent_summary.txt'
 
