@@ -71,9 +71,9 @@ CRITICAL RULES:
 4. Output ONLY valid raw JSON.`;
 
 const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash'
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-2.0-flash-exp'
 ];
 
 async function callGemini() {
@@ -88,14 +88,14 @@ async function callGemini() {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.2,
-            responseMimeType: "application/json"
+            temperature: 0.2
           }
         })
       });
 
       if (!response.ok) {
-        console.warn(`Model ${model} returned HTTP ${response.status}. Trying next fallback...`);
+        const errText = await response.text();
+        console.warn(`Model ${model} returned HTTP ${response.status}: ${errText}`);
         continue;
       }
 
