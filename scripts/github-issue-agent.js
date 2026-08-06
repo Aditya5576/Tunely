@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ISSUE_TITLE = process.env.ISSUE_TITLE || '';
@@ -9,12 +8,13 @@ const ISSUE_NUMBER = process.env.ISSUE_NUMBER || '';
 
 if (!GEMINI_API_KEY) {
   console.error('❌ Error: GEMINI_API_KEY environment variable is missing.');
-  console.log('Please add GEMINI_API_KEY to your GitHub Repository Secrets.');
+  fs.writeFileSync('agent_summary.txt', `❌ **Error**: \`GEMINI_API_KEY\` secret is missing in GitHub Repository Secrets.\n\nPlease add \`GEMINI_API_KEY\` to your repo settings: https://github.com/Aditya5576/Tunely/settings/secrets/actions`);
   process.exit(1);
 }
 
 if (!ISSUE_TITLE) {
   console.error('❌ Error: ISSUE_TITLE environment variable is empty.');
+  fs.writeFileSync('agent_summary.txt', '❌ Error: Issue title was empty.');
   process.exit(1);
 }
 
@@ -69,35 +69,49 @@ CRITICAL RULES:
 3. Keep existing imports and functionality intact while solving the user's issue.
 4. Output ONLY valid raw JSON.`;
 
+const MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
+];
+
+async function callGemini() {
+  for (const model of MODELS) {
+    try {
+      console.log(`📡 Trying Gemini API model: ${model}...`);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
+          }
+        })
+      });
+
+      if (!response.ok) {
+        console.warn(`Model ${model} returned HTTP ${response.status}. Trying next fallback...`);
+        continue;
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
+    } catch (e) {
+      console.warn(`Model ${model} failed: ${e.message}`);
+    }
+  }
+  throw new Error("All Gemini model endpoints failed.");
+}
+
 async function runAIAgent() {
   try {
-    console.log('📡 Calling Google Gemini API...');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json"
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API HTTP Error ${response.status}: ${errText}`);
-    }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    // Clean JSON text if wrapped in markdown block
-    const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const result = JSON.parse(cleanJson);
-
+    const result = await callGemini();
     console.log(`✅ AI Summary: ${result.summary}`);
 
     let modifiedCount = 0;
@@ -118,7 +132,6 @@ async function runAIAgent() {
       return;
     }
 
-    // Write summary for GitHub comment
     fs.writeFileSync('agent_summary.txt', `### 🤖 Tunely AI Agent Action Summary\n\n**Issue**: #${ISSUE_NUMBER} — *${ISSUE_TITLE}*\n\n**Changes Made**:\n${result.summary}\n\n**Modified Files**:\n${result.files.map(f => `- \`${f.path}\``).join('\n')}\n\n**Live App**: https://tunely.pages.dev`);
 
     console.log('✨ All file modifications applied successfully!');

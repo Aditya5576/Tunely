@@ -2,14 +2,12 @@ name: 🤖 Tunely iPhone AI Coding Agent
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened, edited, labeled]
   issue_comment:
     types: [created]
 
 jobs:
   ai-agent:
-    # Only run if created by repo owner or tagged with 'ai-agent'
-    if: ${{ github.event.issue.author_association == 'OWNER' || contains(github.event.issue.labels.*.name, 'ai-agent') || contains(github.event.comment.body, '/fix') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -42,6 +40,8 @@ jobs:
         run: npm run build
 
       - name: 🚀 Commit & Push Changes to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "Tunely AI Agent [bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
