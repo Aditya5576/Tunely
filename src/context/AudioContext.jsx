@@ -45,6 +45,10 @@ export const AudioProvider = ({ children }) => {
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
   const hasPreloadedRef = useRef(null);
+  // System Interruption & Phone Call Recovery Refs
+  const userInitiatedPauseRef = useRef(false);
+  const wasPlayingBeforeInterruptionRef = useRef(false);
+  const isSystemInterruptedRef = useRef(false);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
     return localStorage.getItem('tunely_audio_quality') || '320kbps';
@@ -601,8 +605,79 @@ export const AudioProvider = ({ children }) => {
     }, 20);
   };
 
+  // Auto-resumes playback after call interruption or system audio focus return
+  const resumePlaybackAfterInterruption = async () => {
+    if (!wasPlayingBeforeInterruptionRef.current || !currentTrack) return;
+
+    // 1. Resume Web Audio context if suspended by OS during phone call
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      try {
+        await audioContextRef.current.resume();
+      } catch (e) {
+        console.warn("Failed to resume Web Audio context after call:", e);
+      }
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // 2. Check if stream connection stalled or errored during call
+    if (audio.error || !audio.src || audio.readyState === 0) {
+      const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
+      if (streamUrl) {
+        const savedTime = audio.currentTime || currentTime;
+        audio.src = streamUrl;
+        audio.load();
+        audio.currentTime = savedTime;
+      }
+    }
+
+    // 3. Reset user initiated pause flag & attempt auto-resume playback
+    userInitiatedPauseRef.current = false;
+    try {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+        setIsPlaying(true);
+        wasPlayingBeforeInterruptionRef.current = false;
+        isSystemInterruptedRef.current = false;
+        fadeInVolume();
+        console.log("Audio playback successfully auto-resumed after call interruption.");
+      }
+    } catch (err) {
+      console.warn("Auto-resume after call blocked by browser autoplay policy. Waiting for user touch:", err);
+      
+      // Register one-time interaction listeners so playback resumes instantly on first screen touch
+      const handleFirstTouch = () => {
+        window.removeEventListener('pointerdown', handleFirstTouch);
+        window.removeEventListener('touchstart', handleFirstTouch);
+        window.removeEventListener('click', handleFirstTouch);
+        
+        if (wasPlayingBeforeInterruptionRef.current) {
+          userInitiatedPauseRef.current = false;
+          audio.play()
+            .then(() => {
+              setIsPlaying(true);
+              wasPlayingBeforeInterruptionRef.current = false;
+              isSystemInterruptedRef.current = false;
+              fadeInVolume();
+              console.log("Audio playback auto-resumed on touch after call interruption.");
+            })
+            .catch(e => console.error("Touch resume failed:", e));
+        }
+      };
+
+      window.addEventListener('pointerdown', handleFirstTouch, { once: true });
+      window.addEventListener('touchstart', handleFirstTouch, { once: true });
+      window.addEventListener('click', handleFirstTouch, { once: true });
+    }
+  };
+
   // Handles playing a track at a specific index in the queue
   const playTrackAtIndex = async (index) => {
+    userInitiatedPauseRef.current = false;
+    wasPlayingBeforeInterruptionRef.current = false;
+    isSystemInterruptedRef.current = false;
     if (index < 0 || index >= queue.length) return;
     
     const track = queue[index];
@@ -666,6 +741,9 @@ export const AudioProvider = ({ children }) => {
 
   // Public Methods
   const playTrack = (track, newQueue = []) => {
+    userInitiatedPauseRef.current = false;
+    wasPlayingBeforeInterruptionRef.current = false;
+    isSystemInterruptedRef.current = false;
     // If double clicking the same track, toggle play
     if (currentTrack && currentTrack.id === track.id) {
       togglePlay();
@@ -718,11 +796,17 @@ export const AudioProvider = ({ children }) => {
     if (!currentTrack) return;
     
     if (isPlaying) {
+      userInitiatedPauseRef.current = true;
+      wasPlayingBeforeInterruptionRef.current = false;
+      isSystemInterruptedRef.current = false;
       fadeOutVolume(() => {
         audioRef.current.pause();
         setIsPlaying(false);
       });
     } else {
+      userInitiatedPauseRef.current = false;
+      wasPlayingBeforeInterruptionRef.current = false;
+      isSystemInterruptedRef.current = false;
       initWebAudio();
       audioRef.current.play()
         .then(() => {
@@ -876,6 +960,9 @@ export const AudioProvider = ({ children }) => {
 
     const handlePlay = () => {
       setIsPlaying(true);
+      userInitiatedPauseRef.current = false;
+      wasPlayingBeforeInterruptionRef.current = false;
+      isSystemInterruptedRef.current = false;
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = "playing";
       }
@@ -888,6 +975,12 @@ export const AudioProvider = ({ children }) => {
         navigator.mediaSession.playbackState = "paused";
       }
       clearInterval(fadeIntervalRef.current);
+
+      // If paused by system/call interruption rather than explicit user pause click:
+      if (!userInitiatedPauseRef.current) {
+        wasPlayingBeforeInterruptionRef.current = true;
+        isSystemInterruptedRef.current = true;
+      }
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -909,6 +1002,39 @@ export const AudioProvider = ({ children }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, loopMode, isShuffle]);
+
+  // Auto-resume playback when call ends / app regains focus or visibility
+  useEffect(() => {
+    const handleVisibilityOrFocusChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (wasPlayingBeforeInterruptionRef.current && currentTrack) {
+          resumePlaybackAfterInterruption();
+        }
+      } else if (document.visibilityState === 'hidden') {
+        if (isPlaying && !userInitiatedPauseRef.current) {
+          wasPlayingBeforeInterruptionRef.current = true;
+          isSystemInterruptedRef.current = true;
+        }
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (wasPlayingBeforeInterruptionRef.current && currentTrack) {
+        resumePlaybackAfterInterruption();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocusChange);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('pageshow', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocusChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('pageshow', handleWindowFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack, isPlaying, audioQuality]);
 
   // Adjust volume smoothly
   useEffect(() => {
