@@ -1,0 +1,66 @@
+name: 🤖 Tunely iPhone AI Coding Agent
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  ai-agent:
+    # Only run if created by repo owner or tagged with 'ai-agent'
+    if: ${{ github.event.issue.author_association == 'OWNER' || contains(github.event.issue.labels.*.name, 'ai-agent') || contains(github.event.comment.body, '/fix') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Project Dependencies
+        run: npm install
+
+      - name: 🤖 Run Tunely AI Issue Agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: node scripts/github-issue-agent.js
+
+      - name: 🏗️ Verify Vite Production Build
+        run: npm run build
+
+      - name: 🚀 Commit & Push Changes to GitHub
+        run: |
+          git config --global user.name "Tunely AI Agent [bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No code changes to commit."
+          else
+            git commit -m "AI Fix Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+            git push origin main
+            git push origin main:stable-release || true
+          fi
+
+      - name: 💬 Post AI Summary Comment on GitHub Issue
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body-path: 'agent_summary.txt'
+
+      - name: 🔒 Close Issue
+        run: gh issue close ${{ github.event.issue.number }} --comment "Closed automatically by Tunely AI Agent after successful build & deployment."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
