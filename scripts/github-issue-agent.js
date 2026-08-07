@@ -76,11 +76,13 @@ const MODELS = [
   'gemini-2.0-flash-exp'
 ];
 
+let lastErrorMsg = 'No response from Gemini API';
+
 async function callGemini() {
   for (const model of MODELS) {
     try {
       console.log(`📡 Trying Gemini API model: ${model}...`);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY.trim()}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -95,7 +97,8 @@ async function callGemini() {
 
       if (!response.ok) {
         const errText = await response.text();
-        console.warn(`Model ${model} returned HTTP ${response.status}: ${errText}`);
+        lastErrorMsg = `HTTP ${response.status} from ${model}: ${errText.slice(0, 300)}`;
+        console.warn(lastErrorMsg);
         continue;
       }
 
@@ -104,10 +107,11 @@ async function callGemini() {
       const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
       return JSON.parse(cleanJson);
     } catch (e) {
-      console.warn(`Model ${model} failed: ${e.message}`);
+      lastErrorMsg = `${model} exception: ${e.message}`;
+      console.warn(lastErrorMsg);
     }
   }
-  throw new Error("All Gemini model endpoints failed. Please check your GEMINI_API_KEY quota.");
+  throw new Error(`Gemini API Request Failed: ${lastErrorMsg}`);
 }
 
 async function runAIAgent() {
