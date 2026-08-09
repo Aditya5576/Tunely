@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tunely — Ultimate Master Technical Breakdown & Interview Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --panel-bg: rgba(18, 22, 31, 0.85);
+      --card-bg: rgba(26, 34, 46, 0.7);
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent-cyan: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-green: #34d399;
+      --accent-pink: #ec4899;
+      --accent-amber: #fbbf24;
+      --gradient-accent: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #ec4899 100%);
+      --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-heading: 'Space Grotesk', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: var(--panel-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3.5rem;
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Print / Actions Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .btn-print {
+      background: var(--gradient-accent);
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      font-weight: 700;
+      font-family: var(--font-body);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
+    }
+
+    .btn-print:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+    }
+
+    /* Headings */
+    h1 {
+      font-family: var(--font-heading);
+      font-size: 2.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: var(--gradient-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-block {
+      margin-top: 3.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    h2 {
+      font-family: var(--font-heading);
+      font-size: 1.8rem;
+      color: var(--accent-cyan);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    h3 {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      color: var(--accent-purple);
+      margin: 1.75rem 0 0.75rem 0;
+    }
+
+    h4 {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      color: var(--accent-pink);
+      margin: 1.25rem 0 0.5rem 0;
+    }
+
+    p {
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    /* Table of Contents */
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.75rem;
+      margin-bottom: 3rem;
+    }
+
+    .toc h3 {
+      margin-top: 0;
+      color: var(--accent-cyan);
+      font-size: 1.15rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 0.6rem 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .toc a {
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 0.93rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 8px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .toc a:hover {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-cyan);
+    }
+
+    /* Pitch Box */
+    .pitch-box {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      font-size: 1.05rem;
+      line-height: 1.75;
+      color: #f0f6fc;
+    }
+
+    .pitch-title {
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Tool Detail Cards */
+    .tool-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tool-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .tool-name {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .tool-tag {
+      background: rgba(168, 85, 247, 0.2);
+      color: var(--accent-purple);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    /* QA Cards */
+    .qa-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .qa-question {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-pink);
+      margin-bottom: 0.75rem;
+    }
+
+    .qa-answer {
+      color: #e2e8f0;
+      font-size: 0.98rem;
+      line-height: 1.65;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1.1rem 1.3rem;
+      border-radius: 10px;
+      border-left: 4px solid var(--accent-cyan);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    th, td {
+      padding: 0.85rem 1.1rem;
+      text-align: left;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent-cyan);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+
+    tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Code & Diagrams */
+    code {
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent-pink);
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-size: 0.88rem;
+    }
+
+    pre {
+      background: #090d16;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem 0;
+    }
+
+    pre code {
+      background: transparent;
+      color: #e6edf3;
+      padding: 0;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .diagram-block {
+      background: #080c14;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.45;
+      margin: 1.5rem 0;
+    }
+
+    /* Callout Box */
+    .callout {
+      background: rgba(168, 85, 247, 0.1);
+      border-left: 4px solid var(--accent-purple);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      color: #e2e8f0;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: var(--accent-purple);
+      margin-bottom: 0.25rem;
+    }
+
+    /* Checklist Grid */
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .check-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-green);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* PRINT STYLESHEET (@media print) */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #1a202c !important;
+        padding: 0 !important;
+      }
+
+      .container {
+        max-width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        backdrop-filter: none !important;
+        padding: 0 !important;
+      }
+
+      .action-bar {
+        display: none !important;
+      }
+
+      h1 {
+        background: none !important;
+        -webkit-text-fill-color: initial !important;
+        color: #0f172a !important;
+      }
+
+      .section-block {
+        border-top-color: #cbd5e1 !important;
+      }
+
+      h2 {
+        color: #0284c7 !important;
+        page-break-after: avoid;
+      }
+
+      h3 {
+        color: #6b21a8 !important;
+        page-break-after: avoid;
+      }
+
+      .toc {
+        background: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+      }
+
+      .toc a {
+        color: #1e293b !important;
+      }
+
+      .pitch-box {
+        background: #f0f9ff !important;
+        border-color: #7dd3fc !important;
+        color: #0c4a6e !important;
+      }
+
+      .tool-card, .qa-card {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        page-break-inside: avoid;
+      }
+
+      .tool-name {
+        color: #0369a1 !important;
+      }
+
+      .qa-question {
+        color: #be185d !important;
+      }
+
+      .qa-answer {
+        background: #f8fafc !important;
+        color: #1e293b !important;
+        border-left-color: #0284c7 !important;
+      }
+
+      table {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        page-break-inside: avoid;
+      }
+
+      th {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+      }
+
+      tr:nth-child(even) {
+        background: #f8fafc !important;
+      }
+
+      code {
+        background: #f1f5f9 !important;
+        color: #0f766e !important;
+        border: 1px solid #e2e8f0;
+      }
+
+      pre {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        page-break-inside: avoid;
+      }
+
+      .diagram-block {
+        background: #f8fafc !important;
+        color: #0369a1 !important;
+        border-color: #93c5fd !important;
+        page-break-inside: avoid;
+      }
+
+      .callout {
+        background: #faf5ff !important;
+        border-left-color: #9333ea !important;
+        color: #3b0764 !important;
+      }
+
+      .check-item {
+        background: #f0fdf4 !important;
+        border-color: #86efac !important;
+        color: #14532d !important;
+      }
+
+      footer {
+        color: #64748b !important;
+        border-top-color: #e2e8f0 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header Action Bar -->
+  <div class="action-bar">
+    <div class="badge">
+      <span>🎓</span> Tunely Master Interview & Technology Guide v4.1.0
+    </div>
+    <button class="btn-print" onclick="window.print()">
+      🖨️ Save / Print as PDF
+    </button>
+  </div>
+
+  <!-- Title Section -->
+  <h1>🎵 Tunely — Complete Technical Breakdown & Master Interview Guide</h1>
+  <div class="subtitle">Categorized Tool Deep-Dives, Source Code Implementations, Performance Case Studies, and Interview Answers</div>
+
+  <div class="callout">
+    <div class="callout-title">💡 Complete Categorized Reference</div>
+    Every language, framework, API, database schema, CSS technique, algorithm, and optimization in Tunely is broken down into its own dedicated section below for easy navigation and study.
+  </div>
+
+  <!-- Master Table of Contents -->
+  <div class="toc">
+    <h3>📖 Quick Navigation Table of Contents</h3>
+    <div class="toc-grid">
+      <a href="#sec1">1. 🎤 30-Second Elevator Pitch</a>
+      <a href="#sec2">2. 🗺️ System Architecture & Data Flow</a>
+      <a href="#sec3">3. ⚛️ React 19 & Frontend Core</a>
+      <a href="#sec4">4. 🧠 State & Context API Architecture</a>
+      <a href="#sec5">5. 🎨 Design System & CSS Styling</a>
+      <a href="#sec6">6. 🎧 Audio Engineering & Web Audio EQ</a>
+      <a href="#sec7">7. 🎤 Synced LRC Lyrics Engine Code</a>
+      <a href="#sec8">8. 🌩️ Cloudflare Workers & Hono API</a>
+      <a href="#sec9">9. 🗄️ Database Engineering (D1 & KV)</a>
+      <a href="#sec10">10. 🚀 60 FPS Freezing Fix (Performance)</a>
+      <a href="#sec11">11. 🔍 Search Scoring Ranking Algorithm</a>
+      <a href="#sec12">12. 🔐 Security & Cross-Device Sync</a>
+      <a href="#sec13">13. 📦 Bundling & Deployment (Vite, Pages)</a>
+      <a href="#sec14">14. 🎯 Top 10 Technical Interview Q&As</a>
+      <a href="#sec15">15. 📌 Preparation Checklist</a>
+    </div>
+  </div>
+
+  <!-- Section 1 -->
+  <div id="sec1" class="section-block">
+    <h2>1. 🎤 30-Second Elevator Pitch</h2>
+    <p>Use this script when asked: <em>"Can you tell me about the Tunely project listed on your resume?"</em></p>
+
+    <div class="pitch-box">
+      <div class="pitch-title">🗣️ Word-for-Word Script:</div>
+      <p><em>"Tunely is a full-stack, real-time music streaming web application built with React 19, TypeScript, and a serverless edge backend hosted on Cloudflare Workers. It streams high-quality audio up to 320 kbps, features real-time line-by-line synchronized lyrics display, supports cross-device library synchronization, and includes a live Admin monitoring dashboard.</em></p>
+      <p><em>On the frontend, I used React 19, Vite, Framer Motion, and a custom Vanilla CSS design system with Glassmorphism UI tokens. For audio, I integrated the HTML5 Audio API, a custom 3-band parametric sound equalizer using the Web Audio API, and the OS Media Session API for lock screen playback controls.</em></p>
+      <p><em>On the backend, I built a zero-cold-start edge API using the Hono framework on Cloudflare Workers, Cloudflare D1 (SQLite database) for relational user storage, and Cloudflare KV for session authorization tokens and real-time active user tracking."</em></p>
+    </div>
+  </div>
+
+  <!-- Section 2 -->
+  <div id="sec2" class="section-block">
+    <h2>2. 🗺️ System Architecture & End-to-End Data Flow</h2>
+
+    <div class="diagram-block">┌─────────────────────────────────────────────────────────┐
+│                    CLIENT LAYER                         │
+│  User Browser (React 19 + Vanilla CSS + Web Audio API)   │
+│  Hosted globally on Cloudflare Pages (CDN)               │
+└────────────────────────────┬────────────────────────────┘
+                             │  HTTPS Requests (REST API)
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│                     EDGE API LAYER                      │
+│  Cloudflare Worker (Hono REST Framework + TypeScript)   │
+│  Executed serverlessly on 200+ global edge locations    │
+└──────────────┬────────────────────────────┬─────────────┘
+               │ D1 Binding                 │ KV Binding
+               ▼                            ▼
+┌────────────────────────────┐┌───────────────────────────┐
+│    DATABASE (D1 SQL)       ││   CACHE / SESSIONS (KV)   │
+│ Permanent user accounts,   ││ Session tokens (with TTL),│
+│ liked songs, playlists     ││ Live "Now Playing" pings  │
+└────────────────────────────┘└───────────────────────────┘</div>
+
+    <h3>Trace of Playing a Song:</h3>
+    <ol>
+      <li><strong>User Click</strong>: Handler <code>playTrack(track)</code> is invoked inside <code>AudioContext.jsx</code>.</li>
+      <li><strong>State Mutation</strong>: Updates <code>currentTrack</code>, sets <code>isPlaying = true</code>, and sets <code>audioRef.current.src = track.streamUrl</code>.</li>
+      <li><strong>HTML5 Audio Streaming</strong>: <code>audioRef.current.play()</code> begins streaming audio from CDN.</li>
+      <li><strong>Media Session API Integration</strong>: Updates lock screen / Android notification bar with song title, artist, and artwork.</li>
+      <li><strong>Async Lyrics Fetch</strong>: A side-effect (<code>useEffect</code>) fires an async request to <code>/api/songs/{id}/lyrics</code> via the Worker.</li>
+      <li><strong>Live Activity Heartbeat</strong>: Every 15 seconds, a heartbeat ping posts to <code>/api/user/activity</code>, writing the user's status to Cloudflare KV.</li>
+    </ol>
+  </div>
+
+  <!-- Section 3 -->
+  <div id="sec3" class="section-block">
+    <h2>3. ⚛️ React 19 & Frontend Core Tech</h2>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">React 19</span>
+        <span class="tool-tag">UI Library</span>
+      </div>
+      <p><strong>Why we used it:</strong> Declarative component-based structure, efficient virtual DOM diffing algorithm, and functional state management using Hooks.</p>
+      <p><strong>Where used:</strong> Entire frontend UI (Sidebar, PlayerBar, MainContent, SongRow, LyricsPanel, LibraryView, AdminPanel).</p>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">React Router DOM v6</span>
+        <span class="tool-tag">Client Routing</span>
+      </div>
+      <p><strong>Why we used it:</strong> Enables Single Page Application (SPA) navigation without triggering full page reloads.</p>
+      <p><strong>Routes configured:</strong> <code>/home</code>, <code>/search</code>, <code>/library</code>, <code>/playlist/:id</code>, <code>/album/:id</code>, <code>/custom/:id</code>.</p>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">Framer Motion (v12)</span>
+        <span class="tool-tag">Animation Engine</span>
+      </div>
+      <p><strong>Why we used it:</strong> Provides hardware-accelerated fluid spring animations for page route transitions, hero banner scaling, and staggered card entrances.</p>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">Lucide React</span>
+        <span class="tool-tag">Vector SVG Icons</span>
+      </div>
+      <p><strong>Why we used it:</strong> Over 1,000 clean, scalable vector SVG icon components (<code>Play</code>, <code>Pause</code>, <code>Heart</code>, <code>Search</code>, <code>Library</code>, <code>Volume2</code>, <code>Shuffle</code>, <code>Repeat</code>).</p>
+    </div>
+  </div>
+
+  <!-- Section 4 -->
+  <div id="sec4" class="section-block">
+    <h2>4. 🧠 State & Context API Architecture</h2>
+    <p>To eliminate prop-drilling across 20+ component tiers, global audio playback and authentication state are managed using React Context.</p>
+
+    <pre><code>// AudioContext State Structure (src/context/AudioContext.jsx)
+const AudioContextValue = {
+  currentTrack,     // Currently active song object metadata
+  isPlaying,        // Boolean flag (true / false)
+  currentTime,      // Current playback progress (seconds)
+  duration,         // Total track duration (seconds)
+  volume,           // Audio volume float (0.0 to 1.0)
+  likedSongs,       // Array of liked song objects & IDs
+  queue,            // Upcoming auto-play queue list
+  playTrack,        // Method to switch active track
+  togglePlay,       // Method to pause/resume playback
+  toggleLikeTrack   // Method to add/remove from liked songs
+};</code></pre>
+
+    <h3>Custom Hooks:</h3>
+    <ul>
+      <li><code>useAudio()</code>: Hook providing components access to playback state and control handlers.</li>
+      <li><code>useAuth()</code>: Hook managing user session token, profile data, and login/logout methods.</li>
+    </ul>
+  </div>
+
+  <!-- Section 5 -->
+  <div id="sec5" class="section-block">
+    <h2>5. 🎨 Design System & CSS Styling</h2>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">Vanilla CSS & Design Tokens</span>
+        <span class="tool-tag">Styling System</span>
+      </div>
+      <p>Built using CSS Custom Properties (variables) defined in <code>src/index.css</code> for global dark-mode theme colors (<code>--primary</code>, <code>--bg-dark</code>, <code>--panel-bg</code>) and typography scales.</p>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">Glassmorphism UI</span>
+        <span class="tool-tag">Visual Aesthetic</span>
+      </div>
+      <p>Achieved using <code>backdrop-filter: blur(32px)</code>, semi-transparent background colors (<code>rgba(22, 27, 34, 0.75)</code>), and subtle 1px white borders (<code>rgba(255, 255, 255, 0.12)</code>) for a sleek, premium interface.</p>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-header">
+        <span class="tool-name">Google Fonts Typography Suite</span>
+        <span class="tool-tag">Typography</span>
+      </div>
+      <ul>
+        <li><strong>Plus Jakarta Sans</strong>: Main body text & UI labels.</li>
+        <li><strong>Space Grotesk</strong>: Techy display section headings.</li>
+        <li><strong>Outfit</strong>: Secondary title headings.</li>
+        <li><strong>JetBrains Mono</strong>: Timers (`3:45 / 4:20`) and bitrate badges.</li>
+        <li><strong>EB Garamond</strong>: Classic brand logo title font.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Section 6 -->
+  <div id="sec6" class="section-block">
+    <h2>6. 🎧 Audio Engineering & Web Audio EQ</h2>
+
+    <h3>1. HTML5 Audio API vs Web Audio API</h3>
+    <ul>
+      <li><strong>HTML5 Audio API (<code>new Audio()</code>)</strong>: Used for streaming, buffering, duration tracking, and listening to media events (<code>play</code>, <code>pause</code>, <code>timeupdate</code>, <code>ended</code>).</li>
+      <li><strong>Web Audio API (3-Band Equalizer)</strong>:
+        <pre><code>// 3-Band Parametric EQ Implementation:
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const source = audioCtx.createMediaElementSource(audioRef.current);
+
+// Sub-Bass Filter (Low Shelf @ 80 Hz, +1.5 dB)
+const bassFilter = audioCtx.createBiquadFilter();
+bassFilter.type = 'lowshelf';
+bassFilter.frequency.value = 80;
+bassFilter.gain.value = 1.5;
+
+// Presence Filter (Peaking @ 3000 Hz, +1.0 dB)
+const presenceFilter = audioCtx.createBiquadFilter();
+presenceFilter.type = 'peaking';
+presenceFilter.frequency.value = 3000;
+presenceFilter.gain.value = 1.0;
+
+// Air Filter (High Shelf @ 15000 Hz, +1.5 dB)
+const airFilter = audioCtx.createBiquadFilter();
+airFilter.type = 'highshelf';
+airFilter.frequency.value = 15000;
+airFilter.gain.value = 1.5;
+
+// Connect audio nodes in series: source -> bass -> presence -> air -> speakers
+source.connect(bassFilter);
+bassFilter.connect(presenceFilter);
+presenceFilter.connect(airFilter);
+airFilter.connect(audioCtx.destination);</code></pre>
+      </li>
+    </ul>
+
+    <h3>2. Media Session API Integration</h3>
+    <p>Provides native OS lock screen controls on Android, iOS, and desktop operating systems:</p>
+    <pre><code>if ('mediaSession' in navigator) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: track.name,
+    artist: track.artists.primary[0]?.name,
+    album: track.album.name,
+    artwork: [{ src: track.image[2].url, sizes: '500x500', type: 'image/jpeg' }]
+  });
+
+  navigator.mediaSession.setActionHandler('play', () => togglePlay());
+  navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+  navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
+}</code></pre>
+  </div>
+
+  <!-- Section 7 -->
+  <div id="sec7" class="section-block">
+    <h2>7. 🎤 Synced LRC Lyrics Engine Code</h2>
+    <p>Parses LRC timestamped strings into a synchronized lyrics timeline:</p>
+
+    <pre><code>// 1. LRC Regex Parsing Function
+const parseLyrics = (lrcString) => {
+  if (!lrcString) return [];
+  const lines = lrcString.split('\n');
+  const result = [];
+  const regex = /^\[(\d{2}):(\d{2}\.\d{2})\](.*)/;
+
+  for (const line of lines) {
+    const match = line.match(regex);
+    if (match) {
+      const minutes = parseFloat(match[1]);
+      const seconds = parseFloat(match[2]);
+      const totalTime = minutes * 60 + seconds;
+      const text = match[3].trim();
+      if (text) result.push({ time: totalTime, text });
+    }
+  }
+  return result;
+};
+
+// 2. Active Line Synchronization Logic
+const activeIndex = useMemo(() => {
+  return parsedLines.findIndex((line, i) => {
+    const nextLine = parsedLines[i + 1];
+    return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
+  });
+}, [parsedLines, currentTime]);
+
+// 3. Auto-scroll active line into view
+useEffect(() => {
+  if (activeLineRef.current) {
+    activeLineRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}, [activeIndex]);</code></pre>
+  </div>
+
+  <!-- Section 8 -->
+  <div id="sec8" class="section-block">
+    <h2>8. 🌩️ Cloudflare Workers & Hono API Framework</h2>
+    <ul>
+      <li><strong>Cloudflare Workers</strong>: Serverless runtime executing code on Cloudflare's global edge network in V8 isolates with <strong>&lt; 5ms startup latency</strong>.</li>
+      <li><strong>Hono Framework</strong>: Lightweight router for Workers with full TypeScript type safety.</li>
+    </ul>
+
+    <pre><code>// Hono Worker Router Example (jiosaavn-api/src/server.ts)
+import { Hono } from 'hono';
+
+const app = new Hono();
+
+// Search endpoint proxy
+app.get('/api/search/songs', async (c) => {
+  const query = c.req.query('query');
+  const response = await fetch(`https://www.jiosaavn.com/api.php?__call=autocomplete.get&query=${query}`);
+  const data = await response.json();
+  return c.json(data);
+});
+
+export default app;</code></pre>
+  </div>
+
+  <!-- Section 9 -->
+  <div id="sec9" class="section-block">
+    <h2>9. 🗄️ Database Engineering (D1 & KV)</h2>
+
+    <h3>1. Cloudflare D1 (Relational SQLite)</h3>
+    <pre><code>-- Users Schema
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  is_admin INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Liked Songs Relational Table
+CREATE TABLE liked_songs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  song_id TEXT NOT NULL,
+  song_data TEXT NOT NULL, -- Stored as JSON string
+  liked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);</code></pre>
+
+    <h3>2. Cloudflare KV (Key-Value Store)</h3>
+    <p>Used for session authorization tokens and real-time user activity heartbeats with automatic <strong>TTL (Time-To-Live)</strong> expiration.</p>
+    <ul>
+      <li><code>session:{token}</code> → Stores User ID + Email (Expires in 7 days).</li>
+      <li><code>activity:{userId}</code> → Stores current playing song + device type (Expires in 5 minutes).</li>
+    </ul>
+  </div>
+
+  <!-- Section 10 -->
+  <div id="sec10" class="section-block">
+    <h2>10. 🚀 60 FPS Freezing Fix (Performance Engineering)</h2>
+
+    <div class="callout">
+      <div class="callout-title">🔥 Critical Performance Case Study</div>
+      <strong>The Issue:</strong> Browser audio <code>timeupdate</code> fired 60 times/second (~60 Hz). Updating React state on every frame triggered 60 global re-renders per second, locking up the main UI thread.
+    </div>
+
+    <h3>The 4-Part Optimization Solution:</h3>
+    <ol>
+      <li><strong>250ms Timestamp Throttling</strong>:
+        <pre><code>// Throttled timeupdate listener in AudioContext:
+const now = Date.now();
+if (now - lastUpdateRef.current >= 250) {
+  setCurrentTime(audioRef.current.currentTime);
+  lastUpdateRef.current = now;
+}</code></pre>
+        <em>Result: Reduced global re-renders by &gt;90% (from 60/sec down to 4/sec).</em>
+      </li>
+      <li><strong>Context Value Memoization (<code>useMemo</code>)</strong>: Prevents re-renders of non-consuming child components.</li>
+      <li><strong>Hidden Component Short-Circuiting</strong>: Added <code>if (!isOpen) return null;</code> in <code>LyricsPanel.jsx</code> to bypass DOM diffing when hidden.</li>
+      <li><strong>Handler Stabilization (<code>useCallback</code>)</strong>: Stabilizes function references passed to memoized child components.</li>
+    </ol>
+  </div>
+
+  <!-- Section 11 -->
+  <div id="sec11" class="section-block">
+    <h2>11. 🔍 Search Scoring & Ranking Algorithm</h2>
+    <p>Multi-token relevance scoring algorithm for combined queries (e.g. <em>"Kalyani Shreya Ghoshal"</em>):</p>
+
+    <pre><code>function scoreTrack(track, query) {
+  const queryTokens = query.toLowerCase().split(/\s+/);
+  const title = track.name.toLowerCase();
+  const artist = track.artists.primary.map(a => a.name).join(' ').toLowerCase();
+  const combined = `${title} ${artist}`;
+
+  let score = 0;
+
+  // 1. Exact Title Match Bonus
+  if (title === query.toLowerCase()) score += 120;
+
+  // 2. All Tokens Found Across Title + Artist Combined
+  const allTokensFound = queryTokens.every(token => combined.includes(token));
+  if (allTokensFound) score += 80;
+
+  // 3. Individual Token Score Contributions
+  queryTokens.forEach(token => {
+    if (title.includes(token)) score += 20;
+    if (artist.includes(token)) score += 15;
+  });
+
+  // 4. Logarithmic Play Count Boost
+  if (track.playCount) {
+    score += Math.min(30, Math.log10(Number(track.playCount)) * 5);
+  }
+
+  return score;
+}</code></pre>
+  </div>
+
+  <!-- Section 12 -->
+  <div id="sec12" class="section-block">
+    <h2>12. 🔐 Security & Cross-Device Sync</h2>
+    <ul>
+      <li><strong>Password Hashing</strong>: Passwords hashed with bcrypt on server side before D1 storage.</li>
+      <li><strong>Optimistic UI + 8s Sync Loop</strong>: Instant local updates + background polling interval every 8 seconds comparing server timestamps.</li>
+      <li><strong>XSS Protection</strong>: React JSX automatic string escaping + no usage of <code>dangerouslySetInnerHTML</code>.</li>
+    </ul>
+  </div>
+
+  <!-- Section 13 -->
+  <div id="sec13" class="section-block">
+    <h2>13. 📦 Bundling & Deployment Architecture</h2>
+    <ul>
+      <li><strong>Cloudflare Pages</strong>: Frontend static asset CDN deployment.</li>
+      <li><strong>Wrangler CLI</strong>: Command line deployment tool (<code>npx wrangler pages deploy dist</code>).</li>
+      <li><strong>Git Release Workflow</strong>: Pushed across <code>main</code> and <code>stable-release</code> branches with version tags (<code>v4.1.0-stable</code>).</li>
+    </ul>
+  </div>
+
+  <!-- Section 14 -->
+  <div id="sec14" class="section-block">
+    <h2>14. 🎯 Top 10 Technical Interview Q&As</h2>
+
+    <div class="qa-card">
+      <div class="qa-question">Q1: Why did you choose Cloudflare Workers over Node.js on AWS?</div>
+      <div class="qa-answer">"Cloudflare Workers run on V8 JavaScript isolates across 200+ edge locations globally. This gives us sub-5ms latency and zero cold starts, whereas traditional containerized serverless functions suffer 500ms+ cold starts when idle."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q2: How did you fix performance bottlenecks in your music app?</div>
+      <div class="qa-answer">"Audio timeupdate events fired 60 times/second, causing 60 re-renders per second. I resolved this by throttling state updates to 250ms intervals, memoizing the Context Provider value with useMemo, and short-circuiting hidden components, reducing CPU overhead by >90%."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q3: How do you handle password security and authentication?</div>
+      <div class="qa-answer">"Passwords are hashed with bcrypt before saving to D1 SQL. Authenticated users receive a random session token saved in Cloudflare KV with automated TTL expiration, attached as a Bearer header on protected requests."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q4: How does cross-device synchronization work?</div>
+      <div class="qa-answer">"We use an optimistic local-first strategy combined with an 8-second background polling cycle that compares D1 timestamps and updates local state if newer data exists on the server."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q5: How do you manage gapless track playback?</div>
+      <div class="qa-answer">"When the current song reaches 90% completion, a preloader instantiates a secondary Audio object to buffer the next stream URL in advance, ensuring instant playback when the ended event fires."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q6: What is the difference between Cloudflare D1 and KV in your app?</div>
+      <div class="qa-answer">"D1 is a relational SQLite database used for structured user data, liked songs, and playlists. KV is an in-memory key-value cache with TTL expiration used for session tokens and active user heartbeats."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q7: Why use Vanilla CSS over Tailwind CSS or CSS-in-JS?</div>
+      <div class="qa-answer">"Vanilla CSS with Custom Properties provides total control over glassmorphism filters and strict media queries without the JavaScript runtime overhead or bundle bloat of CSS-in-JS."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q8: How does your search engine handle multi-word queries?</div>
+      <div class="qa-answer">"We built a multi-token ranking engine that tokenizes queries and scores tracks based on exact title matches, combined artist-title token hits, and logarithmic play count popularity weighting."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q9: How do you prevent XSS security attacks?</div>
+      <div class="qa-answer">"React JSX automatically escapes string variables before DOM insertion. We also sanitize user input and avoid dangerous APIs like dangerouslySetInnerHTML."</div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-question">Q10: How do you ensure the mobile UI works cleanly?</div>
+      <div class="qa-answer">"We isolated mobile media queries at 768px, transforming the sidebar into a touch-friendly drawer, adjusting player bottom padding to 200px to prevent control overlap, and bypassing Web Audio API filters to conserve mobile battery."</div>
+    </div>
+  </div>
+
+  <!-- Section 15 -->
+  <div id="sec15" class="section-block">
+    <h2>15. 📌 Preparation Checklist</h2>
+    <div class="checklist-grid">
+      <div class="check-item">✔ Elevator Pitch Memorized</div>
+      <div class="check-item">✔ 3-Tier Architecture Diagram Clear</div>
+      <div class="check-item">✔ React 19 State & Context API Mastered</div>
+      <div class="check-item">✔ Workers vs Lambda Cold Start Ready</div>
+      <div class="check-item">✔ D1 SQL vs KV Store Differences Clear</div>
+      <div class="check-item">✔ 250ms Throttle Performance Fix Ready</div>
+      <div class="check-item">✔ Web Audio API 3-Band EQ Understood</div>
+      <div class="check-item">✔ LRC Synced Lyrics Regex Parsing Ready</div>
+      <div class="check-item">✔ Search Scoring Algorithm Code Memorized</div>
+      <div class="check-item">✔ Top 10 Technical Q&As Practiced</div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Tunely Master Technical Breakdown & Interview Guide — Created for Aditya Patil</p>
+    <p>Live Web Application: <strong>https://tunely.pages.dev</strong></p>
+  </footer>
+
+</div>
+
+</body>
+</html>
