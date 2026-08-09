@@ -49,6 +49,7 @@ export const AudioProvider = ({ children }) => {
   const userInitiatedPauseRef = useRef(false);
   const wasPlayingBeforeInterruptionRef = useRef(false);
   const isSystemInterruptedRef = useRef(false);
+  const userQueuedCountRef = useRef(0);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
     return localStorage.getItem('tunely_audio_quality') || '320kbps';
@@ -754,6 +755,7 @@ export const AudioProvider = ({ children }) => {
     let newIndex;
 
     if (newQueue.length > 0) {
+      userQueuedCountRef.current = 0;
       updatedQueue = newQueue;
       newIndex = updatedQueue.findIndex(t => t.id === track.id);
     } else {
@@ -818,6 +820,9 @@ export const AudioProvider = ({ children }) => {
   };
 
   const nextTrack = () => {
+    if (userQueuedCountRef.current > 0) {
+      userQueuedCountRef.current -= 1;
+    }
     const nextIdx = getNextIndex();
     if (nextIdx !== -1) {
       playTrackAtIndex(nextIdx);
@@ -863,10 +868,12 @@ export const AudioProvider = ({ children }) => {
   const addToQueue = (track) => {
     setQueue(prev => {
       const updated = [...prev];
-      const insertPos = currentIndex === -1 ? 0 : currentIndex + 1;
+      const basePos = currentIndex === -1 ? 0 : currentIndex + 1;
+      const insertPos = Math.min(updated.length, basePos + userQueuedCountRef.current);
       updated.splice(insertPos, 0, track);
       return updated;
     });
+    userQueuedCountRef.current += 1;
   };
 
   const removeFromQueue = (index) => {
@@ -1138,14 +1145,48 @@ export const AudioProvider = ({ children }) => {
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
-    const actionHandlers = [
-      ['play', () => {
-        initWebAudio();
-        audioRef.current.play().catch(e => console.error("MediaSession play failed:", e));
-      }],
-      ['pause', () => {
+    const handleMediaPlay = async () => {
+      userInitiatedPauseRef.current = false;
+      wasPlayingBeforeInterruptionRef.current = false;
+      isSystemInterruptedRef.current = false;
+
+      initWebAudio();
+      if (webAudioContextRef.current && webAudioContextRef.current.state === 'suspended') {
+        try {
+          await webAudioContextRef.current.resume();
+        } catch (e) {
+          console.warn("WebAudio resume on mediaSession play failed:", e);
+        }
+      }
+
+      if (audioRef.current) {
+        audioRef.current.volume = volumeRef.current;
+        audioRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = "playing";
+            }
+            fadeInVolume();
+          })
+          .catch(e => console.error("MediaSession play failed:", e));
+      }
+    };
+
+    const handleMediaPause = () => {
+      userInitiatedPauseRef.current = true;
+      if (audioRef.current) {
         audioRef.current.pause();
-      }],
+        setIsPlaying(false);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
+      }
+    };
+
+    const actionHandlers = [
+      ['play', handleMediaPlay],
+      ['pause', handleMediaPause],
       ['previoustrack', prevTrack],
       ['nexttrack', nextTrack],
       ['seekto', (details) => {

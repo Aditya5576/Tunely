@@ -1973,8 +1973,15 @@ export default function MainContent({
                       e.stopPropagation();
                       if (confirm(`Are you sure you want to delete "${playlist.name}"?`)) {
                         const updated = customPlaylists.filter(p => p.id !== playlist.id);
+                        const now = new Date().toISOString();
                         setCustomPlaylists(updated);
                         localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+                        localStorage.setItem('tunely_custom_playlists_updated_at', now);
+                        
+                        if (authFetch) {
+                          authFetch(`${API_BASE}/api/user/playlists/${playlist.id}`, { method: 'DELETE' })
+                            .catch(err => console.warn("Failed to delete playlist on server:", err));
+                        }
                       }
                     }}
                     style={{ position: 'absolute', top: 22, right: 22, width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}

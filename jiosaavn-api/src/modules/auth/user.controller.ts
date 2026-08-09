@@ -292,48 +292,52 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
   const { playlists: localPlaylists = [], localUpdatedAt } = body
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
-  // Get overall update timestamp from KV to accurately track deletions
-  let serverUpdatedAt = kv ? await kv.get(`user:${userId}:playlists_updated_at`) : null
-  const isKvMissing = !serverUpdatedAt
-  if (isKvMissing) {
-    const latestRow = await db.prepare(
-      'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
-    ).bind(userId).first() as any
-    serverUpdatedAt = latestRow?.latest || null
-  }
+  const latestRow = await db.prepare(
+    'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
+  ).bind(userId).first() as any
+  const serverUpdatedAt = latestRow?.latest || null
 
   const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
 
-  // Check if server is empty for this user (handles first-sync cold starts)
   const serverCountRow = await db.prepare(
     'SELECT COUNT(1) as count FROM playlists WHERE user_id = ?'
   ).bind(userId).first() as any
   const serverCount = serverCountRow?.count || 0
 
-  if ((localTs > serverTs || serverCount === 0) && localPlaylists.length > 0) {
-    // Local is newer — upsert all local playlists to server
-    const stmt = db.prepare(
-      `INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, songs = excluded.songs, updated_at = excluded.updated_at`
-    )
-    const batch = localPlaylists.map((pl: any) =>
-      stmt.bind(pl.id, userId, pl.name, JSON.stringify(pl.songs || []), localUpdatedAt || new Date().toISOString(), pl.createdAt || localUpdatedAt || new Date().toISOString())
-    )
-    await db.batch(batch)
+  // Local is newer OR server is empty and client has local data -> sync local state to server
+  if (localTs >= serverTs || (serverCount === 0 && localPlaylists.length > 0)) {
+    const nowTs = new Date().toISOString()
+    const activeIds = localPlaylists.map((pl: any) => pl.id).filter(Boolean)
 
-    const newTs = localUpdatedAt || new Date().toISOString()
-    if (kv) {
-      await safeKvPut(kv, `user:${userId}:playlists_updated_at`, newTs)
+    if (localPlaylists.length > 0) {
+      const stmt = db.prepare(
+        `INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, songs = excluded.songs, updated_at = excluded.updated_at`
+      )
+      const batch = localPlaylists.map((pl: any) =>
+        stmt.bind(pl.id, userId, pl.name, JSON.stringify(pl.songs || []), localUpdatedAt || nowTs, pl.createdAt || localUpdatedAt || nowTs)
+      )
+      await db.batch(batch)
     }
 
+    // Purge deleted playlists from D1 database
+    if (activeIds.length > 0) {
+      const placeholders = activeIds.map(() => '?').join(',')
+      await db.prepare(
+        `DELETE FROM playlists WHERE user_id = ? AND id NOT IN (${placeholders})`
+      ).bind(userId, ...activeIds).run()
+    } else {
+      await db.prepare('DELETE FROM playlists WHERE user_id = ?').bind(userId).run()
+    }
+
+    const newTs = localUpdatedAt || nowTs
     return c.json({ success: true, data: { source: 'local', playlists: localPlaylists, serverUpdatedAt: newTs } })
   }
 
-  // Server is newer or equal — return server playlists
+  // Server is newer -> return server playlists
   const rows = await db.prepare(
     'SELECT id, name, songs, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(userId).all()
@@ -346,11 +350,6 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
     createdAt: r.created_at,
     type: 'custom'
   }))
-
-  // Initialize KV if missing
-  if (serverUpdatedAt && kv && isKvMissing) {
-    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, serverUpdatedAt)
-  }
 
   return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists, serverUpdatedAt } })
 })
