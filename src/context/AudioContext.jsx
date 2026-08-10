@@ -20,12 +20,32 @@ const LYRICS_FALLBACK = {
 export const AudioProvider = ({ children }) => {
   const { user, token, isLoggedIn, isLoading, authFetch } = useAuth() || {};
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState(null);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTrack, setCurrentTrack] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tunely_current_track');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [currentTime, setCurrentTime] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tunely_current_time');
+      return saved ? parseFloat(saved) : 0;
+    } catch { return 0; }
+  });
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
-  const [queue, setQueue] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [queue, setQueue] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tunely_queue');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tunely_current_index');
+      return saved !== null ? parseInt(saved, 10) : -1;
+    } catch { return -1; }
+  });
   const [loopMode, setLoopMode] = useState('none'); // 'none' | 'all' | 'one'
   const [isShuffle, setIsShuffle] = useState(false);
   const [shuffledIndices, setShuffledIndices] = useState([]);
@@ -103,6 +123,33 @@ export const AudioProvider = ({ children }) => {
       });
     }
   }, [currentTrack]);
+
+  // Persist Player State to localStorage so song is NEVER lost on tab refresh or background pause
+  useEffect(() => {
+    if (currentTrack) {
+      localStorage.setItem('tunely_current_track', JSON.stringify(currentTrack));
+    } else {
+      localStorage.removeItem('tunely_current_track');
+    }
+  }, [currentTrack]);
+
+  useEffect(() => {
+    if (queue && queue.length > 0) {
+      localStorage.setItem('tunely_queue', JSON.stringify(queue));
+    }
+  }, [queue]);
+
+  useEffect(() => {
+    if (currentIndex !== -1) {
+      localStorage.setItem('tunely_current_index', currentIndex.toString());
+    }
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (currentTime > 0) {
+      localStorage.setItem('tunely_current_time', currentTime.toString());
+    }
+  }, [currentTime]);
 
   // Sleep Timer States & Refs
   const [sleepTimer, setSleepTimer] = useState(null); // value in minutes
@@ -610,68 +657,83 @@ export const AudioProvider = ({ children }) => {
   const resumePlaybackAfterInterruption = async () => {
     if (!wasPlayingBeforeInterruptionRef.current || !currentTrack) return;
 
-    // 1. Resume Web Audio context if suspended by OS during phone call
-    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-      try {
-        await audioContextRef.current.resume();
-      } catch (e) {
-        console.warn("Failed to resume Web Audio context after call:", e);
-      }
-    }
-
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    // 2. Check if stream connection stalled or errored during call
-    if (audio.error || !audio.src || audio.readyState === 0) {
-      const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
-      if (streamUrl) {
-        const savedTime = audio.currentTime || currentTime;
-        audio.src = streamUrl;
-        audio.load();
-        audio.currentTime = savedTime;
-      }
-    }
-
-    // 3. Reset user initiated pause flag & attempt auto-resume playback
     userInitiatedPauseRef.current = false;
-    try {
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        await playPromise;
-        setIsPlaying(true);
-        wasPlayingBeforeInterruptionRef.current = false;
-        isSystemInterruptedRef.current = false;
-        fadeInVolume();
-        console.log("Audio playback successfully auto-resumed after call interruption.");
-      }
-    } catch (err) {
-      console.warn("Auto-resume after call blocked by browser autoplay policy. Waiting for user touch:", err);
-      
-      // Register one-time interaction listeners so playback resumes instantly on first screen touch
-      const handleFirstTouch = () => {
-        window.removeEventListener('pointerdown', handleFirstTouch);
-        window.removeEventListener('touchstart', handleFirstTouch);
-        window.removeEventListener('click', handleFirstTouch);
-        
-        if (wasPlayingBeforeInterruptionRef.current) {
-          userInitiatedPauseRef.current = false;
-          audio.play()
-            .then(() => {
-              setIsPlaying(true);
-              wasPlayingBeforeInterruptionRef.current = false;
-              isSystemInterruptedRef.current = false;
-              fadeInVolume();
-              console.log("Audio playback auto-resumed on touch after call interruption.");
-            })
-            .catch(e => console.error("Touch resume failed:", e));
-        }
-      };
+    let attempts = 0;
+    const maxAttempts = 6;
 
-      window.addEventListener('pointerdown', handleFirstTouch, { once: true });
-      window.addEventListener('touchstart', handleFirstTouch, { once: true });
-      window.addEventListener('click', handleFirstTouch, { once: true });
-    }
+    const attemptPlay = async () => {
+      attempts++;
+      // 1. Resume Web Audio context if suspended by OS during phone call
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        try {
+          await audioContextRef.current.resume();
+        } catch (e) {
+          console.warn("Failed to resume Web Audio context after call:", e);
+        }
+      }
+
+      const audio = audioRef.current;
+      if (!audio) return false;
+
+      // 2. Check if stream connection stalled or errored during call
+      if (audio.error || !audio.src || audio.readyState === 0) {
+        const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
+        if (streamUrl) {
+          const savedTime = audio.currentTime || currentTime;
+          audio.src = streamUrl;
+          audio.load();
+          audio.currentTime = savedTime;
+        }
+      }
+
+      try {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          setIsPlaying(true);
+          wasPlayingBeforeInterruptionRef.current = false;
+          isSystemInterruptedRef.current = false;
+          fadeInVolume();
+          console.log(`Audio playback successfully auto-resumed after call (attempt ${attempts}).`);
+          return true;
+        }
+      } catch (err) {
+        console.warn(`Call recovery play attempt ${attempts} rejected (OS audio focus in transition):`, err);
+        return false;
+      }
+      return false;
+    };
+
+    // Immediate attempt
+    const success = await attemptPlay();
+    if (success) return;
+
+    // Retry loop every 400ms while OS releases audio focus after phone call
+    const retryInterval = setInterval(async () => {
+      if (attempts >= maxAttempts || !wasPlayingBeforeInterruptionRef.current) {
+        clearInterval(retryInterval);
+        return;
+      }
+      const res = await attemptPlay();
+      if (res) {
+        clearInterval(retryInterval);
+      }
+    }, 400);
+
+    // Fallback: Also register one-time interaction listeners so playback resumes instantly on first screen touch
+    const handleFirstTouch = () => {
+      window.removeEventListener('pointerdown', handleFirstTouch);
+      window.removeEventListener('touchstart', handleFirstTouch);
+      window.removeEventListener('click', handleFirstTouch);
+      
+      if (wasPlayingBeforeInterruptionRef.current) {
+        attemptPlay();
+      }
+    };
+
+    window.addEventListener('pointerdown', handleFirstTouch, { once: true });
+    window.addEventListener('touchstart', handleFirstTouch, { once: true });
+    window.addEventListener('click', handleFirstTouch, { once: true });
   };
 
   // Handles playing a track at a specific index in the queue
