@@ -272,7 +272,7 @@ export default function MainContent({
 }) {
   const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed, isShuffle, toggleShuffle } = useAudio();
   const navigate = useNavigate();
-  const { user } = useAuth() || {};
+  const { user, authFetch } = useAuth() || {};
 
   const handleHardRefresh = () => {
     if ('serviceWorker' in navigator) {

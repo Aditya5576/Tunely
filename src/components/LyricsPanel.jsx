@@ -7,8 +7,6 @@ export default function LyricsPanel() {
   const { currentTrack, lyrics, isLoadingLyrics, isLyricsVisible, setIsLyricsVisible, currentTime, duration } = useAudio();
   const activeLineRef = useRef(null);
 
-  if (!isLyricsVisible) return null;
-
   const parsedLines = useMemo(() => {
     return parseLyrics(lyrics, duration);
   }, [lyrics, duration]);
@@ -27,13 +25,15 @@ export default function LyricsPanel() {
   }, [parsedLines, currentTime]);
 
   useEffect(() => {
-    if (activeLineRef.current) {
+    if (isLyricsVisible && activeLineRef.current) {
       activeLineRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
       });
     }
-  }, [activeIndex]);
+  }, [activeIndex, isLyricsVisible]);
+
+  if (!isLyricsVisible) return null;
 
   return (
     <div className="lyrics-panel glass-panel">
