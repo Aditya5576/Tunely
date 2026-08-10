@@ -1201,7 +1201,20 @@ export const AudioProvider = ({ children }) => {
     }
 
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-  }, [currentTrack, isPlaying]);
+
+    // Sync position state so lock screen, screensaver, and bluetooth controls render scrub bar & controls
+    if ('setPositionState' in navigator.mediaSession && duration > 0 && !isNaN(duration)) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: audioRef.current ? audioRef.current.playbackRate || 1 : 1,
+          position: Math.min(currentTime, duration)
+        });
+      } catch (e) {
+        // ignore position state sync warnings
+      }
+    }
+  }, [currentTrack, isPlaying, duration, currentTime]);
 
   // Handle Media Session Action Handlers
   useEffect(() => {
@@ -1213,15 +1226,25 @@ export const AudioProvider = ({ children }) => {
       isSystemInterruptedRef.current = false;
 
       initWebAudio();
-      if (webAudioContextRef.current && webAudioContextRef.current.state === 'suspended') {
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
         try {
-          await webAudioContextRef.current.resume();
+          await audioContextRef.current.resume();
         } catch (e) {
           console.warn("WebAudio resume on mediaSession play failed:", e);
         }
       }
 
       if (audioRef.current) {
+        // Refresh stream if stalled or errored during background pause
+        if (audioRef.current.error || !audioRef.current.src || audioRef.current.readyState === 0) {
+          const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
+          if (streamUrl) {
+            audioRef.current.src = streamUrl;
+            audioRef.current.load();
+            audioRef.current.currentTime = currentTime;
+          }
+        }
+
         audioRef.current.volume = volumeRef.current;
         audioRef.current.play()
           .then(() => {
