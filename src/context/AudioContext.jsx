@@ -542,18 +542,9 @@ export const AudioProvider = ({ children }) => {
     if (isShuffle && shuffledIndices.length > 0) {
       const nextShuffledIdx = shuffledCurrentIndex + 1;
       if (nextShuffledIdx < shuffledIndices.length) {
-        setShuffledCurrentIndex(nextShuffledIdx);
         return shuffledIndices[nextShuffledIdx];
       } else if (loopMode === 'all') {
-        // Re-shuffle for next loop
-        const indices = Array.from({ length: queue.length }, (_, i) => i);
-        for (let i = indices.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [indices[i], indices[j]] = [indices[j], indices[i]];
-        }
-        setShuffledIndices(indices);
-        setShuffledCurrentIndex(0);
-        return indices[0];
+        return shuffledIndices[0];
       }
       return -1;
     }
@@ -575,10 +566,8 @@ export const AudioProvider = ({ children }) => {
     if (isShuffle && shuffledIndices.length > 0) {
       const prevShuffledIdx = shuffledCurrentIndex - 1;
       if (prevShuffledIdx >= 0) {
-        setShuffledCurrentIndex(prevShuffledIdx);
         return shuffledIndices[prevShuffledIdx];
       } else if (loopMode === 'all') {
-        setShuffledCurrentIndex(shuffledIndices.length - 1);
         return shuffledIndices[shuffledIndices.length - 1];
       }
       return -1;
