@@ -1144,10 +1144,6 @@ function AdminDashboard({ onLogout }) {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.97); } }
         @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes soundwave {
-          0% { height: 4px; }
-          100% { height: 16px; }
-        }
       `}</style>
 
       {/* Header */}

@@ -1110,8 +1110,8 @@ const decodeHtml = (text) => {
           height: 100vh;
           height: 100dvh;
           background: rgba(6, 6, 9, 0.88);
-          backdrop-filter: blur(35px) saturate(160%);
-          -webkit-backdrop-filter: blur(35px) saturate(160%);
+          backdrop-filter: blur(12px) saturate(120%);
+          -webkit-backdrop-filter: blur(12px) saturate(120%);
           z-index: 2000;
           display: flex;
           flex-direction: column;
@@ -1134,10 +1134,10 @@ const decodeHtml = (text) => {
           inset: 0;
           background-size: cover;
           background-position: center;
-          filter: blur(60px) brightness(0.3);
+          filter: blur(20px) brightness(0.3);
           opacity: 0.5;
           z-index: 0;
-          transform: scale(1.15) translate3d(0,0,0);
+          transform: scale(1.05) translate3d(0,0,0);
           transition: background-image 0.8s cubic-bezier(0.25, 1, 0.5, 1);
           pointer-events: none;
         }
