@@ -31,4 +31,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: tunely
           directory: dist
-          gitToProjectbranch: main
+          branch: main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
