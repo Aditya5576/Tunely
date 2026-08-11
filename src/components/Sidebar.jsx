@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import TunelyLogo from './TunelyLogo';
+import { forceSafariCachePurge } from '../utils/versionCheck';
 
 const PRE_CONFIGURED_PLAYLISTS = [
   { id: '1079336813', name: 'Chill Lo-Fi Mix', type: 'playlist' },
@@ -166,16 +167,25 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
             <span>Sign in to sync</span>
           </button>
         )}
-        <div className="sidebar-dev-credit" style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', marginTop: 4 }}>
+        <div className="sidebar-dev-credit" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center', marginTop: 4 }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Developed by <span className="dev-name" style={{ color: '#fff', fontWeight: 600 }}>Aditya Patil</span></div>
-          <span 
-            className="sidebar-version-badge" 
-            onClick={onShowWhatsNew}
-            title="View latest updates"
-            style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, background: 'rgba(0, 229, 255, 0.08)', padding: '3px 10px', borderRadius: 10, border: '1px solid rgba(0, 229, 255, 0.25)', cursor: 'pointer', transition: 'all 0.2s' }}
-          >
-            v4.1.0-stable • What's New ✨
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span 
+              className="sidebar-version-badge" 
+              onClick={onShowWhatsNew}
+              title="View latest updates"
+              style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, background: 'rgba(0, 229, 255, 0.08)', padding: '3px 10px', borderRadius: 10, border: '1px solid rgba(0, 229, 255, 0.25)', cursor: 'pointer', transition: 'all 0.2s' }}
+            >
+              v4.1.0-stable • What's New ✨
+            </span>
+            <button
+              onClick={forceSafariCachePurge}
+              title="Force sync latest production build on Safari"
+              style={{ fontSize: 10, color: '#34d399', fontWeight: 700, background: 'rgba(52, 211, 153, 0.1)', padding: '3px 9px', borderRadius: 10, border: '1px solid rgba(52, 211, 153, 0.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+            >
+              ⚡ Sync Live Build
+            </button>
+          </div>
         </div>
       </div>
 
