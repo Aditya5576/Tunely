@@ -1922,7 +1922,7 @@ export default function MainContent({
                     <Heart size={160} fill="#fff" color="#fff" />
                   </div>
                   <div>
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                       <Heart size={24} fill="#ffffff" color="#ffffff" />
                     </div>
                     <h2 style={{ fontSize: 30, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', fontFamily: 'var(--font-display)' }}>Liked Songs</h2>
@@ -1984,7 +1984,7 @@ export default function MainContent({
                         }
                       }
                     }}
-                    style={{ position: 'absolute', top: 22, right: 22, width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    style={{ position: 'absolute', top: 22, right: 22, width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(255,255,255,0.1)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -2506,14 +2506,12 @@ export default function MainContent({
         .hero-banner::before {
           content: '';
           position: absolute;
-          left: -60px;
+          left: -80px;
           top: -60px;
-          width: 260px;
-          height: 260px;
+          width: 320px;
+          height: 320px;
           border-radius: 50%;
-          background: var(--primary);
-          filter: blur(120px);
-          opacity: 0.1;
+          background: radial-gradient(circle, rgba(0, 229, 255, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
           pointer-events: none;
         }
 
@@ -2522,12 +2520,10 @@ export default function MainContent({
           position: absolute;
           right: -50px;
           top: -50px;
-          width: 200px;
-          height: 200px;
+          width: 280px;
+          height: 280px;
           border-radius: 50%;
-          background: #00b0ff;
-          filter: blur(100px);
-          opacity: 0.1;
+          background: radial-gradient(circle, rgba(0, 176, 255, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
           pointer-events: none;
         }
 
@@ -3876,8 +3872,7 @@ export default function MainContent({
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(2, 3, 6, 0.85);
-          backdrop-filter: blur(10px);
+          background: rgba(2, 3, 6, 0.95);
           display: flex;
           align-items: center;
           justify-content: center;

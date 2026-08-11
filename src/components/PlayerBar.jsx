@@ -1127,10 +1127,9 @@ const decodeHtml = (text) => {
           inset: 0;
           background-size: cover;
           background-position: center;
-          filter: blur(20px) brightness(0.3);
-          opacity: 0.5;
+          opacity: 0.18;
           z-index: 0;
-          transform: scale(1.05) translate3d(0,0,0);
+          transform: translate3d(0,0,0);
           transition: background-image 0.8s cubic-bezier(0.25, 1, 0.5, 1);
           pointer-events: none;
         }

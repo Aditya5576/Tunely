@@ -296,7 +296,7 @@ export const AuthProvider = ({ children }) => {
       {bannedMessage && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 99999,
-          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
+          background: 'rgba(0,0,0,0.96)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
         }}>
           <div style={{
