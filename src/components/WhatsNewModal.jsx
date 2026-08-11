@@ -86,9 +86,7 @@ export default function WhatsNewModal({ onClose }) {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(4, 5, 10, 0.75);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(4, 5, 10, 0.88);
           z-index: 9999;
           display: flex;
           align-items: center;

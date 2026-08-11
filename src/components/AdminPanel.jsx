@@ -766,12 +766,11 @@ function AdminDashboard({ onLogout }) {
           max-width: 1400px;
           margin: 0 auto;
           min-height: 74px;
-          background: rgba(8, 10, 18, 0.85);
+          background: rgba(8, 10, 18, 0.98);
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;
           z-index: 100;
-          backdrop-filter: blur(30px);
           width: 100%;
           box-sizing: border-box;
         }
@@ -792,11 +791,10 @@ function AdminDashboard({ onLogout }) {
           width: 100%;
         }
         .stat-card {
-          background: rgba(12, 14, 26, 0.75);
+          background: rgba(12, 14, 26, 0.95);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 20px;
           padding: 22px 24px;
-          backdrop-filter: blur(20px);
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
           display: flex;
@@ -869,11 +867,10 @@ function AdminDashboard({ onLogout }) {
           width: 100%;
         }
         .user-directory-card {
-          background: rgba(10, 12, 22, 0.75);
+          background: rgba(10, 12, 22, 0.95);
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 24px;
           overflow: hidden;
-          backdrop-filter: blur(24px);
           box-shadow: 0 12px 40px rgba(0,0,0,0.35);
         }
         .user-row-desktop {
