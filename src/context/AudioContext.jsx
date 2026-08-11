@@ -1205,7 +1205,21 @@ export const AudioProvider = ({ children }) => {
     }
   }, [currentTrack, isPlaying, duration, currentTime]);
 
-  // Handle Media Session Action Handlers
+  const currentTrackRef = useRef(currentTrack);
+  const audioQualityRef = useRef(audioQuality);
+  const currentTimeRef = useRef(currentTime);
+  const nextTrackRef = useRef(nextTrack);
+  const prevTrackRef = useRef(prevTrack);
+  const setTrackTimeRef = useRef(setTrackTime);
+
+  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
+  useEffect(() => { audioQualityRef.current = audioQuality; }, [audioQuality]);
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  useEffect(() => { nextTrackRef.current = nextTrack; }, [nextTrack]);
+  useEffect(() => { prevTrackRef.current = prevTrack; }, [prevTrack]);
+  useEffect(() => { setTrackTimeRef.current = setTrackTime; }, [setTrackTime]);
+
+  // Handle Media Session Action Handlers (Registered ONCE on mount for rock-solid iOS stability)
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
@@ -1226,11 +1240,11 @@ export const AudioProvider = ({ children }) => {
       if (audioRef.current) {
         // Only recover stream URL if audio element genuinely has no src or has a fatal error
         if (audioRef.current.error || !audioRef.current.src) {
-          const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
+          const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
           if (streamUrl) {
             audioRef.current.src = streamUrl;
             audioRef.current.load();
-            audioRef.current.currentTime = currentTime;
+            audioRef.current.currentTime = currentTimeRef.current;
           }
         }
 
@@ -1261,13 +1275,13 @@ export const AudioProvider = ({ children }) => {
     const actionHandlers = [
       ['play', handleMediaPlay],
       ['pause', handleMediaPause],
-      ['previoustrack', prevTrack],
-      ['nexttrack', nextTrack],
+      ['previoustrack', () => prevTrackRef.current && prevTrackRef.current()],
+      ['nexttrack', () => nextTrackRef.current && nextTrackRef.current()],
       ['seekto', (details) => {
-        if (details.fastSeek && audioRef.current.fastSeek) {
+        if (details.fastSeek && audioRef.current?.fastSeek) {
           audioRef.current.fastSeek(details.seekTime);
-        } else {
-          setTrackTime(details.seekTime);
+        } else if (setTrackTimeRef.current) {
+          setTrackTimeRef.current(details.seekTime);
         }
       }]
     ];
@@ -1290,7 +1304,7 @@ export const AudioProvider = ({ children }) => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue, currentIndex, isShuffle, loopMode, isPlaying, currentTrack]);
+  }, []);
 
   // Sleep Timer countdown logic (placed at the bottom to ensure fadeOutVolume is declared)
   useEffect(() => {
