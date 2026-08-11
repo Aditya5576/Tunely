@@ -1224,8 +1224,8 @@ export const AudioProvider = ({ children }) => {
       }
 
       if (audioRef.current) {
-        // Refresh stream if stalled or errored during background pause
-        if (audioRef.current.error || !audioRef.current.src || audioRef.current.readyState === 0) {
+        // Only recover stream URL if audio element genuinely has no src or has a fatal error
+        if (audioRef.current.error || !audioRef.current.src) {
           const streamUrl = getStreamUrlByQuality(currentTrack, audioQuality);
           if (streamUrl) {
             audioRef.current.src = streamUrl;
