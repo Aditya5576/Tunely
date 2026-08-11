@@ -248,11 +248,13 @@ export default function NetworkErrorOverlay() {
           gap: 12px;
           max-width: 460px;
           width: calc(100vw - 40px);
-          background: rgba(18, 12, 22, 0.98);
+          background: rgba(18, 12, 22, 0.95);
           border: 1px solid rgba(239, 68, 68, 0.4);
           border-left: 4px solid #ef4444;
           border-radius: 12px;
           padding: 14px 16px;
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
           box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(239, 68, 68, 0.2);
           animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -398,6 +400,8 @@ export default function NetworkErrorOverlay() {
           font-weight: 700;
           padding: 5px 11px;
           border-radius: 16px;
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
           cursor: pointer;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
           transition: all 0.2s ease;
@@ -430,7 +434,9 @@ export default function NetworkErrorOverlay() {
           position: fixed;
           inset: 0;
           z-index: 10001;
-          background: rgba(0, 0, 0, 0.88);
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;

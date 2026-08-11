@@ -377,9 +377,10 @@ function TunelyApp() {
             <div style={{
               position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
               zIndex: 9999, width: '90%', maxWidth: 480,
-              background: 'rgba(10, 11, 20, 0.98)',
+              background: 'rgba(10, 11, 20, 0.85)',
               border: '1px solid rgba(0, 229, 255, 0.3)',
               borderRadius: 20, padding: '16px 20px',
+              backdropFilter: 'blur(30px)',
               boxShadow: '0 12px 40px rgba(0, 229, 255, 0.25)',
               display: 'flex', gap: 12, alignItems: 'flex-start',
               animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'

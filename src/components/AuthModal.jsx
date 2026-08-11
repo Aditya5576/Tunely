@@ -240,7 +240,8 @@ export const AuthModal = ({ onClose, required = false }) => {
         <style>{`
       .auth-modal-overlay {
         position: fixed; inset: 0;
-        background: rgba(4, 5, 10, 0.88);
+        background: rgba(0,0,0,0.75);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
         z-index: 9999; display: flex; align-items: center; justify-content: center;
         padding: 40px 16px; animation: authFadeIn 0.2s ease;
         overflow-y: auto; /* Enable scroll if modal is taller than screen */
@@ -248,10 +249,11 @@ export const AuthModal = ({ onClose, required = false }) => {
       .auth-modal-overlay.forced-login-screen {
         background: radial-gradient(circle at top right, rgba(124,58,237,0.12), transparent 50%),
                     radial-gradient(circle at bottom left, rgba(236,72,153,0.1), transparent 50%), #09090e;
-        z-index: 10000;
+        backdrop-filter: none; -webkit-backdrop-filter: none; z-index: 10000;
       }
       .forced-login-screen .auth-modal {
-        background: rgba(18,18,28,0.96) !important;
+        background: rgba(18,18,28,0.6) !important; backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
         border: 1px solid rgba(255,255,255,0.08) !important;
         box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05) !important;
       }

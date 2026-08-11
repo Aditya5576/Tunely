@@ -76,7 +76,7 @@ function StatCard({ icon: Icon, label, value, color, glowColor, sub }) {
       {/* Decorative Glow Spot */}
       <div style={{
         position: 'absolute', right: -20, top: -20, width: 80, height: 80,
-        borderRadius: '50%', background: `radial-gradient(circle, ${glowColor}40 0%, rgba(0,0,0,0) 70%)`, pointerEvents: 'none'
+        borderRadius: '50%', background: glowColor, filter: 'blur(35px)', opacity: 0.15, pointerEvents: 'none'
       }} />
 
       <div className="stat-card-header">
@@ -852,6 +852,7 @@ function AdminDashboard({ onLogout }) {
           gap: 16px;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
           position: relative;
+          backdrop-filter: blur(20px);
           transition: border-color 0.25s ease, transform 0.25s ease;
         }
         .active-user-card:hover {
@@ -991,16 +992,18 @@ function AdminDashboard({ onLogout }) {
         .login-card {
           width: 90vw;
           max-width: 400px;
-          background: rgba(10, 11, 20, 0.96);
+          background: rgba(10, 11, 20, 0.85);
           border: 1px solid rgba(0, 229, 255, 0.2);
           border-radius: 24px;
           padding: 36px;
+          backdrop-filter: blur(30px);
           box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
         .modal-backdrop {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.88);
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(8px);
           z-index: 3000;
           display: flex;
           align-items: center;
@@ -1317,7 +1320,7 @@ function AdminDashboard({ onLogout }) {
           {/* Live events log */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Global Broadcast Dispatcher */}
-            <div style={{ background: 'rgba(15, 17, 28, 0.96)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: 20, padding: 20, boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' }}>
+            <div style={{ background: 'rgba(15, 17, 28, 0.75)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: 20, padding: 20, backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Radio size={16} color="#00e5ff" style={{ animation: 'pulse 1.2s infinite' }} />
                 <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em' }}>Dispatch Global Broadcast</span>
@@ -1381,7 +1384,7 @@ function AdminDashboard({ onLogout }) {
               </form>
             </div>
 
-            <div style={{ background: 'rgba(10, 12, 20, 0.96)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, padding: 20 }}>
+            <div style={{ background: 'rgba(10, 12, 20, 0.65)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, padding: 20, backdropFilter: 'blur(20px)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <Activity size={16} color="#00e5ff" style={{ animation: 'pulse 1.2s infinite' }} />
                 <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em' }}>Live Audit Stream</span>
@@ -1430,7 +1433,7 @@ function AdminDashboard({ onLogout }) {
         <div style={{
           position: 'fixed', bottom: 24, right: 24, padding: '12px 20px', borderRadius: 12,
           background: toast.type === 'success' ? 'rgba(16,185,129,0.95)' : toast.type === 'error' ? 'rgba(239,68,68,0.95)' : 'rgba(251,191,36,0.95)',
-          color: '#fff', fontWeight: 700, fontSize: 13, zIndex: 9999,
+          color: '#fff', fontWeight: 700, fontSize: 13, zIndex: 9999, backdropFilter: 'blur(10px)',
           boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)',
           animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }}>
