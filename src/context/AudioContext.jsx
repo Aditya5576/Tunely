@@ -1228,41 +1228,40 @@ export const AudioProvider = ({ children }) => {
       wasPlayingBeforeInterruptionRef.current = false;
       isSystemInterruptedRef.current = false;
 
-      initWebAudio();
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        try {
-          await audioContextRef.current.resume();
-        } catch (e) {
-          console.warn("WebAudio resume on mediaSession play failed:", e);
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      // Fallback: Only recover stream URL if audio element genuinely has no src or has a fatal error
+      if (audio.error || !audio.src) {
+        const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
+        if (streamUrl) {
+          audio.src = streamUrl;
+          audio.load();
+          audio.currentTime = currentTimeRef.current;
         }
       }
 
-      if (audioRef.current) {
-        // Only recover stream URL if audio element genuinely has no src or has a fatal error
-        if (audioRef.current.error || !audioRef.current.src) {
-          const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
-          if (streamUrl) {
-            audioRef.current.src = streamUrl;
-            audioRef.current.load();
-            audioRef.current.currentTime = currentTimeRef.current;
-          }
+      audio.volume = volumeRef.current;
+      try {
+        await audio.play();
+        setIsPlaying(true);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "playing";
         }
-
-        audioRef.current.volume = volumeRef.current;
-        audioRef.current.play()
-          .then(() => {
-            setIsPlaying(true);
-            if ('mediaSession' in navigator) {
-              navigator.mediaSession.playbackState = "playing";
-            }
-            fadeInVolume();
-          })
-          .catch(e => console.error("MediaSession play failed:", e));
+        fadeInVolume();
+      } catch (e) {
+        console.error("MediaSession play failed:", e);
+        setIsPlaying(false);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
       }
     };
 
     const handleMediaPause = () => {
       userInitiatedPauseRef.current = true;
+      wasPlayingBeforeInterruptionRef.current = false;
+      isSystemInterruptedRef.current = false;
       if (audioRef.current) {
         audioRef.current.pause();
         setIsPlaying(false);
