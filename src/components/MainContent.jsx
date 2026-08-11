@@ -2157,10 +2157,7 @@ export default function MainContent({
           align-items: center;
           justify-content: space-between;
           padding: 0 48px;
-          height: 72px;
-          background: rgba(5, 6, 12, 0.65);
-          backdrop-filter: blur(28px);
-          -webkit-backdrop-filter: blur(28px);
+          background: rgba(5, 6, 12, 0.98);
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;

@@ -734,10 +734,7 @@ const decodeHtml = (text) => {
         .player-bar {
           height: var(--player-height);
           width: 100%;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
-          background: rgba(8, 8, 12, 0.6);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
+          background: rgba(8, 8, 12, 0.96);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -1005,8 +1002,6 @@ const decodeHtml = (text) => {
           gap: 10px;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 229, 255, 0.15);
           z-index: 1000;
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
           animation: popover-fade-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
@@ -1109,9 +1104,7 @@ const decodeHtml = (text) => {
           width: 100vw;
           height: 100vh;
           height: 100dvh;
-          background: rgba(6, 6, 9, 0.88);
-          backdrop-filter: blur(12px) saturate(120%);
-          -webkit-backdrop-filter: blur(12px) saturate(120%);
+          background: rgba(6, 6, 9, 0.98);
           z-index: 2000;
           display: flex;
           flex-direction: column;
@@ -1421,9 +1414,7 @@ const decodeHtml = (text) => {
             cursor: pointer;
             box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
             border-radius: 12px 12px 0 0;
-            background: rgba(12, 12, 18, 0.85);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(12, 12, 18, 0.98);
             border: 1px solid var(--border-color);
             border-bottom: none;
             position: fixed;

@@ -544,9 +544,7 @@ export default function SongRow({
           right: 0;
           top: 100%;
           min-width: 180px;
-          background: rgba(14, 15, 23, 0.96);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(14, 15, 23, 0.98);
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 10px;
           padding: 6px;

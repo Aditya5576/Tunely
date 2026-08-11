@@ -196,10 +196,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
           height: 100%;
           display: flex;
           flex-direction: column;
-          border-right: 1px solid var(--border-color);
-          background: var(--bg-panel);
-          backdrop-filter: blur(var(--glass-blur));
-          -webkit-backdrop-filter: blur(var(--glass-blur));
+          background: rgba(8, 10, 16, 0.98);
           padding: 24px 16px;
           z-index: 10;
           overflow: hidden;
@@ -555,9 +552,7 @@ export default function Sidebar({ selectedPlaylistId, customPlaylists, setCustom
             transform: translate3d(-100%, 0, 0);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
-            background: rgba(10, 10, 15, 0.95);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            background: rgba(10, 10, 15, 0.98);
             border-radius: 0 16px 16px 0;
             border: 1px solid var(--border-color);
             border-left: none;
