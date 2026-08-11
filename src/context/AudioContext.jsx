@@ -331,8 +331,8 @@ export const AudioProvider = ({ children }) => {
       updatedIds = likedSongs.filter(id => id !== track.id);
       updatedMeta = likedSongsMetadata.filter(t => t.id !== track.id);
     } else {
-      updatedIds = [...likedSongs, track.id];
-      updatedMeta = [...likedSongsMetadata, track];
+      updatedIds = [track.id, ...likedSongs.filter(id => id !== track.id)];
+      updatedMeta = [track, ...likedSongsMetadata.filter(t => t.id !== track.id)];
     }
 
     const now = new Date().toISOString();

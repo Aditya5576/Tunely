@@ -1892,7 +1892,7 @@ export default function MainContent({
             </div>
 
             {/* Filter pills */}
-            <div className="library-filter-pills" style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
+            <div className="library-filter-pills" style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
               {['All', 'Playlists', 'Albums', 'Podcasts'].map(label => (
                 <button
                   key={label}
@@ -1901,6 +1901,61 @@ export default function MainContent({
                 >{label}</button>
               ))}
             </div>
+
+            {/* Recently Liked Horizontal Stack Carousel */}
+            {likedSongsMetadata && likedSongsMetadata.length > 0 && (
+              <div className="recently-liked-section" style={{ marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Heart size={14} fill="#ef4444" color="#ef4444" />
+                    </div>
+                    <h3 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Recently Liked</h3>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{likedSongsMetadata.length} saved tracks</span>
+                </div>
+
+                <div className="recently-liked-carousel" style={{
+                  display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 10,
+                  scrollBehavior: 'smooth', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent'
+                }}>
+                  {likedSongsMetadata.map((song, idx) => {
+                    const coverImg = song.image?.[1]?.url || song.image?.[0]?.url || '/logo.png';
+                    const artistName = song.artists?.primary?.[0]?.name || song.subtitle || 'Artist';
+                    return (
+                      <div
+                        key={song.id || idx}
+                        onClick={() => playTrack(song, likedSongsMetadata)}
+                        className="recently-liked-card"
+                        style={{
+                          flexShrink: 0, width: 138, background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: 10,
+                          cursor: 'pointer', transition: 'transform 0.2s ease, border-color 0.2s ease',
+                          position: 'relative'
+                        }}
+                      >
+                        <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+                          <img src={coverImg} alt={song.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {idx === 0 && (
+                            <span style={{
+                              position: 'absolute', top: 6, left: 6, background: '#ef4444', color: '#fff',
+                              fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 6, letterSpacing: '0.04em',
+                              boxShadow: '0 2px 8px rgba(239,68,68,0.5)'
+                            }}>
+                              NEWEST
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{artistName}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Library Card Grid */}
             <div className="library-grid-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 24 }}>
