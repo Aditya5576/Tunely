@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node -e \"const fs=require('fs'); fs.writeFileSync('public/version.json', JSON.stringify({ version: '4.1.0', buildTime: Date.now() }));\" && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
