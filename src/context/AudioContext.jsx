@@ -303,9 +303,7 @@ export const AudioProvider = ({ children }) => {
       }
     };
 
-    // Poll every 8 seconds for ultra-fast cross-device sync
-    intervalId = setInterval(performLikedSongsSync, 8000);
-
+    // Perform liked songs sync on visibility change (polling loop removed for ultra-lean background health)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         performLikedSongsSync();
@@ -314,7 +312,6 @@ export const AudioProvider = ({ children }) => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isLoggedIn, isLoading, authFetch, user?.isGuest]);
@@ -1146,9 +1143,9 @@ export const AudioProvider = ({ children }) => {
     // Send immediately on change
     sendActivity();
 
-    // Setup periodic activity pings every 15 seconds while playing music for live admin status
+    // Setup periodic activity pings every 60 seconds while playing music for live admin status
     if (isPlaying) {
-      intervalId = setInterval(sendActivity, 15000);
+      intervalId = setInterval(sendActivity, 60000);
     }
 
     return () => {
