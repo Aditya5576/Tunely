@@ -601,8 +601,11 @@ export const AudioProvider = ({ children }) => {
   const fadeInVolume = () => {
     clearInterval(fadeIntervalRef.current);
     const targetVol = volumeRef.current;
-    if (document.hidden) {
-      audioRef.current.volume = targetVol;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (document.hidden || isMobile) {
+      if (audioRef.current) {
+        audioRef.current.volume = targetVol;
+      }
       return;
     }
     audioRef.current.volume = 0;
@@ -621,8 +624,11 @@ export const AudioProvider = ({ children }) => {
   // Smooth Volume Fade Out
   const fadeOutVolume = (callback) => {
     clearInterval(fadeIntervalRef.current);
-    if (document.hidden) {
-      audioRef.current.volume = 0;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (document.hidden || isMobile) {
+      if (audioRef.current) {
+        audioRef.current.volume = 0;
+      }
       callback();
       return;
     }
@@ -1231,26 +1237,77 @@ export const AudioProvider = ({ children }) => {
       const audio = audioRef.current;
       if (!audio) return;
 
-      // Fallback: Only recover stream URL if audio element genuinely has no src or has a fatal error
-      if (audio.error || !audio.src) {
-        const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
-        if (streamUrl) {
-          audio.src = streamUrl;
-          audio.load();
-          audio.currentTime = currentTimeRef.current;
+      audio.volume = volumeRef.current;
+
+      // Check if media element is already in an explicitly invalid/stalled state prior to play
+      const isStalledOrInvalid = audio.error || !audio.src || audio.readyState === 0 || audio.networkState === 3;
+
+      if (!isStalledOrInvalid) {
+        try {
+          await audio.play();
+          setIsPlaying(true);
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
+          return;
+        } catch (initialErr) {
+          console.warn("Direct MediaSession play attempt failed (possible background stream stall):", initialErr, {
+            readyState: audio.readyState,
+            networkState: audio.networkState,
+            error: audio.error
+          });
         }
       }
 
-      audio.volume = volumeRef.current;
-      try {
-        await audio.play();
-        setIsPlaying(true);
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = "playing";
+      // ── RECOVERY PATH: Re-connect stream URL for long-pause / background stream recovery ──
+      const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
+      if (streamUrl) {
+        const savedTime = currentTimeRef.current || audio.currentTime || 0;
+        console.log("Executing background MediaSession stream recovery to position:", savedTime);
+        audio.src = streamUrl;
+        audio.load();
+
+        // Wait safely for metadata before restoring currentTime to prevent WebKit InvalidStateError
+        await new Promise((resolve) => {
+          let resolved = false;
+          const restoreTime = () => {
+            if (resolved) return;
+            resolved = true;
+            audio.removeEventListener('loadedmetadata', restoreTime);
+            audio.removeEventListener('canplay', restoreTime);
+            try {
+              const dur = audio.duration && !isNaN(audio.duration) ? audio.duration : savedTime;
+              audio.currentTime = Math.min(savedTime, dur);
+            } catch (e) {
+              console.warn("Failed to set currentTime on metadata:", e);
+            }
+            resolve();
+          };
+
+          if (audio.readyState >= 1) {
+            restoreTime();
+          } else {
+            audio.addEventListener('loadedmetadata', restoreTime, { once: true });
+            audio.addEventListener('canplay', restoreTime, { once: true });
+            setTimeout(restoreTime, 1200);
+          }
+        });
+
+        audio.volume = volumeRef.current;
+        try {
+          await audio.play();
+          setIsPlaying(true);
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
+        } catch (recoveryErr) {
+          console.error("MediaSession stream recovery play failed:", recoveryErr);
+          setIsPlaying(false);
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = "paused";
+          }
         }
-        fadeInVolume();
-      } catch (e) {
-        console.error("MediaSession play failed:", e);
+      } else {
         setIsPlaying(false);
         if ('mediaSession' in navigator) {
           navigator.mediaSession.playbackState = "paused";
