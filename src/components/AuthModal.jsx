@@ -316,13 +316,16 @@ export const AuthModal = ({ onClose, required = false }) => {
       .auth-password-wrap { position: relative; }
       .auth-password-wrap input { padding-right: 44px; }
       .auth-show-password {
-        position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+        position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
         background: none; border: none; cursor: pointer; font-size: 16px;
-        color: var(--text-muted); padding: 4px; line-height: 1;
+        color: var(--text-muted); padding: 0; line-height: 1;
+        min-width: 44px; min-height: 44px; display: inline-flex;
+        align-items: center; justify-content: center;
       }
       .auth-forgot-trigger {
         background: none; border: none; color: var(--primary); font-size: 11px;
-        cursor: pointer; padding: 0; font-weight: 500; text-transform: none; letter-spacing: 0;
+        cursor: pointer; padding: 12px 6px; font-weight: 500; text-transform: none; letter-spacing: 0;
+        min-height: 44px; display: inline-flex; align-items: center; box-sizing: border-box;
       }
       .auth-reset-email-tag {
         background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
