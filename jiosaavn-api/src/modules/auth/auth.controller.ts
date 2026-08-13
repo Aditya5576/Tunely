@@ -393,3 +393,25 @@ authController.put('/profile', authMiddleware, async (c) => {
     data: { id: userId, name, bio, avatarBg }
   })
 })
+
+/**
+ * POST /api/auth/ws-ticket
+ * Generates a short-lived 60s single-use ticket bound to userId for WebSocket authentication.
+ */
+authController.post('/ws-ticket', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+
+  const ticketId = `ticket_${crypto.randomUUID().replace(/-/g, '')}`
+  const payload = JSON.stringify({ userId, createdAt: new Date().toISOString() })
+
+  if (kv) {
+    await kv.put(`ticket:${ticketId}`, payload, { expirationTtl: 60 })
+  }
+
+  return c.json({
+    success: true,
+    ticket: ticketId,
+    expiresIn: 60
+  })
+})

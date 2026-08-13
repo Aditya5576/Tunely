@@ -13,3 +13,12 @@ database_id = "6e0b7d5b-6de2-4fc4-b5ff-f7128b7cd471"
 [[kv_namespaces]]
 binding = "TUNELY_SESSIONS"
 id = "a169bd35c80d4b30858f68f3f2ee4566"
+
+[durable_objects]
+bindings = [
+  { name = "USER_SYNC_DO", class_name = "UserSyncDurableObject" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["UserSyncDurableObject"]

@@ -13,4 +13,6 @@ const app = new App([
   new PlaylistController()
 ], authController, userController, adminController).getApp()
 
+export { UserSyncDurableObject } from '#modules/auth/user-sync.do'
+
 export default app

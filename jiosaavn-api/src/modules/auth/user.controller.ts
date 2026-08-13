@@ -37,6 +37,20 @@ userController.get('/liked', authMiddleware, async (c) => {
  * Body: { song }
  * Adds a song to liked songs.
  */
+export const broadcastUserEvent = async (env: any, userId: string, event: { type: string; action: string; data?: any; updatedAt: string }) => {
+  if (!env?.USER_SYNC_DO || !userId) return;
+  try {
+    const doId = env.USER_SYNC_DO.idFromName(userId);
+    const stub = env.USER_SYNC_DO.get(doId);
+    await stub.fetch('https://internal/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({ ...event, userId, timestamp: new Date().toISOString() })
+    });
+  } catch (e) {
+    console.warn('Durable Object broadcast failed:', e);
+  }
+};
+
 userController.post('/liked', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   let body: { song?: any }
@@ -60,11 +74,21 @@ userController.post('/liked', authMiddleware, async (c) => {
      ON CONFLICT(user_id, song_id) DO UPDATE SET song_data = excluded.song_data`
   ).bind(userId, song.id, JSON.stringify(song), nowStr).run()
 
-  // Track overall liked songs update time in KV to prevent sync deletions
+  // Track overall liked songs update time in KV to prevent sync deletions and resurrection
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await safeKvPut(kv, `user:${userId}:liked_updated_at`, nowStr)
+    try { await kv.put(`user:${userId}:liked_updated_at`, nowStr) } catch {}
   }
+
+  // Broadcast real-time event to all connected devices AFTER D1 persistence succeeds
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'liked',
+      action: 'liked.created',
+      data: { song },
+      updatedAt: nowStr
+    })
+  );
 
   return c.json({ success: true, message: 'Song liked' })
 })
@@ -80,11 +104,22 @@ userController.delete('/liked/:songId', authMiddleware, async (c) => {
 
   await db.prepare('DELETE FROM liked_songs WHERE user_id = ? AND song_id = ?').bind(userId, songId).run()
 
+  const nowStr = new Date().toISOString();
   // Update KV timestamp to track deletion
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await safeKvPut(kv, `user:${userId}:liked_updated_at`, new Date().toISOString())
+    try { await kv.put(`user:${userId}:liked_updated_at`, nowStr) } catch {}
   }
+
+  // Broadcast real-time event AFTER D1 persistence succeeds
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'liked',
+      action: 'liked.deleted',
+      data: { songId },
+      updatedAt: nowStr
+    })
+  );
 
   return c.json({ success: true, message: 'Song unliked' })
 })
@@ -141,7 +176,7 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
     const newTs = localUpdatedAt || new Date().toISOString()
     if (kv) {
-      await safeKvPut(kv, `user:${userId}:liked_updated_at`, newTs)
+      try { await kv.put(`user:${userId}:liked_updated_at`, newTs) } catch {}
     }
 
     return c.json({ success: true, data: { source: 'local', songs: localSongs, serverUpdatedAt: newTs } })
@@ -158,7 +193,7 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
   // Initialize KV if missing
   if (serverUpdatedAt && kv && isKvMissing) {
-    await safeKvPut(kv, `user:${userId}:liked_updated_at`, serverUpdatedAt)
+    try { await kv.put(`user:${userId}:liked_updated_at`, serverUpdatedAt) } catch {}
   }
 
   return c.json({ success: true, data: { source: 'server', songs: serverSongs, serverUpdatedAt } })
@@ -216,10 +251,22 @@ userController.post('/playlists', authMiddleware, async (c) => {
   // Track overall playlists update time in KV to prevent sync deletions
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, now)
+    try { await kv.put(`user:${userId}:playlists_updated_at`, now) } catch {}
   }
 
-  return c.json({ success: true, data: { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' } }, 201)
+  const playlistData = { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' };
+
+  // Broadcast real-time event to all connected devices AFTER D1 persistence succeeds
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'playlist',
+      action: 'playlist.created',
+      data: { playlist: playlistData },
+      updatedAt: now
+    })
+  );
+
+  return c.json({ success: true, data: playlistData }, 201)
 })
 
 /**
@@ -252,8 +299,21 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
   // Update KV timestamp
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, nowStr)
+    try { await kv.put(`user:${userId}:playlists_updated_at`, nowStr) } catch {}
   }
+
+  // Determine specific action type (rename / song edit / general update)
+  let actionType = 'playlist.updated';
+  if (body.name !== undefined && body.songs === undefined) actionType = 'playlist.renamed';
+
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'playlist',
+      action: actionType,
+      data: { playlistId, name: body.name?.trim(), songs: body.songs },
+      updatedAt: nowStr
+    })
+  );
 
   return c.json({ success: true, message: 'Playlist updated' })
 })
@@ -269,11 +329,21 @@ userController.delete('/playlists/:id', authMiddleware, async (c) => {
 
   await db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?').bind(playlistId, userId).run()
 
+  const nowStr = new Date().toISOString();
   // Update KV timestamp to track deletion
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await safeKvPut(kv, `user:${userId}:playlists_updated_at`, new Date().toISOString())
+    try { await kv.put(`user:${userId}:playlists_updated_at`, nowStr) } catch {}
   }
+
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'playlist',
+      action: 'playlist.deleted',
+      data: { playlistId },
+      updatedAt: nowStr
+    })
+  );
 
   return c.json({ success: true, message: 'Playlist deleted' })
 })
@@ -416,6 +486,49 @@ userController.get('/broadcast', authMiddleware, async (c) => {
     }
   }
   return c.json({ success: true, broadcast })
+})
+
+/**
+ * GET /api/user/ws
+ * WebSocket endpoint. Validates single-use ticket and routes socket connection to UserSyncDurableObject.
+ */
+userController.get('/ws', async (c) => {
+  const ticket = c.req.query('ticket')
+  if (!ticket) {
+    return c.json({ success: false, message: 'Ticket parameter required' }, 401)
+  }
+
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  const env = c.env as any
+
+  if (!kv || !env.USER_SYNC_DO) {
+    return c.json({ success: false, message: 'Durable Object service unavailable' }, 503)
+  }
+
+  // Validate single-use ticket
+  const ticketDataRaw = await kv.get(`ticket:${ticket}`)
+  if (!ticketDataRaw) {
+    return c.json({ success: false, message: 'Invalid or expired WebSocket ticket' }, 401)
+  }
+
+  // Single-use burn: immediately delete ticket to prevent replay attacks
+  await kv.delete(`ticket:${ticket}`)
+
+  let userId: string
+  try {
+    userId = JSON.parse(ticketDataRaw).userId
+  } catch {
+    return c.json({ success: false, message: 'Malformed ticket' }, 401)
+  }
+
+  if (!userId) {
+    return c.json({ success: false, message: 'Unauthorized ticket' }, 401)
+  }
+
+  // Route to the user's isolated Durable Object instance
+  const doId = env.USER_SYNC_DO.idFromName(userId)
+  const stub = env.USER_SYNC_DO.get(doId)
+  return stub.fetch(c.req.raw)
 })
 
 

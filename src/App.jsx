@@ -15,6 +15,7 @@ import NetworkErrorOverlay from './components/NetworkErrorOverlay';
 import ProfileModal from './components/ProfileModal';
 import TunelyLogo from './components/TunelyLogo';
 import WhatsNewModal from './components/WhatsNewModal';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -76,7 +77,8 @@ function TunelyApp() {
     pushPlaylistsToServer.current = async (playlists) => {
       if (!isLoggedIn || !authFetch || user?.isGuest) return;
       try {
-        const localUpdatedAt = localStorage.getItem('tunely_custom_playlists_updated_at') || new Date().toISOString();
+        const storedTs = localStorage.getItem('tunely_custom_playlists_updated_at');
+        const localUpdatedAt = storedTs ? storedTs : new Date(0).toISOString();
         await authFetch(`${API_BASE}/api/user/playlists/sync`, {
           method: 'POST',
           body: JSON.stringify({ playlists, localUpdatedAt })
@@ -131,37 +133,14 @@ function TunelyApp() {
     return () => clearTimeout(playlistPushTimer.current);
   }, [customPlaylists, isLoggedIn, authFetch, user, isLoading]);
 
-  // Poll server every 30s for playlist changes from other devices
-  useEffect(() => {
-    if (isLoading || !isLoggedIn || !authFetch || user?.isGuest) return;
-    const poll = async () => {
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const localPlaylists = JSON.parse(localStorage.getItem('spotify_custom_playlists') || '[]');
-        const localUpdatedAt = localStorage.getItem('tunely_custom_playlists_updated_at') || new Date(0).toISOString();
-        const res = await authFetch(`${API_BASE}/api/user/playlists/sync`, {
-          method: 'POST',
-          body: JSON.stringify({ playlists: localPlaylists, localUpdatedAt })
-        });
-        if (!res.ok) return;
-        const { data } = await res.json();
-        if (data?.playlists && data.source === 'server') {
-          _setCustomPlaylists(data.playlists);
-          localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
-          if (data.serverUpdatedAt) localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt);
-        }
-      } catch (e) {
-        console.warn('Playlist poll failed:', e);
-      }
-    };
-    const intervalId = setInterval(poll, 8000);
-    const onVisible = () => { if (document.visibilityState === 'visible') poll(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [isLoggedIn, isLoading, authFetch, user]);
+  // Real-time cross-device event synchronization & reconnection reconciliation
+  useRealtimeSync({
+    isLoggedIn,
+    user,
+    authFetch,
+    syncPlaylistsOnLogin: syncPlaylistsOnLogin.current,
+    setCustomPlaylists: _setCustomPlaylists
+  });
 
   // Poll broadcast messages from server
   useEffect(() => {
