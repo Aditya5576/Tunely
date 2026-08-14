@@ -90,34 +90,33 @@ function TunelyApp() {
   }, [isLoggedIn, authFetch, user]);
 
   // Sync custom playlists FROM server on login
+  const syncPlaylistsOnLogin = async () => {
+    if (!isLoggedIn || !authFetch || user?.isGuest) return;
+    try {
+      const localPlaylists = JSON.parse(localStorage.getItem('spotify_custom_playlists') || '[]');
+      const localUpdatedAt = localStorage.getItem('tunely_custom_playlists_updated_at') || new Date(0).toISOString();
+
+      const res = await authFetch(`${API_BASE}/api/user/playlists/sync`, {
+        method: 'POST',
+        body: JSON.stringify({ playlists: localPlaylists, localUpdatedAt })
+      });
+      if (!res.ok) return;
+      const { data } = await res.json();
+      if (data && Array.isArray(data.playlists)) {
+        _setCustomPlaylists(data.playlists);
+        localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
+        if (data.serverUpdatedAt) {
+          localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt);
+        }
+      }
+    } catch (e) {
+      console.warn('Custom playlists sync from server failed:', e);
+    }
+  };
+
   useEffect(() => {
     if (isLoading) return;
-    if (!isLoggedIn || !authFetch || user?.isGuest) return;
-
-    const syncPlaylists = async () => {
-      try {
-        const localPlaylists = JSON.parse(localStorage.getItem('spotify_custom_playlists') || '[]');
-        const localUpdatedAt = localStorage.getItem('tunely_custom_playlists_updated_at') || new Date(0).toISOString();
-
-        const res = await authFetch(`${API_BASE}/api/user/playlists/sync`, {
-          method: 'POST',
-          body: JSON.stringify({ playlists: localPlaylists, localUpdatedAt })
-        });
-        if (!res.ok) return;
-        const { data } = await res.json();
-        if (data && Array.isArray(data.playlists)) {
-          _setCustomPlaylists(data.playlists);
-          localStorage.setItem('spotify_custom_playlists', JSON.stringify(data.playlists));
-          if (data.serverUpdatedAt) {
-            localStorage.setItem('tunely_custom_playlists_updated_at', data.serverUpdatedAt);
-          }
-        }
-      } catch (e) {
-        console.warn('Custom playlists sync from server failed:', e);
-      }
-    };
-
-    syncPlaylists();
+    syncPlaylistsOnLogin();
   }, [isLoggedIn, isLoading, authFetch, user]);
 
   // Push to server whenever playlists change (debounced 1s)
@@ -138,7 +137,7 @@ function TunelyApp() {
     isLoggedIn,
     user,
     authFetch,
-    syncPlaylistsOnLogin: syncPlaylistsOnLogin.current,
+    syncPlaylistsOnLogin,
     setCustomPlaylists: _setCustomPlaylists
   });
 

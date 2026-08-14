@@ -234,32 +234,32 @@ export const AudioProvider = ({ children }) => {
 
     // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
     if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
-
-    const syncLikedSongs = async () => {
-      try {
-        const localMeta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
-        const localUpdatedAt = localStorage.getItem('tunely_liked_songs_updated_at') || new Date(0).toISOString();
-
-        const res = await authFetch(`${API_BASE}/api/user/liked/sync`, {
-          method: 'POST',
-          body: JSON.stringify({ songs: localMeta, localUpdatedAt })
-        });
-        if (!res.ok) return;
-        const { data } = await res.json();
-        const songs = data.songs || [];
-        const ids = songs.map(s => s.id);
-        setLikedSongs(ids);
-        setLikedSongsMetadata(songs);
-        localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
-        localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
-        localStorage.setItem('tunely_liked_songs_updated_at', data.serverUpdatedAt || new Date().toISOString());
-      } catch (e) {
-        console.warn('Liked songs sync failed:', e);
-      }
-    };
-
     syncLikedSongs();
-  }, [isLoggedIn, isLoading, authFetch, user]);
+  }, [isLoggedIn, isLoading, authFetch, user, token]);
+
+  const syncLikedSongs = async () => {
+    if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
+    try {
+      const localMeta = JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
+      const localUpdatedAt = localStorage.getItem('tunely_liked_songs_updated_at') || new Date(0).toISOString();
+
+      const res = await authFetch(`${API_BASE}/api/user/liked/sync`, {
+        method: 'POST',
+        body: JSON.stringify({ songs: localMeta, localUpdatedAt })
+      });
+      if (!res.ok) return;
+      const { data } = await res.json();
+      const songs = data.songs || [];
+      const ids = songs.map(s => s.id);
+      setLikedSongs(ids);
+      setLikedSongsMetadata(songs);
+      localStorage.setItem('tunely_liked_songs', JSON.stringify(ids));
+      localStorage.setItem('tunely_liked_songs_metadata', JSON.stringify(songs));
+      localStorage.setItem('tunely_liked_songs_updated_at', data.serverUpdatedAt || new Date().toISOString());
+    } catch (e) {
+      console.warn('Liked songs sync failed:', e);
+    }
+  };
 
   // Live Sync / Periodic Polling for Liked Songs
   useEffect(() => {
