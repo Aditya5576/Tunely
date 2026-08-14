@@ -13,7 +13,7 @@ export default function TunelyLogo({ size = 32, className = '' }) {
         <linearGradient id="tunelyBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#0b0f19" />
           <stop offset="50%" stopColor="#070912" />
-          <stop offset="100%" stop-color="#0e0818" />
+          <stop offset="100%" stopColor="#0e0818" />
         </linearGradient>
 
         {/* Glowing Accent Gradient */}

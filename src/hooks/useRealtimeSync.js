@@ -62,7 +62,7 @@ export function useRealtimeSync({
                 setLikedSongs((prev) => {
                   if (prev.some((s) => s.id === newSong.id)) return prev;
                   const updated = [newSong, ...prev];
-                  try { localStorage.setItem('tunely_liked_songs', JSON.stringify(updated)); } catch {}
+                  try { localStorage.setItem('tunely_liked_songs', JSON.stringify(updated)); } catch (e) { console.warn('Cache error:', e); }
                   return updated;
                 });
                 if (setLikedSongsMetadata) {
@@ -72,7 +72,7 @@ export function useRealtimeSync({
                 const deletedId = msg.data.songId;
                 setLikedSongs((prev) => {
                   const updated = prev.filter((s) => s.id !== deletedId);
-                  try { localStorage.setItem('tunely_liked_songs', JSON.stringify(updated)); } catch {}
+                  try { localStorage.setItem('tunely_liked_songs', JSON.stringify(updated)); } catch (e) { console.warn('Cache error:', e); }
                   return updated;
                 });
               } else if (syncLikedSongs) {
@@ -84,14 +84,14 @@ export function useRealtimeSync({
                 setCustomPlaylists((prev) => {
                   if (prev.some((p) => p.id === newPl.id)) return prev;
                   const updated = [...prev, newPl];
-                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch {}
+                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch (e) { console.warn('Cache error:', e); }
                   return updated;
                 });
               } else if (msg.action === 'playlist.deleted' && msg.data?.playlistId) {
                 const deletedId = msg.data.playlistId;
                 setCustomPlaylists((prev) => {
                   const updated = prev.filter((p) => p.id !== deletedId);
-                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch {}
+                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch (e) { console.warn('Cache error:', e); }
                   return updated;
                 });
               } else if ((msg.action === 'playlist.renamed' || msg.action === 'playlist.updated') && msg.data?.playlistId) {
@@ -106,7 +106,7 @@ export function useRealtimeSync({
                       updatedAt: msg.updatedAt || new Date().toISOString()
                     };
                   });
-                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch {}
+                  try { localStorage.setItem('tunely_custom_playlists', JSON.stringify(updated)); } catch (e) { console.warn('Cache error:', e); }
                   return updated;
                 });
               } else if (syncPlaylistsOnLogin) {
@@ -131,7 +131,7 @@ export function useRealtimeSync({
           reconnectAttemptsRef.current += 1;
           reconnectTimerRef.current = setTimeout(connectWebSocket, delay);
         };
-      } catch (err) {
+      } catch {
         if (!isSubscribed) return;
         const delay = Math.min(30000, Math.pow(2, reconnectAttemptsRef.current) * 2000);
         reconnectAttemptsRef.current += 1;
@@ -149,5 +149,5 @@ export function useRealtimeSync({
         wsRef.current = null;
       }
     };
-  }, [isLoggedIn, user?.id, user?.isGuest]);
+  }, [isLoggedIn, user?.id, user?.isGuest, authFetch, syncLikedSongs, syncPlaylistsOnLogin, setLikedSongs, setLikedSongsMetadata, setCustomPlaylists]);
 }
