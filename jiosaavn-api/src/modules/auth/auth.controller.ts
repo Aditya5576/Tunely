@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { generateSalt, hashPassword, verifyPassword, generateToken, generateUserId, createSignedTicket } from './crypto'
-import { authMiddleware } from './auth.middleware'
+import { authMiddleware, invalidateSessionCache } from './auth.middleware'
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
@@ -11,24 +11,6 @@ export const authController = new Hono<{
     token: string
   }
 }>()
-
-/**
- * Helper to ensure schema columns exist safely without throwing errors on existing databases
- */
-const ensureUserColumnsExist = async (db: D1Database) => {
-  try {
-    await db.prepare('ALTER TABLE users ADD COLUMN bio TEXT').run()
-  } catch {}
-  try {
-    await db.prepare('ALTER TABLE users ADD COLUMN avatar_bg TEXT').run()
-  } catch {}
-  try {
-    await db.prepare('ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0').run()
-  } catch {}
-  try {
-    await db.prepare('ALTER TABLE users ADD COLUMN last_seen_at DATETIME').run()
-  } catch {}
-}
 
 /**
  * POST /api/auth/register
@@ -55,7 +37,6 @@ authController.post('/register', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
-  await ensureUserColumnsExist(db)
 
   // Check email not already taken
   const existing = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
@@ -107,15 +88,9 @@ authController.post('/forgot-password', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
-  await ensureUserColumnsExist(db)
 
   // Find user by email — check ban status from D1
-  let user: any = null
-  try {
-    user = await db.prepare('SELECT id, name, email, is_banned FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
-  } catch {
-    user = await db.prepare('SELECT id, name, email FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
-  }
+  const user = await db.prepare('SELECT id, name, email, is_banned FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first() as any
 
   if (!user) {
     return c.json({ success: true, message: 'If that email is registered, a reset code has been sent.' })
@@ -255,18 +230,10 @@ authController.post('/login', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
-  await ensureUserColumnsExist(db)
 
-  let user: any = null
-  try {
-    user = await db.prepare(
-      'SELECT id, email, name, password_hash, password_salt, is_banned FROM users WHERE email = ?'
-    ).bind(email.toLowerCase().trim()).first()
-  } catch {
-    user = await db.prepare(
-      'SELECT id, email, name, password_hash, password_salt FROM users WHERE email = ?'
-    ).bind(email.toLowerCase().trim()).first()
-  }
+  const user = await db.prepare(
+    'SELECT id, email, name, password_hash, password_salt, is_banned FROM users WHERE email = ?'
+  ).bind(email.toLowerCase().trim()).first() as any
 
   if (!user) {
     const fakeSalt = generateSalt()
@@ -310,10 +277,12 @@ authController.post('/login', async (c) => {
 
 /**
  * POST /api/auth/logout
- * Deletes session token from KV.
+ * Deletes session token from memory cache and KV immediately.
  */
 authController.post('/logout', authMiddleware, async (c) => {
   const token = c.get('token') as string
+  const userId = c.get('userId') as string
+  invalidateSessionCache(token, userId)
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
     await kv.delete(token)
@@ -328,18 +297,10 @@ authController.post('/logout', authMiddleware, async (c) => {
 authController.get('/me', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const db = (c.env as any).DB as D1Database
-  await ensureUserColumnsExist(db)
 
-  let user: any = null
-  try {
-    user = await db.prepare(
-      'SELECT id, email, name, bio, avatar_bg, is_banned, created_at, last_seen_at FROM users WHERE id = ?'
-    ).bind(userId).first()
-  } catch {
-    user = await db.prepare(
-      'SELECT id, email, name, created_at FROM users WHERE id = ?'
-    ).bind(userId).first()
-  }
+  const user = await db.prepare(
+    'SELECT id, email, name, bio, avatar_bg, is_banned, created_at, last_seen_at FROM users WHERE id = ?'
+  ).bind(userId).first() as any
 
   if (!user) {
     return c.json({ success: false, message: 'User not found' }, 404)
@@ -380,7 +341,6 @@ authController.get('/me', authMiddleware, async (c) => {
 authController.put('/profile', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const db = (c.env as any).DB as D1Database
-  await ensureUserColumnsExist(db)
 
   const body = await c.req.json() as any
   const name = typeof body.name === 'string' ? body.name.trim() : null
@@ -392,11 +352,7 @@ authController.put('/profile', authMiddleware, async (c) => {
   }
 
   // Save profile directly in D1 SQL (0 KV Writes!)
-  try {
-    await db.prepare('UPDATE users SET name = ?, bio = ?, avatar_bg = ? WHERE id = ?').bind(name, bio, avatarBg, userId).run()
-  } catch {
-    await db.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, userId).run()
-  }
+  await db.prepare('UPDATE users SET name = ?, bio = ?, avatar_bg = ? WHERE id = ?').bind(name, bio, avatarBg, userId).run()
 
   return c.json({
     success: true,
@@ -410,7 +366,7 @@ authController.put('/profile', authMiddleware, async (c) => {
  */
 authController.post('/ws-ticket', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
-  const ticket = await createSignedTicket(userId)
+  const ticket = await createSignedTicket(userId, c.env)
 
   return c.json({
     success: true,

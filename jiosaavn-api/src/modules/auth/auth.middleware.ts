@@ -1,11 +1,29 @@
 import type { Context, Next } from 'hono'
 
+const MEMORY_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes memory TTL for edge security
+
 // Worker isolate in-memory session cache to save 99.9% of KV Reads
-const memorySessionCache = new Map<string, { userId: string; createdAt: string; timestamp: number }>()
+export const memorySessionCache = new Map<string, { userId: string; createdAt: string; timestamp: number }>()
+
+/**
+ * Invalidate in-memory session cache for a specific token or all tokens of a user (logout/ban)
+ */
+export const invalidateSessionCache = (token?: string, userId?: string) => {
+  if (token) {
+    memorySessionCache.delete(token)
+  }
+  if (userId) {
+    for (const [t, data] of memorySessionCache.entries()) {
+      if (data.userId === userId) {
+        memorySessionCache.delete(t)
+      }
+    }
+  }
+}
 
 /**
  * Extracts and validates the Bearer token from the Authorization header.
- * Uses worker in-memory cache to save 99.9% of KV reads/writes.
+ * Uses worker in-memory cache to save 99.9% of KV reads.
  */
 export const authMiddleware = async (c: Context, next: Next) => {
   const authHeader = c.req.header('Authorization')
@@ -22,13 +40,13 @@ export const authMiddleware = async (c: Context, next: Next) => {
 
   // 1. Check worker memory cache first (0 KV Calls!)
   const cached = memorySessionCache.get(token)
-  if (cached && (now - cached.timestamp < 1000 * 60 * 30)) { // 30 min memory TTL
+  if (cached && (now - cached.timestamp < MEMORY_CACHE_TTL_MS)) {
     c.set('userId', cached.userId)
     c.set('token', token)
     return next()
   }
 
-  // 2. Fetch session from KV with safe error catch
+  // 2. Fetch session from KV
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   let sessionRaw: string | null = null
 
@@ -40,13 +58,9 @@ export const authMiddleware = async (c: Context, next: Next) => {
     }
   }
 
+  // If session is deleted or missing in KV, reject immediately (0 stale fallback)
   if (!sessionRaw) {
-    // If cached session exists even if expired by 30 mins, allow fallback
-    if (cached) {
-      c.set('userId', cached.userId)
-      c.set('token', token)
-      return next()
-    }
+    memorySessionCache.delete(token)
     return c.json({ success: false, message: 'Session expired or invalid. Please log in again.' }, 401)
   }
 
@@ -54,6 +68,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
   try {
     session = JSON.parse(sessionRaw)
   } catch {
+    memorySessionCache.delete(token)
     return c.json({ success: false, message: 'Malformed session data' }, 401)
   }
 

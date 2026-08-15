@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { generateSalt, hashPassword } from './crypto'
+import { invalidateSessionCache } from './auth.middleware'
 
 export const adminController = new Hono()
 
@@ -77,19 +78,16 @@ adminController.get('/users', async (c) => {
   const env = c.env as any
 
   try {
-    let users: any[] = []
-    try {
-      const res = await db.prepare('SELECT id, email, name, created_at, last_seen_at, is_banned FROM users ORDER BY created_at DESC').all()
-      users = res.results || []
-    } catch {
-      const res = await db.prepare('SELECT id, email, name, created_at FROM users ORDER BY created_at DESC').all()
-      users = res.results || []
-    }
+    const res = await db.prepare('SELECT id, email, name, created_at, last_seen_at, is_banned FROM users ORDER BY created_at DESC').all()
+    const users = res.results || []
 
     const enrichedUsers = await Promise.all(
       users.map(async (u: any) => {
         let activity = null
-        if (env?.USER_SYNC_DO && u.id) {
+        const isRecentlyActive = u.last_seen_at && (Date.now() - new Date(u.last_seen_at).getTime() <= 300000)
+
+        // Only query Durable Object for accounts active in the last 5 minutes (prevents N+1 DO calls on offline users)
+        if (isRecentlyActive && env?.USER_SYNC_DO && u.id) {
           try {
             const doId = env.USER_SYNC_DO.idFromName(u.id)
             const stub = env.USER_SYNC_DO.get(doId)
@@ -125,15 +123,8 @@ adminController.post('/users/:id/ban', async (c) => {
   const userId = c.req.param('id')
   const db = (c.env as any).DB as D1Database
 
-  try {
-    await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
-  } catch {
-    try {
-      await db.prepare('ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0').run()
-      await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
-    } catch {}
-  }
-
+  invalidateSessionCache(undefined, userId)
+  await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
   return c.json({ success: true, message: 'User banned successfully' })
 })
 
@@ -141,10 +132,7 @@ adminController.post('/users/:id/unban', async (c) => {
   const userId = c.req.param('id')
   const db = (c.env as any).DB as D1Database
 
-  try {
-    await db.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(userId).run()
-  } catch {}
-
+  await db.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(userId).run()
   return c.json({ success: true, message: 'User unbanned successfully' })
 })
 
@@ -152,11 +140,12 @@ adminController.post('/users/:id/delete', async (c) => {
   const userId = c.req.param('id')
   const db = (c.env as any).DB as D1Database
 
+  invalidateSessionCache(undefined, userId)
   try {
     await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
     await db.prepare('DELETE FROM liked_songs WHERE user_id = ?').bind(userId).run()
     await db.prepare('DELETE FROM playlists WHERE user_id = ?').bind(userId).run()
-    try { await db.prepare('DELETE FROM user_sync_state WHERE user_id = ?').bind(userId).run() } catch {}
+    await db.prepare('DELETE FROM user_sync_state WHERE user_id = ?').bind(userId).run()
 
     return c.json({ success: true, message: 'User deleted successfully' })
   } catch (error: any) {

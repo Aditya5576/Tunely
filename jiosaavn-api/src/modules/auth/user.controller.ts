@@ -9,20 +9,14 @@ export const userController = new Hono<{
   }
 }>()
 
+const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
+const lastSeenWriteCache = new Map<string, number>()
+
 /**
  * Helper to maintain user synchronization metadata in D1 SQL (0 KV PUTs!)
  */
 const updateSyncState = async (db: D1Database, userId: string, type: 'liked' | 'playlists', nowStr: string) => {
   try {
-    await db.prepare(
-      `CREATE TABLE IF NOT EXISTS user_sync_state (
-        user_id TEXT PRIMARY KEY,
-        liked_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        playlists_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    ).run()
-
     if (type === 'liked') {
       await db.prepare(
         `INSERT INTO user_sync_state (user_id, liked_updated_at, updated_at)
@@ -483,8 +477,11 @@ userController.post('/activity', authMiddleware, async (c) => {
     );
   }
 
-  // 2. Throttled D1 last_seen_at update in SQL database (0 KV PUTs!)
-  if (db) {
+  // 2. Throttled D1 last_seen_at update in SQL database (max once per 5 minutes per user!)
+  const nowMs = Date.now()
+  const lastWrite = lastSeenWriteCache.get(userId) || 0
+  if (db && (nowMs - lastWrite > LAST_SEEN_THROTTLE_MS)) {
+    lastSeenWriteCache.set(userId, nowMs)
     c.executionCtx.waitUntil(
       (async () => {
         try {
@@ -525,7 +522,7 @@ userController.get('/ws', async (c) => {
   }
 
   // Verify HMAC signed ticket cryptographically (0 KV GET/DELETE!)
-  const ticketResult = await verifySignedTicket(ticket)
+  const ticketResult = await verifySignedTicket(ticket, env)
   if (!ticketResult.valid || !ticketResult.userId) {
     return c.json({ success: false, message: 'Invalid or expired WebSocket ticket' }, 401)
   }

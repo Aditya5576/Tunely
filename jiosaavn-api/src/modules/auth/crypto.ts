@@ -56,8 +56,15 @@ export const generateUserId = (): string => `usr_${crypto.randomUUID().replaceAl
 /** Generate a prefixed UUID playlist ID */
 export const generatePlaylistId = (): string => `pl_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
 
+/** Helper to get HMAC signing secret from environment secrets */
+export const getHmacSecret = (env?: any): string => {
+  if (typeof env === 'string') return env;
+  return env?.JWT_SECRET || env?.SESSION_SECRET || env?.ADMIN_PASSWORD || 'tunely_ws_default_hmac_secret_key_v1';
+};
+
 /** Generate a cryptographically signed short-lived ticket for WebSockets (0 KV operations) */
-export const createSignedTicket = async (userId: string, secret: string = 'tunely_ws_secret_key'): Promise<string> => {
+export const createSignedTicket = async (userId: string, envOrSecret?: any): Promise<string> => {
+  const secret = getHmacSecret(envOrSecret);
   const exp = Date.now() + 60000; // 60s expiration
   const nonce = crypto.randomUUID().slice(0, 8);
   const payloadStr = JSON.stringify({ u: userId, e: exp, n: nonce });
@@ -78,8 +85,9 @@ export const createSignedTicket = async (userId: string, secret: string = 'tunel
 };
 
 /** Verify a cryptographically signed ticket (0 KV operations) */
-export const verifySignedTicket = async (ticket: string, secret: string = 'tunely_ws_secret_key'): Promise<{ valid: boolean; userId?: string }> => {
-  if (!ticket || !ticket.includes('.')) return { valid: false };
+export const verifySignedTicket = async (ticket: string, envOrSecret?: any): Promise<{ valid: boolean; userId?: string }> => {
+  if (!ticket || typeof ticket !== 'string' || !ticket.includes('.')) return { valid: false };
+  const secret = getHmacSecret(envOrSecret);
   const [payloadB64, sigB64] = ticket.split('.');
   if (!payloadB64 || !sigB64) return { valid: false };
 
