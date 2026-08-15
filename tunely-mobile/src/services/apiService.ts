@@ -1,4 +1,4 @@
-import { Track, Album, Playlist } from '../types/music';
+import { Track, Album, Playlist, Artist } from '../types/music';
 import { User } from '../types/user';
 
 export const API_BASE_URL = (
@@ -150,6 +150,10 @@ export const apiService = {
     return this.get(`/api/search/playlists?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
   },
 
+  async searchArtists(query: string, page = 0, limit = 20): Promise<{ success: boolean; data: { results: Artist[]; total: number } }> {
+    return this.get(`/api/search/artists?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+  },
+
   // ─── MUSIC & DETAIL ENDPOINTS ────────────────────────────────────────────────
   async getSongById(id: string): Promise<{ success: boolean; data: Track[] }> {
     return this.get(`/api/songs/${encodeURIComponent(id)}`);
@@ -167,8 +171,24 @@ export const apiService = {
     return this.get(`/api/playlists?id=${encodeURIComponent(id)}`);
   },
 
+  async getArtistById(id: string): Promise<{ success: boolean; data: Artist }> {
+    return this.get(`/api/artists?id=${encodeURIComponent(id)}`);
+  },
+
+  async getArtistSongs(id: string, page = 0): Promise<{ success: boolean; data: Track[] }> {
+    return this.get(`/api/artists/${encodeURIComponent(id)}/songs?page=${page}`);
+  },
+
+  async getArtistAlbums(id: string, page = 0): Promise<{ success: boolean; data: Album[] }> {
+    return this.get(`/api/artists/${encodeURIComponent(id)}/albums?page=${page}`);
+  },
+
   async getHomeModules(language = 'english,hindi'): Promise<{ success: boolean; data: any }> {
     return this.get(`/api/modules?language=${encodeURIComponent(language)}`);
+  },
+
+  async getSpotifyPlaylist(id: string): Promise<{ success: boolean; data: { name: string; tracks: Array<{ title: string; artist: string }> } }> {
+    return this.get(`/api/spotify/playlist?id=${encodeURIComponent(id)}`);
   },
 
   // ─── AUTHENTICATION ENDPOINTS ────────────────────────────────────────────────
@@ -188,7 +208,27 @@ export const apiService = {
     return this.put('/api/auth/profile', fields, { token });
   },
 
-  // ─── USER SYNC ENDPOINTS ─────────────────────────────────────────────────────
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    return this.post('/api/auth/forgot-password', { email });
+  },
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    return this.post('/api/auth/reset-password', { email, otp, newPassword });
+  },
+
+  // ─── USER DATA & SYNC ENDPOINTS ──────────────────────────────────────────────
+  async getLikedSongs(token: string): Promise<{ success: boolean; data: Array<{ song_id: string; song_data: string; created_at: string }> }> {
+    return this.get('/api/user/liked', { token });
+  },
+
+  async likeSong(song: Track, token: string): Promise<{ success: boolean; data: any }> {
+    return this.post('/api/user/liked', { song }, { token });
+  },
+
+  async unlikeSong(songId: string, token: string): Promise<{ success: boolean; data: any }> {
+    return this.delete('/api/user/liked', { body: JSON.stringify({ songId }), token });
+  },
+
   async syncCustomPlaylists(playlists: any[], localUpdatedAt: string, token: string): Promise<{ success: boolean; data: { playlists: any[]; serverUpdatedAt?: string } }> {
     return this.post('/api/user/playlists/sync', { playlists, localUpdatedAt }, { token });
   },
