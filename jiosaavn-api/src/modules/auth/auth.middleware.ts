@@ -49,19 +49,31 @@ export const authMiddleware = async (c: Context, next: Next) => {
   // 2. Fetch session from KV
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   let sessionRaw: string | null = null
+  let kvGetSuccess = false
 
   if (kv) {
     try {
       sessionRaw = await kv.get(token)
+      kvGetSuccess = true
     } catch (e) {
       console.warn("KV Get failed or limit reached:", e)
+      kvGetSuccess = false
     }
   }
 
-  // If session is deleted or missing in KV, reject immediately (0 stale fallback)
+  // If KV explicitly returned null (session deleted/logged out), reject immediately
   if (!sessionRaw) {
-    memorySessionCache.delete(token)
-    return c.json({ success: false, message: 'Session expired or invalid. Please log in again.' }, 401)
+    if (kvGetSuccess) {
+      memorySessionCache.delete(token)
+      return c.json({ success: false, message: 'Session expired or invalid. Please log in again.' }, 401)
+    }
+    // If KV returned error (e.g. 429 quota error), allow cached isolate fallback
+    if (cached) {
+      c.set('userId', cached.userId)
+      c.set('token', token)
+      return next()
+    }
+    return c.json({ success: false, message: 'Session service temporarily degraded. Please try again.' }, 503)
   }
 
   let session: { userId: string; createdAt: string }
