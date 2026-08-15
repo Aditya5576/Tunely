@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { generateSalt, hashPassword, verifyPassword, generateToken, generateUserId, createSignedTicket } from './crypto'
-import { authMiddleware, invalidateSessionCache } from './auth.middleware'
+import { authMiddleware, invalidateSessionCache, memorySessionCache } from './auth.middleware'
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
@@ -53,12 +53,17 @@ authController.post('/register', async (c) => {
     'INSERT INTO users (id, email, name, password_hash, password_salt, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).bind(id, email.toLowerCase().trim(), name.trim(), passwordHash, salt, now, now).run()
 
-  // Create session token in KV (low frequency write, only on login/register)
+  // Create session token in KV & memory cache (resilient to KV quota 429 errors)
   const token = generateToken()
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(token, JSON.stringify({ userId: id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    try {
+      await kv.put(token, JSON.stringify({ userId: id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    } catch (e) {
+      console.warn('KV put failed (quota limit), session cached in memory:', e)
+    }
   }
+  memorySessionCache.set(token, { userId: id, createdAt: now, timestamp: Date.now() })
 
   return c.json({
     success: true,
@@ -107,7 +112,11 @@ authController.post('/forgot-password', async (c) => {
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   const otp = Math.floor(100000 + Math.random() * 900000).toString()
   if (kv) {
-    await kv.put(`reset:${email.toLowerCase().trim()}`, JSON.stringify({ otp, userId: user.id }), { expirationTtl: 900 })
+    try {
+      await kv.put(`reset:${email.toLowerCase().trim()}`, JSON.stringify({ otp, userId: user.id }), { expirationTtl: 900 })
+    } catch (e) {
+      console.warn('KV put reset OTP failed:', e)
+    }
   }
 
   const resendKey = (c.env as any).RESEND_API_KEY as string | undefined
@@ -161,7 +170,9 @@ authController.post('/reset-password', async (c) => {
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   let stored: string | null = null
   if (kv) {
-    stored = await kv.get(`reset:${email.toLowerCase().trim()}`)
+    try {
+      stored = await kv.get(`reset:${email.toLowerCase().trim()}`)
+    } catch {}
   }
   if (!stored) {
     return c.json({ success: false, message: 'Reset code expired or not found. Please request a new one.' }, 400)
@@ -192,14 +203,19 @@ authController.post('/reset-password', async (c) => {
   ).bind(passwordHash, salt, user.id).run()
 
   if (kv) {
-    await kv.delete(`reset:${email.toLowerCase().trim()}`)
+    try { await kv.delete(`reset:${email.toLowerCase().trim()}`) } catch {}
   }
 
   const token = generateToken()
   const now = new Date().toISOString()
   if (kv) {
-    await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    try {
+      await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    } catch (e) {
+      console.warn('KV put failed (quota limit), session cached in memory:', e)
+    }
   }
+  memorySessionCache.set(token, { userId: user.id, createdAt: now, timestamp: Date.now() })
 
   return c.json({
     success: true,
@@ -214,7 +230,7 @@ authController.post('/reset-password', async (c) => {
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Verifies credentials against D1, checks ban status in D1, creates session token in KV.
+ * Verifies credentials against D1, checks ban status in D1, creates session token in KV & memory cache.
  */
 authController.post('/login', async (c) => {
   let body: { email?: string; password?: string }
@@ -258,8 +274,13 @@ authController.post('/login', async (c) => {
   const now = new Date().toISOString()
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    try {
+      await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+    } catch (e) {
+      console.warn('KV put failed (quota limit), session cached in memory:', e)
+    }
   }
+  memorySessionCache.set(token, { userId: user.id, createdAt: now, timestamp: Date.now() })
 
   // Update last_seen_at in D1 SQL (0 KV PUTs!)
   try {

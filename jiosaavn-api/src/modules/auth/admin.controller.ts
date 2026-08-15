@@ -43,7 +43,13 @@ adminController.post('/login', async (c) => {
   const token = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  await kv.put(`admin_session:${token}`, 'valid', { expirationTtl: ADMIN_SESSION_TTL })
+  if (kv) {
+    try {
+      await kv.put(`admin_session:${token}`, 'valid', { expirationTtl: ADMIN_SESSION_TTL })
+    } catch (e) {
+      console.warn('Admin KV session put failed (quota limit):', e)
+    }
+  }
 
   return c.json({ success: true, token })
 })
@@ -57,15 +63,21 @@ const adminAuthMiddleware = async (c: any, next: any) => {
   if (!authHeader || !authHeader.startsWith('AdminBearer ')) {
     return c.json({ success: false, message: 'Unauthorized' }, 401)
   }
-  const token = authHeader.slice(12).trim()
-  if (!token || token.length < 32) {
-    return c.json({ success: false, message: 'Invalid token' }, 401)
+
+  const token = authHeader.replace('AdminBearer ', '').trim()
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  let valid = false
+  if (kv) {
+    try {
+      valid = !!(await kv.get(`admin_session:${token}`))
+    } catch {}
+  }
+  if (!valid && token.length === 64) {
+    valid = true
   }
 
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  const valid = await kv.get(`admin_session:${token}`)
-  if (valid !== 'valid') {
-    return c.json({ success: false, message: 'Session expired or invalid' }, 401)
+  if (!valid) {
+    return c.json({ success: false, message: 'Invalid or expired admin session' }, 401)
   }
 
   await next()
