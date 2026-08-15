@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import { generateSalt, hashPassword, verifyPassword, generateToken, generateUserId, createSignedTicket } from './crypto'
-import { authMiddleware, invalidateSessionCache, memorySessionCache } from './auth.middleware'
+import { generateSalt, hashPassword, verifyPassword, generateUserId, createSignedSessionToken, createSignedTicket } from './crypto'
+import { authMiddleware, invalidateSessionCache, memorySessionCache, fetchAuthorizationStatus } from './auth.middleware'
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
@@ -13,9 +13,27 @@ export const authController = new Hono<{
 }>()
 
 /**
+ * Helper to update Durable Object persistent storage & in-memory authorization state
+ */
+export const notifyDoAuthChange = async (env: any, userId: string, authVersion: number, isBanned: boolean) => {
+  if (!env?.USER_SYNC_DO || !userId) return;
+  try {
+    const doId = env.USER_SYNC_DO.idFromName(userId);
+    const stub = env.USER_SYNC_DO.get(doId);
+    await stub.fetch('https://internal/update-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, authVersion, isBanned })
+    });
+  } catch (e) {
+    console.warn('DO auth update notification failed:', e);
+  }
+};
+
+/**
  * POST /api/auth/register
  * Body: { email, name, password }
- * Creates a new user with PBKDF2-hashed password. Returns session token.
+ * Creates a new user with PBKDF2-hashed password. Returns HMAC session token.
  */
 authController.post('/register', async (c) => {
   let body: { email?: string; name?: string; password?: string }
@@ -48,22 +66,18 @@ authController.post('/register', async (c) => {
   const salt = generateSalt()
   const passwordHash = await hashPassword(password, salt)
   const now = new Date().toISOString()
+  const authVersion = 1
 
   await db.prepare(
-    'INSERT INTO users (id, email, name, password_hash, password_salt, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, email.toLowerCase().trim(), name.trim(), passwordHash, salt, now, now).run()
+    'INSERT INTO users (id, email, name, password_hash, password_salt, created_at, last_seen_at, auth_version, is_banned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)'
+  ).bind(id, email.toLowerCase().trim(), name.trim(), passwordHash, salt, now, now, authVersion).run()
 
-  // Create session token in KV & memory cache (resilient to KV quota 429 errors)
-  const token = generateToken()
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try {
-      await kv.put(token, JSON.stringify({ userId: id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
-    } catch (e) {
-      console.warn('KV put failed (quota limit), session cached in memory:', e)
-    }
-  }
-  memorySessionCache.set(token, { userId: id, createdAt: now, timestamp: Date.now() })
+  // Notify Durable Object of initial auth state
+  await notifyDoAuthChange(c.env, id, authVersion, false)
+
+  // Generate cryptographically signed HMAC session token
+  const token = await createSignedSessionToken(id, authVersion, c.env)
+  memorySessionCache.set(token, { userId: id, authVersion, isBanned: false, timestamp: Date.now() })
 
   return c.json({
     success: true,
@@ -149,7 +163,7 @@ authController.post('/forgot-password', async (c) => {
 /**
  * POST /api/auth/reset-password
  * Body: { email, otp, newPassword }
- * Step 2: Verifies OTP and updates password in D1.
+ * Step 2: Verifies OTP, updates password, increments auth_version in D1 and DO (global logout of old sessions).
  */
 authController.post('/reset-password', async (c) => {
   let body: { email?: string; otp?: string; newPassword?: string }
@@ -190,32 +204,29 @@ authController.post('/reset-password', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
-  const user = await db.prepare('SELECT id, email, name FROM users WHERE id = ?').bind(resetData.userId).first() as any
+  const user = await db.prepare('SELECT id, email, name, auth_version FROM users WHERE id = ?').bind(resetData.userId).first() as any
   if (!user) {
     return c.json({ success: false, message: 'User not found.' }, 404)
   }
 
   const salt = generateSalt()
   const passwordHash = await hashPassword(newPassword, salt)
+  const newAuthVersion = (user.auth_version || 1) + 1
 
   await db.prepare(
-    'UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?'
-  ).bind(passwordHash, salt, user.id).run()
+    'UPDATE users SET password_hash = ?, password_salt = ?, auth_version = ? WHERE id = ?'
+  ).bind(passwordHash, salt, newAuthVersion, user.id).run()
+
+  // Update Durable Object state (invalidates all existing session tokens globally)
+  await notifyDoAuthChange(c.env, user.id, newAuthVersion, false)
+  invalidateSessionCache(undefined, user.id)
 
   if (kv) {
     try { await kv.delete(`reset:${email.toLowerCase().trim()}`) } catch {}
   }
 
-  const token = generateToken()
-  const now = new Date().toISOString()
-  if (kv) {
-    try {
-      await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
-    } catch (e) {
-      console.warn('KV put failed (quota limit), session cached in memory:', e)
-    }
-  }
-  memorySessionCache.set(token, { userId: user.id, createdAt: now, timestamp: Date.now() })
+  const token = await createSignedSessionToken(user.id, newAuthVersion, c.env)
+  memorySessionCache.set(token, { userId: user.id, authVersion: newAuthVersion, isBanned: false, timestamp: Date.now() })
 
   return c.json({
     success: true,
@@ -230,7 +241,7 @@ authController.post('/reset-password', async (c) => {
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Verifies credentials against D1, checks ban status in D1, creates session token in KV & memory cache.
+ * Verifies credentials against D1, checks ban status, returns signed HMAC session token.
  */
 authController.post('/login', async (c) => {
   let body: { email?: string; password?: string }
@@ -248,7 +259,7 @@ authController.post('/login', async (c) => {
   const db = (c.env as any).DB as D1Database
 
   const user = await db.prepare(
-    'SELECT id, email, name, password_hash, password_salt, is_banned FROM users WHERE email = ?'
+    'SELECT id, email, name, password_hash, password_salt, is_banned, auth_version FROM users WHERE email = ?'
   ).bind(email.toLowerCase().trim()).first() as any
 
   if (!user) {
@@ -270,19 +281,15 @@ authController.post('/login', async (c) => {
     }, 403)
   }
 
-  const token = generateToken()
-  const now = new Date().toISOString()
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try {
-      await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
-    } catch (e) {
-      console.warn('KV put failed (quota limit), session cached in memory:', e)
-    }
-  }
-  memorySessionCache.set(token, { userId: user.id, createdAt: now, timestamp: Date.now() })
+  const authVersion = user.auth_version || 1
+  const token = await createSignedSessionToken(user.id, authVersion, c.env)
+
+  // Ensure DO holds current authVersion
+  await notifyDoAuthChange(c.env, user.id, authVersion, false)
+  memorySessionCache.set(token, { userId: user.id, authVersion, isBanned: false, timestamp: Date.now() })
 
   // Update last_seen_at in D1 SQL (0 KV PUTs!)
+  const now = new Date().toISOString()
   try {
     await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, user.id).run()
   } catch {}
@@ -298,16 +305,29 @@ authController.post('/login', async (c) => {
 
 /**
  * POST /api/auth/logout
- * Deletes session token from memory cache and KV immediately.
+ * Increments auth_version in D1 and DO, invalidating all session tokens for user globally.
  */
 authController.post('/logout', authMiddleware, async (c) => {
   const token = c.get('token') as string
   const userId = c.get('userId') as string
+  const db = (c.env as any).DB as D1Database
+
   invalidateSessionCache(token, userId)
+
+  try {
+    const user = await db.prepare('SELECT auth_version FROM users WHERE id = ?').bind(userId).first() as any
+    const newAuthVersion = ((user?.auth_version || 1) + 1)
+    await db.prepare('UPDATE users SET auth_version = ? WHERE id = ?').bind(newAuthVersion, userId).run()
+    await notifyDoAuthChange(c.env, userId, newAuthVersion, false)
+  } catch (e) {
+    console.warn('Logout D1 auth_version update failed:', e)
+  }
+
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   if (kv) {
-    await kv.delete(token)
+    try { await kv.delete(token) } catch {}
   }
+
   return c.json({ success: true, message: 'Logged out successfully' })
 })
 
@@ -387,7 +407,9 @@ authController.put('/profile', authMiddleware, async (c) => {
  */
 authController.post('/ws-ticket', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
-  const ticket = await createSignedTicket(userId, c.env)
+  const authStatus = await fetchAuthorizationStatus(c.env, userId)
+  const authVersion = authStatus?.authVersion || 1
+  const ticket = await createSignedTicket(userId, authVersion, c.env)
 
   return c.json({
     success: true,
@@ -395,4 +417,3 @@ authController.post('/ws-ticket', authMiddleware, async (c) => {
     expiresIn: 60
   })
 })
-

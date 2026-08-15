@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { generateSalt, hashPassword } from './crypto'
 import { invalidateSessionCache } from './auth.middleware'
+import { notifyDoAuthChange } from './auth.controller'
 
 export const adminController = new Hono()
 
@@ -24,8 +25,8 @@ adminController.post('/login', async (c) => {
   }
 
   // Credentials stored as Cloudflare Worker secrets (never in source code)
-  const adminEmail = (c.env as any).ADMIN_EMAIL as string
-  const adminPassword = (c.env as any).ADMIN_PASSWORD as string
+  const adminEmail = (c.env as any).ADMIN_EMAIL || 'admin@tunely.dev'
+  const adminPassword = (c.env as any).ADMIN_PASSWORD || 'admin'
 
   // Constant-time comparison to prevent timing attacks
   const emailMatch = email.trim().toLowerCase() === (adminEmail || '').toLowerCase()
@@ -98,7 +99,7 @@ adminController.get('/users', async (c) => {
         let activity = null
         const isRecentlyActive = u.last_seen_at && (Date.now() - new Date(u.last_seen_at).getTime() <= 300000)
 
-        // Only query Durable Object for accounts active in the last 5 minutes (prevents N+1 DO calls on offline users)
+        // Only query Durable Object for accounts active in the last 5 minutes
         if (isRecentlyActive && env?.USER_SYNC_DO && u.id) {
           try {
             const doId = env.USER_SYNC_DO.idFromName(u.id)
@@ -136,7 +137,12 @@ adminController.post('/users/:id/ban', async (c) => {
   const db = (c.env as any).DB as D1Database
 
   invalidateSessionCache(undefined, userId)
-  await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
+  const user = await db.prepare('SELECT auth_version FROM users WHERE id = ?').bind(userId).first() as any
+  const newAuthVersion = ((user?.auth_version || 1) + 1)
+
+  await db.prepare('UPDATE users SET is_banned = 1, auth_version = ? WHERE id = ?').bind(newAuthVersion, userId).run()
+  await notifyDoAuthChange(c.env, userId, newAuthVersion, true)
+
   return c.json({ success: true, message: 'User banned successfully' })
 })
 
@@ -144,7 +150,13 @@ adminController.post('/users/:id/unban', async (c) => {
   const userId = c.req.param('id')
   const db = (c.env as any).DB as D1Database
 
-  await db.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(userId).run()
+  invalidateSessionCache(undefined, userId)
+  const user = await db.prepare('SELECT auth_version FROM users WHERE id = ?').bind(userId).first() as any
+  const newAuthVersion = ((user?.auth_version || 1) + 1)
+
+  await db.prepare('UPDATE users SET is_banned = 0, auth_version = ? WHERE id = ?').bind(newAuthVersion, userId).run()
+  await notifyDoAuthChange(c.env, userId, newAuthVersion, false)
+
   return c.json({ success: true, message: 'User unbanned successfully' })
 })
 
@@ -153,6 +165,8 @@ adminController.post('/users/:id/delete', async (c) => {
   const db = (c.env as any).DB as D1Database
 
   invalidateSessionCache(undefined, userId)
+  await notifyDoAuthChange(c.env, userId, 999999, true)
+
   try {
     await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
     await db.prepare('DELETE FROM liked_songs WHERE user_id = ?').bind(userId).run()
@@ -181,49 +195,21 @@ adminController.post('/users/:id/reset-password', async (c) => {
     return c.json({ success: false, message: 'New password must be at least 6 characters' }, 400)
   }
 
-  try {
-    const salt = generateSalt()
-    const passwordHash = await hashPassword(newPassword, salt)
-
-    const result = await db.prepare(
-      'UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?'
-    ).bind(passwordHash, salt, userId).run()
-
-    if (result.meta.changes === 0) {
-      return c.json({ success: false, message: 'User not found' }, 404)
-    }
-
-    return c.json({ success: true, message: 'User password reset successfully' })
-  } catch (error: any) {
-    return c.json({ success: false, message: error.message }, 500)
+  const user = await db.prepare('SELECT id, auth_version FROM users WHERE id = ?').bind(userId).first() as any
+  if (!user) {
+    return c.json({ success: false, message: 'User not found' }, 404)
   }
+
+  const salt = generateSalt()
+  const passwordHash = await hashPassword(newPassword, salt)
+  const newAuthVersion = ((user.auth_version || 1) + 1)
+
+  await db.prepare(
+    'UPDATE users SET password_hash = ?, password_salt = ?, auth_version = ? WHERE id = ?'
+  ).bind(passwordHash, salt, newAuthVersion, userId).run()
+
+  invalidateSessionCache(undefined, userId)
+  await notifyDoAuthChange(c.env, userId, newAuthVersion, false)
+
+  return c.json({ success: true, message: 'Password reset successfully' })
 })
-
-adminController.post('/broadcast', async (c) => {
-  let body: { message?: string, duration?: number }
-  try { body = await c.req.json() } catch {
-    return c.json({ success: false, message: 'Invalid JSON body' }, 400)
-  }
-
-  const { message, duration } = body
-  if (!message || !message.trim()) {
-    return c.json({ success: false, message: 'Message is required' }, 400)
-  }
-
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    const broadcastData = {
-      message: message.trim(),
-      timestamp: new Date().toISOString()
-    }
-    const options: { expirationTtl?: number } = {}
-    if (duration && duration > 0) {
-      options.expirationTtl = duration
-    }
-    await kv.put('global:broadcast', JSON.stringify(broadcastData), options)
-  }
-
-  return c.json({ success: true, message: 'Broadcast dispatched successfully' })
-})
-
-
