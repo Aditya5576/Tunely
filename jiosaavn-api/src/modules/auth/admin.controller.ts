@@ -74,35 +74,34 @@ adminController.use('/*', adminAuthMiddleware)
 
 adminController.get('/users', async (c) => {
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  const env = c.env as any
 
   try {
     let users: any[] = []
     try {
-      const res = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users ORDER BY created_at DESC').all()
+      const res = await db.prepare('SELECT id, email, name, created_at, last_seen_at, is_banned FROM users ORDER BY created_at DESC').all()
       users = res.results || []
     } catch {
       const res = await db.prepare('SELECT id, email, name, created_at FROM users ORDER BY created_at DESC').all()
       users = res.results || []
     }
 
-    let activeMap: Record<string, any> = {}
-    if (kv) {
-      const activeMapRaw = await kv.get('active_sessions_map')
-      if (activeMapRaw) {
-        try { activeMap = JSON.parse(activeMapRaw) } catch {}
-      }
-    }
-
     const enrichedUsers = await Promise.all(
       users.map(async (u: any) => {
-        const activity = activeMap[u.id] || null
-        let banned = false
-
-        if (kv) {
-          const isBanned = await kv.get(`user:${u.id}:banned`)
-          banned = isBanned === 'true'
+        let activity = null
+        if (env?.USER_SYNC_DO && u.id) {
+          try {
+            const doId = env.USER_SYNC_DO.idFromName(u.id)
+            const stub = env.USER_SYNC_DO.get(doId)
+            const res = await stub.fetch('https://internal/activity', { method: 'GET' })
+            if (res.ok) {
+              const data: any = await res.json()
+              activity = data?.activity || null
+            }
+          } catch {}
         }
+
+        const banned = u.is_banned === 1
 
         return {
           id: u.id,
@@ -124,10 +123,15 @@ adminController.get('/users', async (c) => {
 
 adminController.post('/users/:id/ban', async (c) => {
   const userId = c.req.param('id')
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  const db = (c.env as any).DB as D1Database
 
-  if (kv) {
-    await kv.put(`user:${userId}:banned`, 'true')
+  try {
+    await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
+  } catch {
+    try {
+      await db.prepare('ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0').run()
+      await db.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(userId).run()
+    } catch {}
   }
 
   return c.json({ success: true, message: 'User banned successfully' })
@@ -135,11 +139,11 @@ adminController.post('/users/:id/ban', async (c) => {
 
 adminController.post('/users/:id/unban', async (c) => {
   const userId = c.req.param('id')
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  const db = (c.env as any).DB as D1Database
 
-  if (kv) {
-    await kv.delete(`user:${userId}:banned`)
-  }
+  try {
+    await db.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(userId).run()
+  } catch {}
 
   return c.json({ success: true, message: 'User unbanned successfully' })
 })
@@ -147,18 +151,12 @@ adminController.post('/users/:id/unban', async (c) => {
 adminController.post('/users/:id/delete', async (c) => {
   const userId = c.req.param('id')
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
   try {
     await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
     await db.prepare('DELETE FROM liked_songs WHERE user_id = ?').bind(userId).run()
     await db.prepare('DELETE FROM playlists WHERE user_id = ?').bind(userId).run()
-
-    if (kv) {
-      await kv.delete(`user:${userId}:banned`)
-      await kv.delete(`user:${userId}:last_seen`)
-      await kv.delete(`user:${userId}:activity`)
-    }
+    try { await db.prepare('DELETE FROM user_sync_state WHERE user_id = ?').bind(userId).run() } catch {}
 
     return c.json({ success: true, message: 'User deleted successfully' })
   } catch (error: any) {

@@ -9,7 +9,18 @@ CREATE TABLE IF NOT EXISTS users (
   password_salt TEXT NOT NULL,               -- random 32-byte hex salt
   reset_token TEXT,                          -- for future forgot password flow
   reset_token_expires DATETIME,              -- expiry for reset token
+  bio TEXT,                                  -- profile bio
+  avatar_bg TEXT,                             -- profile avatar background gradient
+  is_banned INTEGER DEFAULT 0,               -- admin ban status (0 = active, 1 = banned)
+  last_seen_at DATETIME,                     -- last active timestamp
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_sync_state (
+  user_id TEXT PRIMARY KEY,
+  liked_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  playlists_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS liked_songs (
@@ -43,3 +54,4 @@ CREATE TABLE IF NOT EXISTS recently_played (
 CREATE INDEX IF NOT EXISTS idx_liked_user ON liked_songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_playlist_user ON playlists(user_id);
 CREATE INDEX IF NOT EXISTS idx_recently_played_user ON recently_played(user_id, played_at);
+CREATE INDEX IF NOT EXISTS idx_user_sync ON user_sync_state(user_id);

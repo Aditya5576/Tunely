@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { authMiddleware } from './auth.middleware'
-import { generatePlaylistId } from './crypto'
+import { generatePlaylistId, verifySignedTicket } from './crypto'
 
 export const userController = new Hono<{
   Variables: {
@@ -9,10 +9,61 @@ export const userController = new Hono<{
   }
 }>()
 
-const safeKvPut = async (kv: KVNamespace, key: string, value: string, options?: any) => {
-  // Silent no-op to conserve 100% of Cloudflare KV daily write quota
-  // Cloudflare D1 Database handles all persistent storage and timestamps natively
-  return;
+/**
+ * Helper to maintain user synchronization metadata in D1 SQL (0 KV PUTs!)
+ */
+const updateSyncState = async (db: D1Database, userId: string, type: 'liked' | 'playlists', nowStr: string) => {
+  try {
+    await db.prepare(
+      `CREATE TABLE IF NOT EXISTS user_sync_state (
+        user_id TEXT PRIMARY KEY,
+        liked_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        playlists_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`
+    ).run()
+
+    if (type === 'liked') {
+      await db.prepare(
+        `INSERT INTO user_sync_state (user_id, liked_updated_at, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET liked_updated_at = excluded.liked_updated_at, updated_at = excluded.updated_at`
+      ).bind(userId, nowStr, nowStr).run()
+    } else {
+      await db.prepare(
+        `INSERT INTO user_sync_state (user_id, playlists_updated_at, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET playlists_updated_at = excluded.playlists_updated_at, updated_at = excluded.updated_at`
+      ).bind(userId, nowStr, nowStr).run()
+    }
+  } catch (e) {
+    console.warn('Failed to update D1 user_sync_state:', e)
+  }
+}
+
+/**
+ * Helper to fetch server sync timestamp from D1 user_sync_state or table fallback
+ */
+const getSyncTimestamp = async (db: D1Database, userId: string, type: 'liked' | 'playlists'): Promise<string | null> => {
+  try {
+    const col = type === 'liked' ? 'liked_updated_at' : 'playlists_updated_at'
+    const syncRow = await db.prepare(
+      `SELECT ${col} as ts FROM user_sync_state WHERE user_id = ?`
+    ).bind(userId).first() as any
+    if (syncRow?.ts) return syncRow.ts
+  } catch {}
+
+  if (type === 'liked') {
+    const maxRow = await db.prepare(
+      'SELECT MAX(created_at) as latest FROM liked_songs WHERE user_id = ?'
+    ).bind(userId).first() as any
+    return maxRow?.latest || null
+  } else {
+    const maxRow = await db.prepare(
+      'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
+    ).bind(userId).first() as any
+    return maxRow?.latest || null
+  }
 }
 
 // ─── LIKED SONGS ─────────────────────────────────────────────────────────────
@@ -33,9 +84,7 @@ userController.get('/liked', authMiddleware, async (c) => {
 })
 
 /**
- * POST /api/user/liked
- * Body: { song }
- * Adds a song to liked songs.
+ * Broadcast real-time user event to connected devices via Durable Object
  */
 export const broadcastUserEvent = async (env: any, userId: string, event: { type: string; action: string; data?: any; updatedAt: string }) => {
   if (!env?.USER_SYNC_DO || !userId) return;
@@ -51,6 +100,11 @@ export const broadcastUserEvent = async (env: any, userId: string, event: { type
   }
 };
 
+/**
+ * POST /api/user/liked
+ * Body: { song }
+ * Adds a song to liked songs.
+ */
 userController.post('/liked', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   let body: { song?: any }
@@ -74,11 +128,8 @@ userController.post('/liked', authMiddleware, async (c) => {
      ON CONFLICT(user_id, song_id) DO UPDATE SET song_data = excluded.song_data`
   ).bind(userId, song.id, JSON.stringify(song), nowStr).run()
 
-  // Track overall liked songs update time in KV to prevent sync deletions and resurrection
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try { await kv.put(`user:${userId}:liked_updated_at`, nowStr) } catch {}
-  }
+  // Track overall liked songs update time in D1 SQL (0 KV PUTs!)
+  await updateSyncState(db, userId, 'liked', nowStr)
 
   // Broadcast real-time event to all connected devices AFTER D1 persistence succeeds
   c.executionCtx.waitUntil(
@@ -105,11 +156,8 @@ userController.delete('/liked/:songId', authMiddleware, async (c) => {
   await db.prepare('DELETE FROM liked_songs WHERE user_id = ? AND song_id = ?').bind(userId, songId).run()
 
   const nowStr = new Date().toISOString();
-  // Update KV timestamp to track deletion
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try { await kv.put(`user:${userId}:liked_updated_at`, nowStr) } catch {}
-  }
+  // Update D1 sync timestamp to track deletion (0 KV PUTs!)
+  await updateSyncState(db, userId, 'liked', nowStr)
 
   // Broadcast real-time event AFTER D1 persistence succeeds
   c.executionCtx.waitUntil(
@@ -127,10 +175,7 @@ userController.delete('/liked/:songId', authMiddleware, async (c) => {
 /**
  * POST /api/user/liked/sync
  * Body: { songs: [...], localUpdatedAt: ISO string }
- * Smart sync: compares server vs local timestamps, returns merged result.
- * - If local is newer → upload local songs to server, return them
- * - If server is newer → return server songs
- * - If equal → no change needed
+ * Smart sync using D1 SQL timestamps (0 KV operations!).
  */
 userController.post('/liked/sync', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
@@ -141,29 +186,18 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
 
   const { songs: localSongs = [], localUpdatedAt } = body
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
 
-  // Get overall update timestamp from KV to accurately track deletions
-  let serverUpdatedAt = kv ? await kv.get(`user:${userId}:liked_updated_at`) : null
-  const isKvMissing = !serverUpdatedAt
-  if (isKvMissing) {
-    const latestRow = await db.prepare(
-      'SELECT MAX(created_at) as latest FROM liked_songs WHERE user_id = ?'
-    ).bind(userId).first() as any
-    serverUpdatedAt = latestRow?.latest || null
-  }
+  const serverUpdatedAt = await getSyncTimestamp(db, userId, 'liked')
 
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
   const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
 
-  // Check if server is empty for this user (handles first-sync cold starts)
   const serverCountRow = await db.prepare(
     'SELECT COUNT(1) as count FROM liked_songs WHERE user_id = ?'
   ).bind(userId).first() as any
   const serverCount = serverCountRow?.count || 0
 
   if ((localTs > serverTs || serverCount === 0) && localSongs.length > 0) {
-    // Local is newer — upload all local songs to server
     const stmt = db.prepare(
       `INSERT INTO liked_songs (user_id, song_id, song_data, created_at)
        VALUES (?, ?, ?, ?)
@@ -175,14 +209,11 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
     await db.batch(batch)
 
     const newTs = localUpdatedAt || new Date().toISOString()
-    if (kv) {
-      try { await kv.put(`user:${userId}:liked_updated_at`, newTs) } catch {}
-    }
+    await updateSyncState(db, userId, 'liked', newTs)
 
     return c.json({ success: true, data: { source: 'local', songs: localSongs, serverUpdatedAt: newTs } })
   }
 
-  // Server is newer or equal — return server data
   const rows = await db.prepare(
     'SELECT song_data FROM liked_songs WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(userId).all()
@@ -190,11 +221,6 @@ userController.post('/liked/sync', authMiddleware, async (c) => {
   const serverSongs = (rows.results || []).map((r: any) => {
     try { return JSON.parse(r.song_data) } catch { return null }
   }).filter(Boolean)
-
-  // Initialize KV if missing
-  if (serverUpdatedAt && kv && isKvMissing) {
-    try { await kv.put(`user:${userId}:liked_updated_at`, serverUpdatedAt) } catch {}
-  }
 
   return c.json({ success: true, data: { source: 'server', songs: serverSongs, serverUpdatedAt } })
 })
@@ -248,11 +274,8 @@ userController.post('/playlists', authMiddleware, async (c) => {
     'INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(id, userId, name.trim(), JSON.stringify(songs), now, now).run()
 
-  // Track overall playlists update time in KV to prevent sync deletions
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try { await kv.put(`user:${userId}:playlists_updated_at`, now) } catch {}
-  }
+  // Track overall playlists update time in D1 SQL (0 KV PUTs!)
+  await updateSyncState(db, userId, 'playlists', now)
 
   const playlistData = { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' };
 
@@ -296,13 +319,9 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
 
   await db.prepare(`UPDATE playlists SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`).bind(...values).run()
 
-  // Update KV timestamp
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try { await kv.put(`user:${userId}:playlists_updated_at`, nowStr) } catch {}
-  }
+  // Update D1 sync timestamp (0 KV PUTs!)
+  await updateSyncState(db, userId, 'playlists', nowStr)
 
-  // Determine specific action type (rename / song edit / general update)
   let actionType = 'playlist.updated';
   if (body.name !== undefined && body.songs === undefined) actionType = 'playlist.renamed';
 
@@ -330,11 +349,8 @@ userController.delete('/playlists/:id', authMiddleware, async (c) => {
   await db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?').bind(playlistId, userId).run()
 
   const nowStr = new Date().toISOString();
-  // Update KV timestamp to track deletion
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    try { await kv.put(`user:${userId}:playlists_updated_at`, nowStr) } catch {}
-  }
+  // Update D1 sync timestamp (0 KV PUTs!)
+  await updateSyncState(db, userId, 'playlists', nowStr)
 
   c.executionCtx.waitUntil(
     broadcastUserEvent(c.env, userId, {
@@ -351,7 +367,7 @@ userController.delete('/playlists/:id', authMiddleware, async (c) => {
 /**
  * POST /api/user/playlists/sync
  * Body: { playlists: [...], localUpdatedAt: ISO string }
- * Smart sync: compares timestamps, uploads local if newer, downloads server if newer.
+ * Smart sync using D1 SQL timestamps (0 KV operations!).
  */
 userController.post('/playlists/sync', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
@@ -363,10 +379,7 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
   const { playlists: localPlaylists = [], localUpdatedAt } = body
   const db = (c.env as any).DB as D1Database
 
-  const latestRow = await db.prepare(
-    'SELECT MAX(updated_at) as latest FROM playlists WHERE user_id = ?'
-  ).bind(userId).first() as any
-  const serverUpdatedAt = latestRow?.latest || null
+  const serverUpdatedAt = await getSyncTimestamp(db, userId, 'playlists')
 
   const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0
   const localTs = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0
@@ -376,7 +389,6 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
   ).bind(userId).first() as any
   const serverCount = serverCountRow?.count || 0
 
-  // Local is newer OR server is empty and client has local data -> sync local state to server
   if (localTs >= serverTs || (serverCount === 0 && localPlaylists.length > 0)) {
     const nowTs = new Date().toISOString()
     const activeIds = localPlaylists.map((pl: any) => pl.id).filter(Boolean)
@@ -393,7 +405,6 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
       await db.batch(batch)
     }
 
-    // Purge deleted playlists from D1 database
     if (activeIds.length > 0) {
       const placeholders = activeIds.map(() => '?').join(',')
       await db.prepare(
@@ -404,10 +415,11 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
     }
 
     const newTs = localUpdatedAt || nowTs
+    await updateSyncState(db, userId, 'playlists', newTs)
+
     return c.json({ success: true, data: { source: 'local', playlists: localPlaylists, serverUpdatedAt: newTs } })
   }
 
-  // Server is newer -> return server playlists
   const rows = await db.prepare(
     'SELECT id, name, songs, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(userId).all()
@@ -427,7 +439,7 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 /**
  * POST /api/user/activity
  * Body: { track, isPlaying, progress, device }
- * Keeps the session alive and logs the user's active media state.
+ * Keeps presence active via Durable Objects in-memory state & throttled D1 updates (0 KV PUTs!).
  */
 userController.post('/activity', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
@@ -438,39 +450,48 @@ userController.post('/activity', authMiddleware, async (c) => {
     return c.json({ success: false, message: 'Invalid JSON body' }, 400)
   }
 
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  if (kv) {
-    const userAgent = c.req.header('User-Agent') || 'Unknown Device'
-    const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-real-ip') || 'Unknown IP'
-    const now = new Date().toISOString()
-    const activityData = {
-      track: body.track || null,
-      isPlaying: body.isPlaying || false,
-      progress: body.progress || 0,
-      device: body.device || userAgent,
-      ip,
-      lastActive: now
-    }
-    // Set TTL to 300 seconds (5 minutes) so active sessions never drop unexpectedly
-    await safeKvPut(kv, `user:${userId}:activity`, JSON.stringify(activityData), { expirationTtl: 300 })
-    await safeKvPut(kv, `user:${userId}:last_seen`, now)
+  const userAgent = c.req.header('User-Agent') || 'Unknown Device'
+  const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-real-ip') || 'Unknown IP'
+  const now = new Date().toISOString()
+  const activityData = {
+    track: body.track || null,
+    isPlaying: body.isPlaying || false,
+    progress: body.progress || 0,
+    device: body.device || userAgent,
+    ip,
+    lastActive: now
+  }
 
-    // Batch activity into a single KV map key to cut Admin Panel KV reads by 99.3%
-    try {
-      const activeMapRaw = await kv.get('active_sessions_map')
-      let activeMap: Record<string, any> = {}
-      if (activeMapRaw) {
-        try { activeMap = JSON.parse(activeMapRaw) } catch {}
-      }
-      const nowMs = Date.now()
-      for (const id in activeMap) {
-        if (!activeMap[id]?.lastActive || (nowMs - new Date(activeMap[id].lastActive).getTime() > 300000)) {
-          delete activeMap[id]
+  const env = c.env as any
+  const db = env?.DB as D1Database
+
+  // 1. Send ephemeral presence to UserSyncDurableObject (0 KV PUTs!)
+  if (env?.USER_SYNC_DO && userId) {
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          const doId = env.USER_SYNC_DO.idFromName(userId);
+          const stub = env.USER_SYNC_DO.get(doId);
+          await stub.fetch('https://internal/activity', {
+            method: 'POST',
+            body: JSON.stringify(activityData)
+          });
+        } catch (e) {
+          console.warn('DO activity report failed:', e);
         }
-      }
-      activeMap[userId] = activityData
-      await safeKvPut(kv, 'active_sessions_map', JSON.stringify(activeMap), { expirationTtl: 300 })
-    } catch {}
+      })()
+    );
+  }
+
+  // 2. Throttled D1 last_seen_at update in SQL database (0 KV PUTs!)
+  if (db) {
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, userId).run()
+        } catch {}
+      })()
+    );
   }
 
   return c.json({ success: true, message: 'Activity logged' })
@@ -490,7 +511,7 @@ userController.get('/broadcast', authMiddleware, async (c) => {
 
 /**
  * GET /api/user/ws
- * WebSocket endpoint. Validates single-use ticket and routes socket connection to UserSyncDurableObject.
+ * WebSocket endpoint. Validates HMAC signed ticket (0 KV calls!). Routes socket to UserSyncDurableObject.
  */
 userController.get('/ws', async (c) => {
   const ticket = c.req.query('ticket')
@@ -498,37 +519,22 @@ userController.get('/ws', async (c) => {
     return c.json({ success: false, message: 'Ticket parameter required' }, 401)
   }
 
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   const env = c.env as any
-
-  if (!kv || !env.USER_SYNC_DO) {
+  if (!env.USER_SYNC_DO) {
     return c.json({ success: false, message: 'Durable Object service unavailable' }, 503)
   }
 
-  // Validate single-use ticket
-  const ticketDataRaw = await kv.get(`ticket:${ticket}`)
-  if (!ticketDataRaw) {
+  // Verify HMAC signed ticket cryptographically (0 KV GET/DELETE!)
+  const ticketResult = await verifySignedTicket(ticket)
+  if (!ticketResult.valid || !ticketResult.userId) {
     return c.json({ success: false, message: 'Invalid or expired WebSocket ticket' }, 401)
   }
 
-  // Single-use burn: immediately delete ticket to prevent replay attacks
-  await kv.delete(`ticket:${ticket}`)
-
-  let userId: string
-  try {
-    userId = JSON.parse(ticketDataRaw).userId
-  } catch {
-    return c.json({ success: false, message: 'Malformed ticket' }, 401)
-  }
-
-  if (!userId) {
-    return c.json({ success: false, message: 'Unauthorized ticket' }, 401)
-  }
-
-  // Route to the user's isolated Durable Object instance
-  const doId = env.USER_SYNC_DO.idFromName(userId)
+  // Route to user's isolated Durable Object instance
+  const doId = env.USER_SYNC_DO.idFromName(ticketResult.userId)
   const stub = env.USER_SYNC_DO.get(doId)
   return stub.fetch(c.req.raw)
 })
+
 
 

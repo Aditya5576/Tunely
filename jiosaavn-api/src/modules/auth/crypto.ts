@@ -55,3 +55,63 @@ export const generateUserId = (): string => `usr_${crypto.randomUUID().replaceAl
 
 /** Generate a prefixed UUID playlist ID */
 export const generatePlaylistId = (): string => `pl_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
+
+/** Generate a cryptographically signed short-lived ticket for WebSockets (0 KV operations) */
+export const createSignedTicket = async (userId: string, secret: string = 'tunely_ws_secret_key'): Promise<string> => {
+  const exp = Date.now() + 60000; // 60s expiration
+  const nonce = crypto.randomUUID().slice(0, 8);
+  const payloadStr = JSON.stringify({ u: userId, e: exp, n: nonce });
+  const encoder = new TextEncoder();
+  const payloadB64 = btoa(payloadStr).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sigBuf = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf))).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+
+  return `${payloadB64}.${sigB64}`;
+};
+
+/** Verify a cryptographically signed ticket (0 KV operations) */
+export const verifySignedTicket = async (ticket: string, secret: string = 'tunely_ws_secret_key'): Promise<{ valid: boolean; userId?: string }> => {
+  if (!ticket || !ticket.includes('.')) return { valid: false };
+  const [payloadB64, sigB64] = ticket.split('.');
+  if (!payloadB64 || !sigB64) return { valid: false };
+
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const padB64 = (str: string) => str.padEnd(str.length + (4 - (str.length % 4)) % 4, '=');
+    const normB64 = padB64(sigB64.replaceAll('-', '+').replaceAll('_', '/'));
+    const sigStr = atob(normB64);
+    const sigBytes = new Uint8Array(sigStr.length);
+    for (let i = 0; i < sigStr.length; i++) sigBytes[i] = sigStr.charCodeAt(i);
+
+    const validSig = await crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(payloadB64));
+    if (!validSig) return { valid: false };
+
+    const normPayloadB64 = padB64(payloadB64.replaceAll('-', '+').replaceAll('_', '/'));
+    const payloadJson = atob(normPayloadB64);
+    const payload = JSON.parse(payloadJson);
+
+    if (!payload.u || !payload.e || payload.e < Date.now()) {
+      return { valid: false };
+    }
+
+    return { valid: true, userId: payload.u };
+  } catch {
+    return { valid: false };
+  }
+};

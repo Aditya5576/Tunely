@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
-import { generateSalt, hashPassword, verifyPassword, generateToken, generateUserId } from './crypto'
+import { generateSalt, hashPassword, verifyPassword, generateToken, generateUserId, createSignedTicket } from './crypto'
 import { authMiddleware } from './auth.middleware'
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
+const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
 
 export const authController = new Hono<{
   Variables: {
@@ -10,6 +11,24 @@ export const authController = new Hono<{
     token: string
   }
 }>()
+
+/**
+ * Helper to ensure schema columns exist safely without throwing errors on existing databases
+ */
+const ensureUserColumnsExist = async (db: D1Database) => {
+  try {
+    await db.prepare('ALTER TABLE users ADD COLUMN bio TEXT').run()
+  } catch {}
+  try {
+    await db.prepare('ALTER TABLE users ADD COLUMN avatar_bg TEXT').run()
+  } catch {}
+  try {
+    await db.prepare('ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0').run()
+  } catch {}
+  try {
+    await db.prepare('ALTER TABLE users ADD COLUMN last_seen_at DATETIME').run()
+  } catch {}
+}
 
 /**
  * POST /api/auth/register
@@ -36,6 +55,7 @@ authController.post('/register', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
+  await ensureUserColumnsExist(db)
 
   // Check email not already taken
   const existing = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
@@ -49,13 +69,15 @@ authController.post('/register', async (c) => {
   const now = new Date().toISOString()
 
   await db.prepare(
-    'INSERT INTO users (id, email, name, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(id, email.toLowerCase().trim(), name.trim(), passwordHash, salt, now).run()
+    'INSERT INTO users (id, email, name, password_hash, password_salt, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, email.toLowerCase().trim(), name.trim(), passwordHash, salt, now, now).run()
 
-  // Create session
+  // Create session token in KV (low frequency write, only on login/register)
   const token = generateToken()
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  await kv.put(token, JSON.stringify({ userId: id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  if (kv) {
+    await kv.put(token, JSON.stringify({ userId: id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  }
 
   return c.json({
     success: true,
@@ -70,7 +92,6 @@ authController.post('/register', async (c) => {
  * POST /api/auth/forgot-password
  * Body: { email }
  * Step 1: Generates a 6-digit OTP stored in KV for 15 minutes.
- * In production, emails the code. For now returns it in the response for testing.
  */
 authController.post('/forgot-password', async (c) => {
   let body: { email?: string }
@@ -86,21 +107,21 @@ authController.post('/forgot-password', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
+  await ensureUserColumnsExist(db)
 
-  // Find user by email — always return success to prevent email enumeration
-  const user = await db.prepare(
-    'SELECT id, name, email FROM users WHERE email = ?'
-  ).bind(email.toLowerCase().trim()).first() as any
+  // Find user by email — check ban status from D1
+  let user: any = null
+  try {
+    user = await db.prepare('SELECT id, name, email, is_banned FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
+  } catch {
+    user = await db.prepare('SELECT id, name, email FROM users WHERE email = ?').bind(email.toLowerCase().trim()).first()
+  }
 
-  // Always respond with success (don't leak whether email exists)
   if (!user) {
     return c.json({ success: true, message: 'If that email is registered, a reset code has been sent.' })
   }
 
-  // Check if user is banned
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  const banFlag = await kv.get(`user:${user.id}:banned`)
-  if (banFlag === 'true') {
+  if (user.is_banned === 1) {
     return c.json({
       success: false,
       message: 'Your account has been suspended. Please contact support.',
@@ -108,12 +129,12 @@ authController.post('/forgot-password', async (c) => {
     }, 403)
   }
 
-  // Generate 6-digit OTP
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   const otp = Math.floor(100000 + Math.random() * 900000).toString()
-  // Store OTP in KV for 15 minutes
-  await kv.put(`reset:${email.toLowerCase().trim()}`, JSON.stringify({ otp, userId: user.id }), { expirationTtl: 900 })
+  if (kv) {
+    await kv.put(`reset:${email.toLowerCase().trim()}`, JSON.stringify({ otp, userId: user.id }), { expirationTtl: 900 })
+  }
 
-  // Try to send email via Resend (if RESEND_API_KEY is configured)
   const resendKey = (c.env as any).RESEND_API_KEY as string | undefined
   if (resendKey) {
     try {
@@ -127,32 +148,16 @@ authController.post('/forgot-password', async (c) => {
           from: 'Tunely <onboarding@resend.dev>',
           to: [user.email],
           subject: 'Your Tunely Password Reset Code',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #09090e; color: #fff; padding: 32px; border-radius: 16px; border: 1px solid #1a1a2e;">
-              <h1 style="color: #00e5ff; font-size: 26px; margin-bottom: 4px;">🎵 Tunely</h1>
-              <p style="color: #666; font-size: 12px; margin-top: 0; margin-bottom: 24px;">Premium Music Streaming</p>
-              <h2 style="font-size: 18px; margin-bottom: 12px; color: #fff;">Password Reset Code</h2>
-              <p style="color: #aaa; margin-bottom: 24px; line-height: 1.6;">Hi <strong style="color:#fff">${user.name}</strong>, use the 6-digit code below to reset your Tunely password. This code expires in <strong>15 minutes</strong>.</p>
-              <div style="background: #0d0d1a; border: 1px solid rgba(0,229,255,0.2); border-radius: 14px; padding: 28px; text-align: center; margin-bottom: 24px;">
-                <span style="font-size: 44px; font-weight: 900; letter-spacing: 10px; color: #00e5ff; font-family: monospace;">${otp}</span>
-                <p style="color: #555; font-size: 11px; margin-top: 12px; margin-bottom: 0;">Valid for 15 minutes</p>
-              </div>
-              <p style="color: #555; font-size: 11px; border-top: 1px solid #1a1a2e; padding-top: 16px; margin-bottom: 0;">If you didn't request a password reset, you can safely ignore this email. Your account and all your music, playlists, and liked songs remain safe and unchanged.</p>
-            </div>
-          `
+          html: `<p>Hi ${user.name}, your code is <strong>${otp}</strong>.</p>`
         })
       })
-    } catch {
-      // Email send failed — OTP still stored, will be shown in response
-    }
+    } catch {}
   }
 
-  // Return the OTP in dev mode (when no Resend key) so we can test the flow
   const devMode = !resendKey
   return c.json({
     success: true,
     message: 'Reset code sent to your email.',
-    // Only expose OTP in dev mode (no email service configured)
     ...(devMode ? { devOtp: otp, devNote: 'No email API key — code shown here for testing.' } : {})
   })
 })
@@ -160,7 +165,7 @@ authController.post('/forgot-password', async (c) => {
 /**
  * POST /api/auth/reset-password
  * Body: { email, otp, newPassword }
- * Step 2: Verifies OTP and updates the password. All user data is preserved.
+ * Step 2: Verifies OTP and updates password in D1.
  */
 authController.post('/reset-password', async (c) => {
   let body: { email?: string; otp?: string; newPassword?: string }
@@ -179,7 +184,10 @@ authController.post('/reset-password', async (c) => {
   }
 
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  const stored = await kv.get(`reset:${email.toLowerCase().trim()}`)
+  let stored: string | null = null
+  if (kv) {
+    stored = await kv.get(`reset:${email.toLowerCase().trim()}`)
+  }
   if (!stored) {
     return c.json({ success: false, message: 'Reset code expired or not found. Please request a new one.' }, 400)
   }
@@ -201,22 +209,22 @@ authController.post('/reset-password', async (c) => {
     return c.json({ success: false, message: 'User not found.' }, 404)
   }
 
-  // Hash new password
   const salt = generateSalt()
   const passwordHash = await hashPassword(newPassword, salt)
 
-  // Update DB — only password fields, all other data (liked songs, playlists) is preserved
   await db.prepare(
     'UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?'
   ).bind(passwordHash, salt, user.id).run()
 
-  // Delete the used OTP
-  await kv.delete(`reset:${email.toLowerCase().trim()}`)
+  if (kv) {
+    await kv.delete(`reset:${email.toLowerCase().trim()}`)
+  }
 
-  // Generate new session token
   const token = generateToken()
   const now = new Date().toISOString()
-  await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  if (kv) {
+    await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  }
 
   return c.json({
     success: true,
@@ -228,12 +236,10 @@ authController.post('/reset-password', async (c) => {
   })
 })
 
-
-
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Verifies credentials, creates and returns a new session token.
+ * Verifies credentials against D1, checks ban status in D1, creates session token in KV.
  */
 authController.post('/login', async (c) => {
   let body: { email?: string; password?: string }
@@ -249,12 +255,20 @@ authController.post('/login', async (c) => {
   }
 
   const db = (c.env as any).DB as D1Database
-  const user = await db.prepare(
-    'SELECT id, email, name, password_hash, password_salt FROM users WHERE email = ?'
-  ).bind(email.toLowerCase().trim()).first() as any
+  await ensureUserColumnsExist(db)
+
+  let user: any = null
+  try {
+    user = await db.prepare(
+      'SELECT id, email, name, password_hash, password_salt, is_banned FROM users WHERE email = ?'
+    ).bind(email.toLowerCase().trim()).first()
+  } catch {
+    user = await db.prepare(
+      'SELECT id, email, name, password_hash, password_salt FROM users WHERE email = ?'
+    ).bind(email.toLowerCase().trim()).first()
+  }
 
   if (!user) {
-    // Constant-time-ish: still hash to avoid timing attacks revealing valid emails
     const fakeSalt = generateSalt()
     await hashPassword(password, fakeSalt)
     return c.json({ success: false, message: 'Invalid email or password' }, 401)
@@ -265,24 +279,22 @@ authController.post('/login', async (c) => {
     return c.json({ success: false, message: 'Invalid email or password' }, 401)
   }
 
-  // ── BAN CHECK: Block banned users from logging in ──────────────────────────
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  const banFlag = await kv.get(`user:${user.id}:banned`)
-  if (banFlag === 'true') {
+  if (user.is_banned === 1) {
     return c.json({
       success: false,
       message: 'Your account has been suspended. Please contact support.',
       banned: true
     }, 403)
   }
-  // ───────────────────────────────────────────────────────────────────────────
 
   const token = generateToken()
   const now = new Date().toISOString()
-  await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
+  if (kv) {
+    await kv.put(token, JSON.stringify({ userId: user.id, createdAt: now }), { expirationTtl: SESSION_TTL_SECONDS })
+  }
 
-  // Record last_seen in KV & DB
-  await kv.put(`user:${user.id}:last_seen`, now)
+  // Update last_seen_at in D1 SQL (0 KV PUTs!)
   try {
     await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, user.id).run()
   } catch {}
@@ -296,51 +308,54 @@ authController.post('/login', async (c) => {
   })
 })
 
-
 /**
  * POST /api/auth/logout
- * Deletes the session token from KV.
+ * Deletes session token from KV.
  */
 authController.post('/logout', authMiddleware, async (c) => {
   const token = c.get('token') as string
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  await kv.delete(token)
+  if (kv) {
+    await kv.delete(token)
+  }
   return c.json({ success: true, message: 'Logged out successfully' })
 })
 
 /**
  * GET /api/auth/me
- * Returns the currently logged-in user's info.
+ * Returns current user's profile info directly from D1 (0 KV reads/writes!).
  */
 authController.get('/me', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-
-  const now = new Date().toISOString()
-  if (kv) {
-    await kv.put(`user:${userId}:last_seen`, now)
-  }
-  try {
-    await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, userId).run()
-  } catch {}
+  await ensureUserColumnsExist(db)
 
   let user: any = null
   try {
-    user = await db.prepare('SELECT id, email, name, created_at, last_seen_at FROM users WHERE id = ?').bind(userId).first()
+    user = await db.prepare(
+      'SELECT id, email, name, bio, avatar_bg, is_banned, created_at, last_seen_at FROM users WHERE id = ?'
+    ).bind(userId).first()
   } catch {
-    user = await db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?').bind(userId).first()
+    user = await db.prepare(
+      'SELECT id, email, name, created_at FROM users WHERE id = ?'
+    ).bind(userId).first()
   }
 
   if (!user) {
     return c.json({ success: false, message: 'User not found' }, 404)
   }
 
-  let profileMeta: any = null
-  if (kv) {
+  if (user.is_banned === 1) {
+    return c.json({ success: false, message: 'Account suspended', banned: true }, 403)
+  }
+
+  // Throttled D1 last_seen update: only update if missing or older than 5 minutes
+  const now = new Date()
+  const nowStr = now.toISOString()
+  const lastSeenMs = user.last_seen_at ? new Date(user.last_seen_at).getTime() : 0
+  if (!user.last_seen_at || (now.getTime() - lastSeenMs > LAST_SEEN_THROTTLE_MS)) {
     try {
-      const rawMeta = await kv.get(`user:${user.id}:profile`)
-      if (rawMeta) profileMeta = JSON.parse(rawMeta)
+      await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(nowStr, userId).run()
     } catch {}
   }
 
@@ -349,25 +364,25 @@ authController.get('/me', authMiddleware, async (c) => {
     data: {
       id: user.id,
       email: user.email,
-      name: profileMeta?.name || user.name,
-      bio: profileMeta?.bio || null,
-      avatarBg: profileMeta?.avatarBg || null,
+      name: user.name,
+      bio: user.bio || null,
+      avatarBg: user.avatar_bg || null,
       createdAt: user.created_at,
-      lastSeen: user?.last_seen_at || now
+      lastSeen: user.last_seen_at || nowStr
     }
   })
 })
 
 /**
  * PUT /api/auth/profile
- * Updates the logged-in user's profile info (name, bio, avatarBg) in D1 SQL & KV.
+ * Updates user's profile info (name, bio, avatarBg) directly in D1 Database (0 KV PUTs!).
  */
 authController.put('/profile', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const db = (c.env as any).DB as D1Database
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-  const body = await c.req.json() as any
+  await ensureUserColumnsExist(db)
 
+  const body = await c.req.json() as any
   const name = typeof body.name === 'string' ? body.name.trim() : null
   const bio = typeof body.bio === 'string' ? body.bio.trim() : null
   const avatarBg = typeof body.avatarBg === 'string' ? body.avatarBg.trim() : null
@@ -376,16 +391,11 @@ authController.put('/profile', authMiddleware, async (c) => {
     return c.json({ success: false, message: 'Name is required' }, 400)
   }
 
-  // Update in D1 Database
+  // Save profile directly in D1 SQL (0 KV Writes!)
   try {
+    await db.prepare('UPDATE users SET name = ?, bio = ?, avatar_bg = ? WHERE id = ?').bind(name, bio, avatarBg, userId).run()
+  } catch {
     await db.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, userId).run()
-  } catch (e) {
-    console.error('Failed to update user name in D1:', e)
-  }
-
-  // Save profile metadata in KV for instant fast lookup
-  if (kv) {
-    await kv.put(`user:${userId}:profile`, JSON.stringify({ name, bio, avatarBg }))
   }
 
   return c.json({
@@ -396,22 +406,16 @@ authController.put('/profile', authMiddleware, async (c) => {
 
 /**
  * POST /api/auth/ws-ticket
- * Generates a short-lived 60s single-use ticket bound to userId for WebSocket authentication.
+ * Generates a cryptographically signed HMAC token for WebSocket authentication (0 KV PUTs!).
  */
 authController.post('/ws-ticket', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
-  const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
-
-  const ticketId = `ticket_${crypto.randomUUID().replace(/-/g, '')}`
-  const payload = JSON.stringify({ userId, createdAt: new Date().toISOString() })
-
-  if (kv) {
-    await kv.put(`ticket:${ticketId}`, payload, { expirationTtl: 60 })
-  }
+  const ticket = await createSignedTicket(userId)
 
   return c.json({
     success: true,
-    ticket: ticketId,
+    ticket,
     expiresIn: 60
   })
 })
+

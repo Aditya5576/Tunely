@@ -10,6 +10,7 @@ export interface SyncEvent {
 
 export class UserSyncDurableObject extends DurableObject {
   private sockets: Set<WebSocket>;
+  private activityState: any = null;
 
   constructor(ctx: DurableObjectState, env: any) {
     super(ctx, env);
@@ -32,7 +33,33 @@ export class UserSyncDurableObject extends DurableObject {
       }
     }
 
-    // 2. WebSocket Upgrade handling for client connections
+    // 2. Ephemeral Activity / Presence endpoint (0 KV PUTs!)
+    if (url.pathname === '/activity' && request.method === 'POST') {
+      try {
+        const data = await request.json();
+        this.activityState = data;
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), { status: 500 });
+      }
+    }
+
+    if (url.pathname === '/activity' && request.method === 'GET') {
+      // Check stale presence (5 min)
+      if (this.activityState?.lastActive) {
+        const diff = Date.now() - new Date(this.activityState.lastActive).getTime();
+        if (diff > 300000) {
+          this.activityState = null;
+        }
+      }
+      return new Response(JSON.stringify({ success: true, activity: this.activityState }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 3. WebSocket Upgrade handling for client connections
     const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
