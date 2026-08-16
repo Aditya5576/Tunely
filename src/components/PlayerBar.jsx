@@ -26,6 +26,9 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
   const [isQualityMenuVisible, setIsQualityMenuVisible] = useState(false);
   const [isTimerMenuVisible, setIsTimerMenuVisible] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [playlistModalError, setPlaylistModalError] = useState(null);
 
   // Close Quality and Sleep Timer menus when clicking outside
   useEffect(() => {
@@ -41,6 +44,32 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     document.addEventListener('click', handleOutsideClick);
     return () => document.removeEventListener('click', handleOutsideClick);
   }, [isQualityMenuVisible, isTimerMenuVisible]);
+
+  // Handle Escape key to dismiss playlist modal or exit creation view
+  useEffect(() => {
+    if (!showPlaylistModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isCreatingPlaylist) {
+          setIsCreatingPlaylist(false);
+          setPlaylistModalError(null);
+        } else {
+          setShowPlaylistModal(false);
+          setIsCreatingPlaylist(false);
+          setPlaylistModalError(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPlaylistModal, isCreatingPlaylist]);
+
+  const closePlaylistModal = () => {
+    setShowPlaylistModal(false);
+    setIsCreatingPlaylist(false);
+    setNewPlaylistName('');
+    setPlaylistModalError(null);
+  };
 
   const handleTouchStart = (e) => {
     if (e.target.closest('button') || e.target.closest('input')) return;
@@ -73,10 +102,13 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
 
   const addCurrentTrackToPlaylist = (playlistId) => {
     if (!currentTrack) return;
+    setPlaylistModalError(null);
+
+    let alreadyExists = false;
     const updatedPlaylists = customPlaylists.map(playlist => {
       if (playlist.id === playlistId) {
         if (playlist.songs.some(s => s.id === currentTrack.id)) {
-          alert("Song is already in this playlist.");
+          alreadyExists = true;
           return playlist;
         }
         return {
@@ -87,26 +119,51 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
       return playlist;
     });
 
+    if (alreadyExists) {
+      setPlaylistModalError("Song is already in this playlist.");
+      return;
+    }
+
     setCustomPlaylists(updatedPlaylists);
-    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updatedPlaylists));
-    setShowPlaylistModal(false);
+    try {
+      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updatedPlaylists));
+    } catch (e) {
+      console.warn('Failed to save updated playlist to storage:', e);
+    }
+    closePlaylistModal();
   };
 
-  const handleCreateNewPlaylistFromModal = () => {
-    const name = prompt("Enter playlist name:");
-    if (!name || name.trim() === "") return;
-    
+  const handleCreatePlaylistSubmit = (e) => {
+    e?.preventDefault();
+    setPlaylistModalError(null);
+
+    const trimmed = newPlaylistName.trim();
+    if (!trimmed) {
+      setPlaylistModalError("Please enter a playlist name.");
+      return;
+    }
+
+    const isDuplicate = customPlaylists.some(p => p.name.toLowerCase() === trimmed.toLowerCase());
+    if (isDuplicate) {
+      setPlaylistModalError("A playlist with this name already exists.");
+      return;
+    }
+
     const newPlaylist = {
       id: `custom_${Date.now()}`,
-      name: name.trim(),
+      name: trimmed,
       type: 'custom',
-      songs: [currentTrack]
+      songs: currentTrack ? [currentTrack] : []
     };
-    
+
     const updated = [...customPlaylists, newPlaylist];
     setCustomPlaylists(updated);
-    localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
-    setShowPlaylistModal(false);
+    try {
+      localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+    } catch (err) {
+      console.warn('Failed to save new playlist to storage:', err);
+    }
+    closePlaylistModal();
   };
 
   const getThumbnailLarge = () => {
@@ -695,35 +752,109 @@ const decodeHtml = (text) => {
           {showPlaylistModal && (
             <div className="pf-playlist-modal glass-panel" onClick={(e) => e.stopPropagation()}>
               <div className="pf-modal-header">
-                <h3>Add to Playlist</h3>
-                <button className="pf-modal-close" onClick={() => setShowPlaylistModal(false)}>×</button>
+                <h3>{isCreatingPlaylist ? 'Create Playlist' : 'Add to Playlist'}</h3>
+                <button className="pf-modal-close" onClick={closePlaylistModal}>×</button>
               </div>
-              <div className="pf-modal-list">
-                {customPlaylists.length === 0 ? (
-                  <div className="pf-modal-empty">No custom playlists found</div>
-                ) : (
-                  customPlaylists.map(playlist => {
-                    const isAdded = playlist.songs.some(s => s.id === currentTrack?.id);
-                    return (
-                      <button 
-                        key={playlist.id} 
-                        className="pf-modal-item"
-                        onClick={() => addCurrentTrackToPlaylist(playlist.id)}
-                        disabled={isAdded}
-                      >
-                        <span className="pf-modal-item-name">{playlist.name}</span>
-                        <span className="pf-modal-item-count">{playlist.songs?.length || 0} songs</span>
-                        {isAdded && <span className="pf-modal-item-status">Already added</span>}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-              <div className="pf-modal-actions">
-                <button className="pf-modal-create-btn" onClick={handleCreateNewPlaylistFromModal}>
-                  + Create New Playlist
-                </button>
-              </div>
+
+              {playlistModalError && (
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#f87171',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <span>⚠️</span> {playlistModalError}
+                </div>
+              )}
+
+              {isCreatingPlaylist ? (
+                <form onSubmit={handleCreatePlaylistSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Enter playlist name..."
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#fff',
+                      fontSize: 14,
+                      outline: 'none'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setIsCreatingPlaylist(false); setPlaylistModalError(null); }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        background: 'var(--primary)',
+                        border: 'none',
+                        color: '#000',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="pf-modal-list">
+                    {customPlaylists.length === 0 ? (
+                      <div className="pf-modal-empty">No custom playlists found</div>
+                    ) : (
+                      customPlaylists.map(playlist => {
+                        const isAdded = playlist.songs.some(s => s.id === currentTrack?.id);
+                        return (
+                          <button
+                            key={playlist.id}
+                            className="pf-modal-item"
+                            onClick={() => addCurrentTrackToPlaylist(playlist.id)}
+                          >
+                            <span className="pf-modal-item-name">{playlist.name}</span>
+                            <span className="pf-modal-item-count">{playlist.songs?.length || 0} songs</span>
+                            {isAdded && <span className="pf-modal-item-status">Already added</span>}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="pf-modal-actions">
+                    <button className="pf-modal-create-btn" onClick={() => { setIsCreatingPlaylist(true); setPlaylistModalError(null); }}>
+                      + Create New Playlist
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

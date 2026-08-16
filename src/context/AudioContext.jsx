@@ -140,16 +140,36 @@ export const AudioProvider = ({ children }) => {
     }
   }, [queue]);
 
+  const lastTimePersistRef = useRef(0);
+
   useEffect(() => {
     if (currentIndex !== -1) {
-      localStorage.setItem('tunely_current_index', currentIndex.toString());
+      try { localStorage.setItem('tunely_current_index', currentIndex.toString()); } catch (e) { /* ignore storage quota */ }
     }
   }, [currentIndex]);
 
+  // Throttled persistence for audio currentTime (once every 2000ms instead of every 250ms)
   useEffect(() => {
-    if (currentTime > 0) {
-      localStorage.setItem('tunely_current_time', currentTime.toString());
+    const now = Date.now();
+    if (currentTime > 0 && (now - lastTimePersistRef.current >= 2000)) {
+      lastTimePersistRef.current = now;
+      try {
+        localStorage.setItem('tunely_current_time', currentTime.toString());
+      } catch (e) {
+        // Ignore quota/storage errors
+      }
     }
+  }, [currentTime]);
+
+  // Flush final currentTime to localStorage on page unload or route exit
+  useEffect(() => {
+    const handleUnload = () => {
+      if (currentTime > 0) {
+        try { localStorage.setItem('tunely_current_time', currentTime.toString()); } catch (e) { /* ignore storage error */ }
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
   }, [currentTime]);
 
   // Sleep Timer States & Refs
@@ -161,14 +181,16 @@ export const AudioProvider = ({ children }) => {
   const [likedSongs, setLikedSongs] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('tunely_liked_songs') || '[]');
-    } catch {
+    } catch (e) {
+      // Storage unreadable — default to empty array
       return [];
     }
   });
   const [likedSongsMetadata, setLikedSongsMetadata] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('tunely_liked_songs_metadata') || '[]');
-    } catch {
+    } catch (e) {
+      // Storage unreadable — default to empty array
       return [];
     }
   });

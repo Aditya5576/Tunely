@@ -15,8 +15,9 @@ export const AuthProvider = ({ children }) => {
         const parsed = JSON.parse(raw);
         return parsed.token || null;
       }
-    } catch {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch (e) {
+      // Storage corrupted or unreadable — reset stored authentication session key
+      try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch (err) { /* ignore storage error */ }
     }
     return null;
   });
@@ -32,8 +33,8 @@ export const AuthProvider = ({ children }) => {
       if (guestRaw) {
         return JSON.parse(guestRaw);
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      // Ignore storage unreadable error for guest profile fallback
     }
     return null;
   });
@@ -42,7 +43,11 @@ export const AuthProvider = ({ children }) => {
   const [bannedMessage, setBannedMessage] = useState(null);
 
   const persistSession = (t, u) => {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: u }));
+    } catch (e) {
+      console.warn('Failed to persist session to localStorage:', e?.message || e);
+    }
   };
 
   const updateUserProfile = async (updatedFields) => {
@@ -54,7 +59,9 @@ export const AuthProvider = ({ children }) => {
       } else {
         try {
           localStorage.setItem('tunely_guest_profile', JSON.stringify(updated));
-        } catch (e) {}
+        } catch (e) {
+          // Ignore quota/access error for guest profile fallback
+        }
       }
       return updated;
     });
@@ -71,7 +78,7 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify(updatedFields)
         });
       } catch (e) {
-        console.error('Failed to sync profile changes to backend:', e);
+        console.error('Failed to sync profile changes to backend:', e?.message || e);
       }
     }
   };
@@ -80,14 +87,18 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     // Clear all user-specific localStorage keys so next person sees a clean state
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem('tunely_liked_songs');
-    localStorage.removeItem('spotify_liked_songs');
-    localStorage.removeItem('tunely_liked_songs_metadata');
-    localStorage.removeItem('tunely_liked_songs_updated_at');
-    localStorage.removeItem('spotify_custom_playlists');
-    localStorage.removeItem('tunely_custom_playlists_updated_at');
-    localStorage.removeItem('tunely_recently_played');
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem('tunely_liked_songs');
+      localStorage.removeItem('spotify_liked_songs');
+      localStorage.removeItem('tunely_liked_songs_metadata');
+      localStorage.removeItem('tunely_liked_songs_updated_at');
+      localStorage.removeItem('spotify_custom_playlists');
+      localStorage.removeItem('tunely_custom_playlists_updated_at');
+      localStorage.removeItem('tunely_recently_played');
+    } catch (e) {
+      // Ignore storage access errors on logout cleanup
+    }
   };
 
   const verifySession = useCallback(async (t) => {
@@ -103,8 +114,8 @@ export const AuthProvider = ({ children }) => {
           if (data.banned) {
             setBannedMessage(data.message || 'Your account has been suspended.');
           }
-        } catch {
-          // JSON parsing failed, ignore
+        } catch (e) {
+          // Response body not JSON or unparseable, fall back to default ban handling
         }
         clearSession();
       } else if (!res.ok) {
@@ -115,8 +126,9 @@ export const AuthProvider = ({ children }) => {
         setUser(data);
         persistSession(t, data);
       }
-    } catch {
-      // Network error — keep existing session, will re-verify next time
+    } catch (e) {
+      // Network error during background session re-verification — retain existing offline session
+      console.warn('Background session verification network error:', e?.message || e);
     }
   }, []);
 
@@ -145,7 +157,7 @@ export const AuthProvider = ({ children }) => {
       setUser(data.data.user);
       persistSession(data.data.token, data.data.user);
       return { success: true };
-    } catch {
+    } catch (e) {
       return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
@@ -168,7 +180,7 @@ export const AuthProvider = ({ children }) => {
       setUser(data.data.user);
       persistSession(data.data.token, data.data.user);
       return { success: true };
-    } catch {
+    } catch (e) {
       return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
@@ -189,7 +201,7 @@ export const AuthProvider = ({ children }) => {
       if (!res.ok) return { success: false, error: data.message || 'Failed to send reset code' };
       // devOtp is only present when no email API is configured (dev mode)
       return { success: true, devOtp: data.devOtp || null };
-    } catch {
+    } catch (e) {
       return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
@@ -209,7 +221,7 @@ export const AuthProvider = ({ children }) => {
       setUser(data.data.user);
       persistSession(data.data.token, data.data.user);
       return { success: true };
-    } catch {
+    } catch (e) {
       return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
@@ -241,7 +253,9 @@ export const AuthProvider = ({ children }) => {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
-    } catch { /* ignore network errors on logout */ }
+    } catch (e) {
+      // Ignore network failures on logout so local session cleanup always completes
+    }
     clearSession();
     window.location.href = '/';
   };
@@ -267,8 +281,8 @@ export const AuthProvider = ({ children }) => {
           setBannedMessage(data.message || 'Your account has been suspended.');
           clearSession();
         }
-      } catch {
-        // Cloning or JSON parsing failed, ignore
+      } catch (e) {
+        // Failed to parse cloned 403 response JSON, retain current state
       }
     }
     return res;
