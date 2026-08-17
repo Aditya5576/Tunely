@@ -112,18 +112,73 @@ export const AudioProvider = ({ children }) => {
     }
   }, [isShuffle, queue.length, currentIndex]);
 
-  // Effect to record recently played tracks automatically when current track changes
+  // Refs for 10-second active listening threshold for Recently Played Cloud Sync
+  const hasLoggedRecentlyPlayedRef = useRef(false);
+  const activeListenTimeRef = useRef(0);
+  const lastListenTimeRef = useRef(null);
+
+  // Reset listening threshold when current track changes
   useEffect(() => {
-    if (currentTrack) {
-      /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      setRecentlyPlayed(prev => {
-        const filtered = prev.filter(t => t.id !== currentTrack.id);
-        const updated = [currentTrack, ...filtered].slice(0, 12);
+    hasLoggedRecentlyPlayedRef.current = false;
+    activeListenTimeRef.current = 0;
+    lastListenTimeRef.current = null;
+  }, [currentTrack?.id]);
+
+  // Helper to log recently played track to local state + cloud
+  const logRecentlyPlayedTrack = (track) => {
+    if (!track || !track.id) return;
+
+    setRecentlyPlayed(prev => {
+      const filtered = prev.filter(t => t.id !== track.id);
+      const updated = [track, ...filtered].slice(0, 12);
+      try {
         localStorage.setItem('tunely_recently_played', JSON.stringify(updated));
-        return updated;
+      } catch {
+        /* ignore storage quota */
+      }
+      return updated;
+    });
+
+    if (isLoggedIn && authFetch && !user?.isGuest) {
+      authFetch(`${API_BASE}/api/user/recently-played`, {
+        method: 'POST',
+        body: JSON.stringify({ song: track })
+      }).catch(err => {
+        console.warn('Failed to sync recently played track:', err?.message || err);
       });
     }
-  }, [currentTrack]);
+  };
+
+  // Fetch and merge Cloud Recently Played history when logged in
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isLoggedIn || !authFetch || user?.isGuest) return;
+
+    authFetch(`${API_BASE}/api/user/recently-played`)
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(data => {
+        if (data?.success && Array.isArray(data.data)) {
+          const cloudSongs = data.data;
+          setRecentlyPlayed(prevLocal => {
+            const cloudIds = new Set(cloudSongs.map(s => s.id));
+            const filteredLocal = prevLocal.filter(s => s?.id && !cloudIds.has(s.id));
+            const merged = [...cloudSongs, ...filteredLocal].slice(0, 12);
+            try {
+              localStorage.setItem('tunely_recently_played', JSON.stringify(merged));
+            } catch {
+              /* ignore storage quota */
+            }
+            return merged;
+          });
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to fetch recently played cloud history:', err?.message || err);
+      });
+  }, [isLoggedIn, isLoading, authFetch, user?.isGuest]);
 
   // Persist Player State to localStorage so song is NEVER lost on tab refresh or background pause
   useEffect(() => {
@@ -932,6 +987,7 @@ export const AudioProvider = ({ children }) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setCurrentTime(time);
+      lastListenTimeRef.current = null;
     }
   };
 
@@ -1025,6 +1081,23 @@ export const AudioProvider = ({ children }) => {
         lastTimeUpdateRef.current = now;
         setCurrentTime(now);
       }
+
+      // 10-Second Active Listening Threshold Accumulator for Recently Played Cloud Sync
+      if (currentTrack && !hasLoggedRecentlyPlayedRef.current) {
+        if (lastListenTimeRef.current !== null) {
+          const delta = now - lastListenTimeRef.current;
+          // Accumulate delta only during continuous playback (ignore negative jumps or seek jumps > 2s)
+          if (delta > 0 && delta < 2.0) {
+            activeListenTimeRef.current += delta;
+          }
+        }
+        lastListenTimeRef.current = now;
+
+        if (activeListenTimeRef.current >= 10) {
+          hasLoggedRecentlyPlayedRef.current = true;
+          logRecentlyPlayedTrack(currentTrack);
+        }
+      }
       
       // Gapless preloader logic:
       // When the current song reaches 90% completion and we have a next song, preload its media chunks once
@@ -1054,6 +1127,7 @@ export const AudioProvider = ({ children }) => {
 
     const handlePlay = () => {
       setIsPlaying(true);
+      lastListenTimeRef.current = null;
       userInitiatedPauseRef.current = false;
       wasPlayingBeforeInterruptionRef.current = false;
       isSystemInterruptedRef.current = false;
@@ -1065,6 +1139,7 @@ export const AudioProvider = ({ children }) => {
 
     const handlePause = () => {
       setIsPlaying(false);
+      lastListenTimeRef.current = null;
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = "paused";
       }
