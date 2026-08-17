@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
-  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle, Clock
+  Volume2, VolumeX, ListMusic, Mic2, Loader2, ChevronDown, Heart, Sliders, PlusCircle, Clock, Radio
 } from 'lucide-react';
 
 export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) {
@@ -12,7 +12,7 @@ export default function PlayerBar({ customPlaylists = [], setCustomPlaylists }) 
     togglePlay, nextTrack, prevTrack, setTrackTime, setTrackVolume, toggleLoop, toggleShuffle,
     setIsQueueVisible, setIsLyricsVisible,
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
-    likedSongs, toggleLikeTrack, currentLyric
+    likedSongs, toggleLikeTrack, currentLyric, startRadio
   } = useAudio();
 
 
@@ -387,6 +387,16 @@ const decodeHtml = (text) => {
           <ListMusic size={18} />
         </button>
 
+        <button
+          className="extra-btn"
+          onClick={() => startRadio(currentTrack)}
+          disabled={!currentTrack || isLoadingTrack}
+          title="Start Radio Station"
+          aria-label="Start Radio"
+        >
+          <Radio size={18} />
+        </button>
+
         {/* Audio Quality Selector */}
         <div className="desktop-quality-wrapper">
           <button 
@@ -736,7 +746,7 @@ const decodeHtml = (text) => {
 
 
 
-          {/* Bottom Toolbar: Lyrics & Queue */}
+          {/* Bottom Toolbar: Lyrics, Queue & Radio */}
           <div className="pf-toolbar">
             <button className={`pf-tool-btn ${isLyricsVisible ? 'active' : ''}`} onClick={() => { setIsLyricsVisible(!isLyricsVisible); setIsExpanded(false); }}>
               <Mic2 size={20} />
@@ -745,6 +755,10 @@ const decodeHtml = (text) => {
             <button className={`pf-tool-btn ${isQueueVisible ? 'active' : ''}`} onClick={() => { setIsQueueVisible(!isQueueVisible); setIsExpanded(false); }}>
               <ListMusic size={20} />
               <span>Queue</span>
+            </button>
+            <button className="pf-tool-btn" onClick={() => { startRadio(currentTrack); setIsExpanded(false); }} disabled={!currentTrack || isLoadingTrack} aria-label="Start Radio" title="Start Radio Station">
+              <Radio size={20} />
+              <span>Radio</span>
             </button>
           </div>
 

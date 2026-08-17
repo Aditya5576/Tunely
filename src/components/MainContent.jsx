@@ -270,7 +270,7 @@ export default function MainContent({
   setIsAccountOpen,
   createNewPlaylist
 }) {
-  const { playTrack, likedSongsMetadata, toggleLikeTrack, recentlyPlayed, isShuffle, toggleShuffle } = useAudio();
+  const { playTrack, currentTrack, startRadio, likedSongsMetadata, toggleLikeTrack, recentlyPlayed, isShuffle, toggleShuffle } = useAudio();
   const navigate = useNavigate();
   const { user, authFetch } = useAuth() || {};
 
@@ -323,6 +323,65 @@ export default function MainContent({
   const [homeWorkoutLoading, setHomeWorkoutLoading] = useState(true);
   const [homeFilter, setHomeFilter] = useState('all'); // 'all' | 'music' | 'podcasts'
   const [libFilter, setLibFilter] = useState('all'); // 'all' | 'playlists' | 'albums' | 'podcasts'
+
+  // Recommended Radio Seed Determination Priority:
+  // Priority a: currentTrack
+  // Priority b: recentlyPlayed[0]
+  // Priority c: null (do not render section)
+  const recommendedSeedTrack = useMemo(() => {
+    if (currentTrack && currentTrack.id) {
+      return currentTrack;
+    }
+    if (recentlyPlayed && recentlyPlayed.length > 0 && recentlyPlayed[0]?.id) {
+      return recentlyPlayed[0];
+    }
+    return null;
+  }, [currentTrack, recentlyPlayed]);
+
+  const [recommendedRadioSongs, setRecommendedRadioSongs] = useState([]);
+  const [isLoadingRecommendedRadio, setIsLoadingRecommendedRadio] = useState(false);
+  const fetchedRadioSeedIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!recommendedSeedTrack || !recommendedSeedTrack.id) {
+      setRecommendedRadioSongs([]);
+      fetchedRadioSeedIdRef.current = null;
+      return;
+    }
+
+    if (fetchedRadioSeedIdRef.current === recommendedSeedTrack.id) {
+      return;
+    }
+
+    fetchedRadioSeedIdRef.current = recommendedSeedTrack.id;
+    setIsLoadingRecommendedRadio(true);
+
+    fetch(`${API_BASE}/api/songs/${encodeURIComponent(recommendedSeedTrack.id)}/suggestions?limit=10`)
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(resObj => {
+        const raw = Array.isArray(resObj?.data) ? resObj.data : [];
+        const seedId = recommendedSeedTrack.id;
+        const seen = new Set([seedId]);
+        const unique = [];
+        for (const track of raw) {
+          if (track && track.id && !seen.has(track.id)) {
+            seen.add(track.id);
+            unique.push(track);
+          }
+        }
+        setRecommendedRadioSongs(unique);
+      })
+      .catch(err => {
+        console.warn('Failed to fetch recommended radio shelf:', err?.message || err);
+        setRecommendedRadioSongs([]);
+      })
+      .finally(() => {
+        setIsLoadingRecommendedRadio(false);
+      });
+  }, [recommendedSeedTrack]);
 
   // Deduplicate custom playlists by ID & Name
   const uniqueCustomPlaylists = useMemo(() => {
@@ -1060,6 +1119,53 @@ export default function MainContent({
                     ))}
                   </div>
                 </div>
+
+                {/* Recommended Radio Section */}
+                {recommendedSeedTrack && (isLoadingRecommendedRadio || recommendedRadioSongs.length > 0) && (
+                  <div className="featured-section recommended-radio-section" style={{ marginBottom: '24px' }}>
+                    <div className="featured-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Radio size={20} color="var(--primary)" />
+                        <h2>Recommended Radio based on {decodeHtml(recommendedSeedTrack.name)}</h2>
+                      </div>
+                      <button
+                        className="featured-play-all-btn"
+                        onClick={() => startRadio(recommendedSeedTrack)}
+                        title={`Start ${decodeHtml(recommendedSeedTrack.name)} Radio Station`}
+                        aria-label={`Start ${decodeHtml(recommendedSeedTrack.name)} Radio`}
+                        style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Radio size={14} />
+                        <span>Start Radio</span>
+                      </button>
+                    </div>
+
+                    <div className="featured-cards-scroll">
+                      {isLoadingRecommendedRadio ? (
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <div key={`radio-skel-${i}`} className="featured-card glass-panel" style={{ opacity: 0.5, pointerEvents: 'none' }}>
+                            <div className="featured-card-cover-container" style={{ background: 'rgba(255,255,255,0.05)' }}></div>
+                            <div style={{ height: '14px', width: '80%', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginTop: '8px' }}></div>
+                            <div style={{ height: '10px', width: '50%', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginTop: '4px' }}></div>
+                          </div>
+                        ))
+                      ) : (
+                        recommendedRadioSongs.map(track => (
+                          <div key={`rec-radio-${track.id}`} className="featured-card glass-panel" onClick={() => startRadio(track)}>
+                            <div className="featured-card-cover-container">
+                              <img src={track.image?.[2]?.url || track.image?.[1]?.url || track.image?.[0]?.url} alt={track.name} className="featured-card-cover" />
+                              <button className="featured-card-play-btn" title="Start Radio" aria-label={`Start ${decodeHtml(track.name)} Radio`}>
+                                <Radio size={16} color="currentColor" style={{ marginLeft: '1px' }} />
+                              </button>
+                            </div>
+                            <span className="featured-card-title">{decodeHtml(track.name)}</span>
+                            <span className="featured-card-artist">{decodeHtml(track.artists?.primary?.[0]?.name || 'Artist')}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
 
                  {/* Quick shortcuts */}
                 <div className="shortcuts-grid">

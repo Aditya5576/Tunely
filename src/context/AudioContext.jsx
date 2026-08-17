@@ -936,6 +936,42 @@ export const AudioProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Starts a Song Radio Station for a seed track by fetching up to 20 recommendations
+   * and populating the queue seamlessly.
+   */
+  const startRadio = async (seedTrack) => {
+    if (!seedTrack || !seedTrack.id) return;
+
+    try {
+      setIsLoadingTrack(true);
+      const response = await fetch(`${API_BASE}/api/songs/${encodeURIComponent(seedTrack.id)}/suggestions?limit=20`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const resObj = await response.json();
+      const rawSuggestions = Array.isArray(resObj?.data) ? resObj.data : [];
+
+      const uniqueSuggestions = [];
+      const seenIds = new Set([seedTrack.id]);
+
+      for (const item of rawSuggestions) {
+        if (item && item.id && !seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          uniqueSuggestions.push(item);
+        }
+      }
+
+      const stationQueue = [seedTrack, ...uniqueSuggestions];
+      playTrack(seedTrack, stationQueue);
+    } catch (err) {
+      console.warn('Failed to start radio station:', err?.message || err);
+      playTrack(seedTrack);
+    } finally {
+      setIsLoadingTrack(false);
+    }
+  };
+
   const togglePlay = () => {
     if (!currentTrack) return;
     
@@ -1556,6 +1592,7 @@ export const AudioProvider = ({ children }) => {
     isLoadingLyrics,
     isLoadingTrack,
     playTrack,
+    startRadio,
     togglePlay,
     nextTrack,
     prevTrack,
@@ -1584,7 +1621,7 @@ export const AudioProvider = ({ children }) => {
   }), [
     isPlaying, currentTrack, currentTime, duration, volume, queue, currentIndex,
     loopMode, isShuffle, isQueueVisible, isLyricsVisible, lyrics, isLoadingLyrics,
-    isLoadingTrack, playTrack, togglePlay, nextTrack, prevTrack, setTrackTime,
+    isLoadingTrack, playTrack, startRadio, togglePlay, nextTrack, prevTrack, setTrackTime,
     setTrackVolume, toggleLoop, toggleShuffle, setIsQueueVisible, setIsLyricsVisible,
     addToQueue, removeFromQueue, reorderQueue, playQueueTrack, clearQueue,
     audioQuality, setAudioQuality, sleepTimer, setSleepTimer, sleepTimeLeft,
