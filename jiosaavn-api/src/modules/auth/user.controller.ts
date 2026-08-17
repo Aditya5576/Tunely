@@ -494,6 +494,81 @@ userController.post('/activity', authMiddleware, async (c) => {
   return c.json({ success: true, message: 'Activity logged' })
 })
 
+// ─── RECENTLY PLAYED ─────────────────────────────────────────────────────────
+
+/**
+ * GET /api/user/recently-played
+ * Returns up to 12 most recent listening history tracks for the logged-in user.
+ */
+userController.get('/recently-played', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  const db = (c.env as any).DB as D1Database
+
+  if (!db) {
+    return c.json({ success: false, message: 'Database service unavailable' }, 503)
+  }
+
+  const rows = await db.prepare(
+    'SELECT song_id, song_data, played_at FROM recently_played WHERE user_id = ? ORDER BY played_at DESC, id DESC LIMIT 12'
+  ).bind(userId).all()
+
+  const songs = (rows.results || []).map((row: any) => {
+    try {
+      return typeof row.song_data === 'string' ? JSON.parse(row.song_data) : row.song_data
+    } catch {
+      return { id: row.song_id }
+    }
+  })
+
+  return c.json({ success: true, data: songs })
+})
+
+/**
+ * POST /api/user/recently-played
+ * Body: { song: { id: string, ... } }
+ * Records a recently played track for the logged-in user atomically. Replaces older entries for the same track and caps history at 20 items.
+ */
+userController.post('/recently-played', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  const db = (c.env as any).DB as D1Database
+
+  if (!db) {
+    return c.json({ success: false, message: 'Database service unavailable' }, 503)
+  }
+
+  const body = await c.req.json().catch(() => null)
+  if (!body || !body.song || typeof body.song !== 'object' || !body.song.id || typeof body.song.id !== 'string') {
+    return c.json({ success: false, message: 'Valid song object with id is required' }, 400)
+  }
+
+  const songId = body.song.id.trim()
+  if (!songId) {
+    return c.json({ success: false, message: 'Valid song id is required' }, 400)
+  }
+
+  const songDataStr = JSON.stringify(body.song)
+  const nowStr = new Date().toISOString()
+
+  // Atomic D1 Batch Transaction: 1. Deduplicate -> 2. Insert new record -> 3. Retention cleanup (Max 20 per user)
+  await db.batch([
+    db.prepare(
+      'DELETE FROM recently_played WHERE user_id = ? AND song_id = ?'
+    ).bind(userId, songId),
+    db.prepare(
+      'INSERT INTO recently_played (user_id, song_id, song_data, played_at) VALUES (?, ?, ?, ?)'
+    ).bind(userId, songId, songDataStr, nowStr),
+    db.prepare(
+      `DELETE FROM recently_played
+       WHERE user_id = ?
+       AND id NOT IN (
+         SELECT id FROM recently_played WHERE user_id = ? ORDER BY played_at DESC, id DESC LIMIT 20
+       )`
+    ).bind(userId, userId)
+  ])
+
+  return c.json({ success: true, message: 'Recently played logged' })
+})
+
 userController.get('/broadcast', authMiddleware, async (c) => {
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   let broadcast = null

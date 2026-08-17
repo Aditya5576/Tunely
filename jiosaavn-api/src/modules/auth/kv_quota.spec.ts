@@ -40,57 +40,104 @@ class MockKVNamespace {
 
 class MockD1Database {
   public usersMap = new Map<string, any>([
-    ['usr_123', { id: 'usr_123', email: 'test@example.com', name: 'Test User', password_hash: 'hash', password_salt: 'salt', is_banned: 0, auth_version: 1, last_seen_at: new Date().toISOString() }]
+    ['usr_123', { id: 'usr_123', email: 'test@example.com', name: 'Test User', password_hash: 'hash', password_salt: 'salt', is_banned: 0, auth_version: 1, last_seen_at: new Date().toISOString() }],
+    ['usr_456', { id: 'usr_456', email: 'user2@example.com', name: 'User Two', password_hash: 'hash', password_salt: 'salt', is_banned: 0, auth_version: 1, last_seen_at: new Date().toISOString() }]
   ])
+  public recentlyPlayedStore: Array<{ id: number; user_id: string; song_id: string; song_data: string; played_at: string }> = []
+  public lastBatchQueries: string[] = []
+  private autoId = 1
 
   prepare(query: string) {
+    const self = this
     return {
-      bind: (...args: any[]) => ({
-        first: async () => {
-          if (query.includes('FROM users')) {
-            const val = args[0]
-            return this.usersMap.get(val) || null
+      _query: query,
+      bind: (...args: any[]) => {
+        const boundRun = async () => {
+          if (query.includes('DELETE FROM recently_played WHERE user_id = ? AND song_id = ?')) {
+            const [uId, sId] = args
+            self.recentlyPlayedStore = self.recentlyPlayedStore.filter(r => !(r.user_id === uId && r.song_id === sId))
+          } else if (query.includes('INSERT INTO recently_played')) {
+            const [uId, sId, sData, pAt] = args
+            self.recentlyPlayedStore.push({
+              id: self.autoId++,
+              user_id: uId,
+              song_id: sId,
+              song_data: sData,
+              played_at: pAt || new Date().toISOString()
+            })
+          } else if (query.includes('DELETE FROM recently_played') && query.includes('NOT IN')) {
+            const uId = args[0]
+            const userRecords = self.recentlyPlayedStore
+              .filter(r => r.user_id === uId)
+              .sort((a, b) => {
+                const diff = new Date(b.played_at).getTime() - new Date(a.played_at).getTime()
+                return diff !== 0 ? diff : b.id - a.id
+              })
+            const keepIds = new Set(userRecords.slice(0, 20).map(r => r.id))
+            self.recentlyPlayedStore = self.recentlyPlayedStore.filter(r => r.user_id !== uId || keepIds.has(r.id))
           }
-          if (query.includes('user_sync_state')) {
-            return { ts: new Date().toISOString(), liked_updated_at: new Date().toISOString(), playlists_updated_at: new Date().toISOString() }
-          }
-          if (query.includes('liked_songs')) {
-            return { latest: new Date().toISOString(), count: 1 }
-          }
-          if (query.includes('playlists')) {
-            return { id: 'pl_123', latest: new Date().toISOString(), count: 1 }
-          }
-          return null
-        },
-        all: async () => {
-          if (query.includes('liked_songs')) return { results: [] }
-          if (query.includes('playlists')) return { results: [] }
-          if (query.includes('users')) return { results: Array.from(this.usersMap.values()) }
-          return { results: [] }
-        },
-        run: async () => {
+
           if (query.includes('UPDATE users SET is_banned = 1')) {
             const targetId = args[args.length - 1]
-            const u = this.usersMap.get(targetId)
+            const u = self.usersMap.get(targetId)
             if (u) { u.is_banned = 1; u.auth_version = (u.auth_version || 1) + 1 }
           }
           if (query.includes('UPDATE users SET is_banned = 0')) {
             const targetId = args[args.length - 1]
-            const u = this.usersMap.get(targetId)
+            const u = self.usersMap.get(targetId)
             if (u) { u.is_banned = 0; u.auth_version = (u.auth_version || 1) + 1 }
           }
           if (query.includes('UPDATE users SET auth_version =')) {
             const targetId = args[args.length - 1]
-            const u = this.usersMap.get(targetId)
+            const u = self.usersMap.get(targetId)
             if (u) { u.auth_version = (u.auth_version || 1) + 1 }
           }
           if (query.includes('DELETE FROM users')) {
             const targetId = args[0]
-            this.usersMap.delete(targetId)
+            self.usersMap.delete(targetId)
           }
           return { meta: { changes: 1 } }
         }
-      }),
+
+        return {
+          _query: query,
+          first: async () => {
+            if (query.includes('FROM users')) {
+              const val = args[0]
+              return self.usersMap.get(val) || null
+            }
+            if (query.includes('user_sync_state')) {
+              return { ts: new Date().toISOString(), liked_updated_at: new Date().toISOString(), playlists_updated_at: new Date().toISOString() }
+            }
+            if (query.includes('liked_songs')) {
+              return { latest: new Date().toISOString(), count: 1 }
+            }
+            if (query.includes('playlists')) {
+              return { id: 'pl_123', latest: new Date().toISOString(), count: 1 }
+            }
+            return null
+          },
+          all: async () => {
+            if (query.includes('FROM recently_played')) {
+              const userId = args[0]
+              const userRecords = self.recentlyPlayedStore
+                .filter(r => r.user_id === userId)
+                .sort((a, b) => {
+                  const diff = new Date(b.played_at).getTime() - new Date(a.played_at).getTime()
+                  return diff !== 0 ? diff : b.id - a.id
+                })
+              const limitMatch = query.match(/LIMIT\s+(\d+)/i)
+              const limit = limitMatch ? parseInt(limitMatch[1], 10) : 12
+              return { results: userRecords.slice(0, limit) }
+            }
+            if (query.includes('liked_songs')) return { results: [] }
+            if (query.includes('playlists')) return { results: [] }
+            if (query.includes('users')) return { results: Array.from(self.usersMap.values()) }
+            return { results: [] }
+          },
+          run: boundRun
+        }
+      },
       run: async () => ({ meta: { changes: 1 } }),
       all: async () => ({ results: [] }),
       first: async () => null
@@ -98,7 +145,16 @@ class MockD1Database {
   }
 
   async batch(statements: any[]) {
-    return statements.map(() => ({ meta: { changes: 1 } }))
+    this.lastBatchQueries = statements.map((s: any) => s._query || '')
+    const results = []
+    for (const stmt of statements) {
+      if (typeof stmt.run === 'function') {
+        results.push(await stmt.run())
+      } else {
+        results.push({ meta: { changes: 1 } })
+      }
+    }
+    return results
   }
 }
 
@@ -438,6 +494,214 @@ describe('Hybrid Auth Architecture Comprehensive Security Test Suite', () => {
       expect(verified.valid).toBe(true)
       expect(verified.userId).toBe('usr_123')
       expect(verified.authVersion).toBe(1)
+    })
+  })
+
+  // 8. RECENTLY PLAYED & CLOUD PERSISTENCE
+  describe('Recently Played Cloud Persistence & Security', () => {
+    let tokenUser1: string
+    let tokenUser2: string
+
+    beforeEach(async () => {
+      tokenUser1 = await createSignedSessionToken('usr_123', 1, mockEnv)
+      tokenUser2 = await createSignedSessionToken('usr_456', 1, mockEnv)
+      mockDb.recentlyPlayedStore = []
+      mockKv.puts = 0
+      mockKv.gets = 0
+    })
+
+    it('1. POST /api/user/recently-played succeeds for authenticated user via atomic D1 batch', async () => {
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'song_1', name: 'Track 1' } })
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      expect(res.status).toBe(200)
+      const data: any = await res.json()
+      expect(data.success).toBe(true)
+      expect(mockDb.recentlyPlayedStore.length).toBe(1)
+      // Verify atomic db.batch was used with all 3 statements
+      expect(mockDb.lastBatchQueries.length).toBe(3)
+      expect(mockDb.lastBatchQueries[0]).toContain('DELETE FROM recently_played WHERE user_id = ? AND song_id = ?')
+      expect(mockDb.lastBatchQueries[1]).toContain('INSERT INTO recently_played')
+      expect(mockDb.lastBatchQueries[2]).toContain('ORDER BY played_at DESC, id DESC LIMIT 20')
+    })
+
+    it('2. POST rejects unauthenticated request with 401', async () => {
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'song_1' } })
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      expect(res.status).toBe(401)
+    })
+
+    it('3. POST rejects malformed payload with 400', async () => {
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: null })
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      expect(res.status).toBe(400)
+    })
+
+    it('4. GET /api/user/recently-played returns recently played songs', async () => {
+      mockDb.recentlyPlayedStore.push({
+        id: 1, user_id: 'usr_123', song_id: 'song_1', song_data: JSON.stringify({ id: 'song_1', name: 'Track 1' }), played_at: new Date().toISOString()
+      })
+      const req = new Request('http://localhost/api/user/recently-played', {
+        headers: { 'Authorization': `Bearer ${tokenUser1}` }
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      expect(res.status).toBe(200)
+      const data: any = await res.json()
+      expect(data.success).toBe(true)
+      expect(data.data.length).toBe(1)
+      expect(data.data[0].id).toBe('song_1')
+    })
+
+    it('5. GET returns newest played tracks first with id DESC tie-breaker on identical timestamps', async () => {
+      const sameTime = new Date().toISOString()
+      // Insert two records with identical timestamps but different IDs (id 1 vs id 2)
+      mockDb.recentlyPlayedStore.push(
+        { id: 1, user_id: 'usr_123', song_id: 'song_first', song_data: JSON.stringify({ id: 'song_first' }), played_at: sameTime },
+        { id: 2, user_id: 'usr_123', song_id: 'song_second', song_data: JSON.stringify({ id: 'song_second' }), played_at: sameTime }
+      )
+      const req = new Request('http://localhost/api/user/recently-played', {
+        headers: { 'Authorization': `Bearer ${tokenUser1}` }
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      const data: any = await res.json()
+      // id 2 must come first due to id DESC tie-breaker
+      expect(data.data[0].id).toBe('song_second')
+      expect(data.data[1].id).toBe('song_first')
+    })
+
+    it('6. GET is limited to 12 records max', async () => {
+      for (let i = 1; i <= 15; i++) {
+        mockDb.recentlyPlayedStore.push({
+          id: i, user_id: 'usr_123', song_id: `song_${i}`, song_data: JSON.stringify({ id: `song_${i}` }), played_at: new Date(Date.now() + i * 1000).toISOString()
+        })
+      }
+      const req = new Request('http://localhost/api/user/recently-played', {
+        headers: { 'Authorization': `Bearer ${tokenUser1}` }
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      const data: any = await res.json()
+      expect(data.data.length).toBe(12)
+    })
+
+    it('7. User A cannot see User B history (User Isolation)', async () => {
+      mockDb.recentlyPlayedStore.push({
+        id: 1, user_id: 'usr_456', song_id: 'user2_song', song_data: JSON.stringify({ id: 'user2_song' }), played_at: new Date().toISOString()
+      })
+      const req = new Request('http://localhost/api/user/recently-played', {
+        headers: { 'Authorization': `Bearer ${tokenUser1}` }
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      const data: any = await res.json()
+      expect(data.data.length).toBe(0)
+    })
+
+    it('8. User A cannot modify User B history (User Isolation)', async () => {
+      mockDb.recentlyPlayedStore.push({
+        id: 1, user_id: 'usr_456', song_id: 'user2_song', song_data: JSON.stringify({ id: 'user2_song' }), played_at: new Date().toISOString()
+      })
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'user1_song' } })
+      })
+      await app.fetch(req, mockEnv, mockCtx)
+      const user2Records = mockDb.recentlyPlayedStore.filter(r => r.user_id === 'usr_456')
+      expect(user2Records.length).toBe(1)
+      expect(user2Records[0].song_id).toBe('user2_song')
+    })
+
+    it('9. Same song does not create unbounded duplicate history (Deduplication)', async () => {
+      const req1 = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'repeat_song', name: 'Repeat' } })
+      })
+      await app.fetch(req1, mockEnv, mockCtx)
+
+      const req2 = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'repeat_song', name: 'Repeat' } })
+      })
+      await app.fetch(req2, mockEnv, mockCtx)
+
+      const user1Records = mockDb.recentlyPlayedStore.filter(r => r.user_id === 'usr_123')
+      expect(user1Records.length).toBe(1)
+      expect(user1Records[0].song_id).toBe('repeat_song')
+    })
+
+    it('10. Retention is capped at 20 records per user', async () => {
+      for (let i = 1; i <= 25; i++) {
+        const req = new Request('http://localhost/api/user/recently-played', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song: { id: `track_${i}` } })
+        })
+        await app.fetch(req, mockEnv, mockCtx)
+      }
+      const user1Records = mockDb.recentlyPlayedStore.filter(r => r.user_id === 'usr_123')
+      expect(user1Records.length).toBe(20)
+    })
+
+    it('11. User A retention cleanup never deletes User B records', async () => {
+      mockDb.recentlyPlayedStore.push({
+        id: 99, user_id: 'usr_456', song_id: 'user2_important', song_data: JSON.stringify({ id: 'user2_important' }), played_at: new Date().toISOString()
+      })
+      for (let i = 1; i <= 22; i++) {
+        const req = new Request('http://localhost/api/user/recently-played', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song: { id: `user1_track_${i}` } })
+        })
+        await app.fetch(req, mockEnv, mockCtx)
+      }
+      const user2Records = mockDb.recentlyPlayedStore.filter(r => r.user_id === 'usr_456')
+      expect(user2Records.length).toBe(1)
+      expect(user2Records[0].song_id).toBe('user2_important')
+    })
+
+    it('12. POST performs 0 KV PUTs', async () => {
+      const initialPuts = mockKv.puts
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'kv_check_song' } })
+      })
+      await app.fetch(req, mockEnv, mockCtx)
+      expect(mockKv.puts).toBe(initialPuts)
+    })
+
+    it('13. POST performs 0 KV GETs', async () => {
+      const initialGets = mockKv.gets
+      const req = new Request('http://localhost/api/user/recently-played', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenUser1}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song: { id: 'kv_check_song' } })
+      })
+      await app.fetch(req, mockEnv, mockCtx)
+      expect(mockKv.gets).toBe(initialGets)
+    })
+
+    it('14. GET performs 0 KV operations', async () => {
+      const initialGets = mockKv.gets
+      const initialPuts = mockKv.puts
+      const req = new Request('http://localhost/api/user/recently-played', {
+        headers: { 'Authorization': `Bearer ${tokenUser1}` }
+      })
+      await app.fetch(req, mockEnv, mockCtx)
+      expect(mockKv.gets).toBe(initialGets)
+      expect(mockKv.puts).toBe(initialPuts)
     })
   })
 })
