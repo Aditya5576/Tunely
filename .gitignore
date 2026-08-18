@@ -33,4 +33,6 @@ backups/
 jiosaavn-api/.dev.vars
 jiosaavn-api/.wrangler/
 
-
+# Playwright test artifacts
+playwright-report/
+test-results/
