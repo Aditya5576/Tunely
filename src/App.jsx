@@ -1,21 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Home, Search, ListMusic, Music, Settings, Info, Palette, X, User, Shield } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
-import LyricsPanel from './components/LyricsPanel';
-import QueuePanel from './components/QueuePanel';
 import { AudioProvider } from './context/AudioContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AuthModal } from './components/AuthModal';
-import ThemeModal from './components/ThemeModal';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import AdminPanel from './components/AdminPanel';
 import NetworkErrorOverlay from './components/NetworkErrorOverlay';
-import ProfileModal from './components/ProfileModal';
 import TunelyLogo from './components/TunelyLogo';
-import WhatsNewModal from './components/WhatsNewModal';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+
+// Lazy-loaded secondary UI components & modals for optimal initial bundle performance
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const ProfileModal = lazy(() => import('./components/ProfileModal'));
+const ThemeModal = lazy(() => import('./components/ThemeModal'));
+const WhatsNewModal = lazy(() => import('./components/WhatsNewModal'));
+const LyricsPanel = lazy(() => import('./components/LyricsPanel'));
+const QueuePanel = lazy(() => import('./components/QueuePanel'));
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
@@ -263,15 +265,15 @@ function TunelyApp() {
             createNewPlaylist={createNewPlaylist}
           />
 
-          <QueuePanel />
-          <LyricsPanel />
-          {/* Network Debug Overlay (Local Dev Only) */}
-          {(import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) && <NetworkErrorOverlay />}
-          <ProfileModal 
-            isOpen={showProfileModal} 
-            onClose={() => setShowProfileModal(false)} 
-            setShowAuthModal={setShowAuthModal} 
-          />
+          <Suspense fallback={null}>
+            <QueuePanel />
+            <LyricsPanel />
+            <ProfileModal
+              isOpen={showProfileModal}
+              onClose={() => setShowProfileModal(false)}
+              setShowAuthModal={setShowAuthModal}
+            />
+          </Suspense>
 
           {/* Account drawer */}
           {isAccountOpen && <div className="drawer-backdrop" onClick={() => setIsAccountOpen(false)}></div>}
@@ -343,13 +345,15 @@ function TunelyApp() {
             <button className={`tab-item ${['/library', '/playlist', '/album', '/custom', '/podcast-show'].some(p => location.pathname.startsWith(p)) ? 'active' : ''}`} onClick={() => navigate('/library')}> <ListMusic size={22} /><span>Library</span></button>
           </div>
 
-          {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
-          {showThemeModal && (
-            <ThemeModal onClose={() => setShowThemeModal(false)} activeTheme={activeTheme} onChangeTheme={changeTheme} />
-          )}
-          {showWhatsNewModal && (
-            <WhatsNewModal onClose={() => setShowWhatsNewModal(false)} />
-          )}
+          <Suspense fallback={null}>
+            {showAuthModal && isLoggedIn && <AuthModal onClose={() => setShowAuthModal(false)} />}
+            {showThemeModal && (
+              <ThemeModal onClose={() => setShowThemeModal(false)} activeTheme={activeTheme} onChangeTheme={changeTheme} />
+            )}
+            {showWhatsNewModal && (
+              <WhatsNewModal onClose={() => setShowWhatsNewModal(false)} />
+            )}
+          </Suspense>
 
           {activeBroadcast && (
             <div style={{
@@ -424,7 +428,7 @@ export default function App() {
             <Route path="/album/:id" element={<TunelyApp />} />
             <Route path="/custom/:id" element={<TunelyApp />} />
             <Route path="/podcast-show/:id" element={<TunelyApp />} />
-            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/admin" element={<Suspense fallback={null}><AdminPanel /></Suspense>} />
             <Route path="*" element={<TunelyApp />} />
           </Routes>
         </BrowserRouter>
