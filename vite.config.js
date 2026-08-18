@@ -4,6 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+    include: ['src/**/*.test.{js,jsx,ts,tsx}']
+  },
   build: {
     target: 'es2015',
     minify: 'esbuild',   // esbuild is built-in, terser requires separate install
