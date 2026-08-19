@@ -55,7 +55,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 async function fetchWith429Retry(url, options = {}, maxRetries = 2) {
   let attempt = 0;
-  const isTest = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || (import.meta?.env?.MODE === 'test') || (import.meta?.env?.DEV);
+  const isTest = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || (import.meta?.env?.MODE === 'test');
   while (attempt <= maxRetries) {
     try {
       const res = await fetch(url, options);
