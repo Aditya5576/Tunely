@@ -477,7 +477,7 @@ export default function MainContent({
         setHomeTrending(results);
       }
     } catch (e) {
-      console.error("Error loading home page trending tracks:", e);
+      if (import.meta.env.DEV) console.error("Error loading home page trending tracks:", e);
     } finally {
       setHomeLoading(false);
     }
@@ -495,7 +495,7 @@ export default function MainContent({
         setHomeFeatured(results);
       }
     } catch (e) {
-      console.error("Error loading home featured tracks:", e);
+      if (import.meta.env.DEV) console.error("Error loading home featured tracks:", e);
     } finally {
       setHomeFeaturedLoading(false);
     }
@@ -513,7 +513,7 @@ export default function MainContent({
         setHomeNewReleases(results);
       }
     } catch (e) {
-      console.error("Error loading new releases:", e);
+      if (import.meta.env.DEV) console.error("Error loading new releases:", e);
     } finally {
       setHomeNewReleasesLoading(false);
     }
@@ -531,7 +531,7 @@ export default function MainContent({
         setHomeChill(results);
       }
     } catch (e) {
-      console.error("Error loading chill tracks:", e);
+      if (import.meta.env.DEV) console.error("Error loading chill tracks:", e);
     } finally {
       setHomeChillLoading(false);
     }
@@ -549,7 +549,7 @@ export default function MainContent({
         setHomeWorkout(results);
       }
     } catch (e) {
-      console.error("Error loading workout tracks:", e);
+      if (import.meta.env.DEV) console.error("Error loading workout tracks:", e);
     } finally {
       setHomeWorkoutLoading(false);
     }

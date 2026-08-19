@@ -16,6 +16,7 @@ const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ defau
 const ProfileModal = lazy(() => import('./components/ProfileModal'));
 const ThemeModal = lazy(() => import('./components/ThemeModal'));
 const WhatsNewModal = lazy(() => import('./components/WhatsNewModal'));
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
 const LyricsPanel = lazy(() => import('./components/LyricsPanel'));
 const QueuePanel = lazy(() => import('./components/QueuePanel'));
 
@@ -33,6 +34,7 @@ function TunelyApp() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTheme, _setActiveTheme] = useState(() => localStorage.getItem('tunely_theme') || 'default');
 
@@ -273,6 +275,12 @@ function TunelyApp() {
               onClose={() => setShowProfileModal(false)}
               setShowAuthModal={setShowAuthModal}
             />
+            <SettingsModal
+              isOpen={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+              activeTheme={activeTheme}
+              onChangeTheme={changeTheme}
+            />
           </Suspense>
 
           {/* Account drawer */}
@@ -310,7 +318,7 @@ function TunelyApp() {
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowWhatsNewModal(true); }}>
                     <Info size={18} /><span>What's new (v3.5.0)</span>
                   </div>
-                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Settings configuration coming soon!'); }}>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowSettingsModal(true); }}>
                     <Settings size={18} /><span>Settings and privacy</span>
                   </div>
                   <div className="drawer-divider" style={{ margin: '8px 0' }}></div>
@@ -329,7 +337,7 @@ function TunelyApp() {
                   <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowWhatsNewModal(true); }}>
                     <Info size={18} /><span>What's new (v4.1.0-stable)</span>
                   </div>
-                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); alert('Settings configuration coming soon!'); }}>
+                  <div className="drawer-item" onClick={() => { setIsAccountOpen(false); setShowSettingsModal(true); }}>
                     <Settings size={18} /><span>Settings and privacy</span>
                   </div>
                 </>
