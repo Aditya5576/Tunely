@@ -704,4 +704,44 @@ describe('Hybrid Auth Architecture Comprehensive Security Test Suite', () => {
       expect(mockKv.puts).toBe(initialPuts)
     })
   })
+
+  // 9. ISOLATE BROADCAST CACHE & LEGACY TOKEN SECURITY
+  describe('Isolate Memory Caching & Legacy Token Security', () => {
+    it('uses isolate memory cache for GET /api/user/broadcast to eliminate redundant KV reads', async () => {
+      const token = await createSignedSessionToken('usr_123', 1, mockEnv)
+      await mockKv.put('global:broadcast', JSON.stringify({ message: 'System maintenance scheduled', timestamp: Date.now() }))
+      const initialGets = mockKv.gets
+
+      // Request 1: Cold isolate -> Reads KV once and populates isolate cache
+      const req1 = new Request('http://localhost/api/user/broadcast', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const res1 = await app.fetch(req1, mockEnv, mockCtx)
+      expect(res1.status).toBe(200)
+      const data1: any = await res1.json()
+      expect(data1.broadcast.message).toBe('System maintenance scheduled')
+      const getsAfterFirst = mockKv.gets
+      expect(getsAfterFirst).toBe(initialGets + 1)
+
+      // Request 2: Warm isolate -> Serves from isolate memory cache without calling kv.get()
+      const req2 = new Request('http://localhost/api/user/broadcast', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const res2 = await app.fetch(req2, mockEnv, mockCtx)
+      expect(res2.status).toBe(200)
+      const data2: any = await res2.json()
+      expect(data2.broadcast.message).toBe('System maintenance scheduled')
+      expect(mockKv.gets).toBe(getsAfterFirst) // 0 additional KV reads!
+    })
+
+    it('rejects non-HMAC legacy tokens with 401 without querying Workers KV', async () => {
+      const initialGets = mockKv.gets
+      const req = new Request('http://localhost/api/user/liked', {
+        headers: { 'Authorization': 'Bearer legacy_non_hmac_token_without_dot' }
+      })
+      const res = await app.fetch(req, mockEnv, mockCtx)
+      expect(res.status).toBe(401)
+      expect(mockKv.gets).toBe(initialGets) // 0 KV reads!
+    })
+  })
 })

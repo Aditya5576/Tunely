@@ -145,12 +145,17 @@ function TunelyApp() {
     setCustomPlaylists: _setCustomPlaylists
   });
 
-  // Poll broadcast messages from server
+  // Poll broadcast messages from server (5-minute refresh interval to optimize edge operation budget)
   useEffect(() => {
     if (isLoading || !isLoggedIn || !authFetch || user?.isGuest) return;
+    let lastFetchedTs = 0;
+
     const checkBroadcast = async () => {
+      const now = Date.now();
       if (document.visibilityState !== 'visible') return;
+      if (lastFetchedTs !== 0 && now - lastFetchedTs < 300000) return;
       try {
+        lastFetchedTs = now;
         const res = await authFetch(`${API_BASE}/api/user/broadcast`);
         if (!res.ok) return;
         const data = await res.json();
@@ -166,8 +171,12 @@ function TunelyApp() {
     };
 
     checkBroadcast();
-    const intervalId = setInterval(checkBroadcast, 30000);
-    const onVisible = () => { if (document.visibilityState === 'visible') checkBroadcast(); };
+    const intervalId = setInterval(checkBroadcast, 300000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        checkBroadcast();
+      }
+    };
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {

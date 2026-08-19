@@ -569,15 +569,29 @@ userController.post('/recently-played', authMiddleware, async (c) => {
   return c.json({ success: true, message: 'Recently played logged' })
 })
 
+let cachedBroadcastData: { data: any; timestamp: number } | null = null
+const BROADCAST_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes strict memory TTL for isolate KV operations
+
 userController.get('/broadcast', authMiddleware, async (c) => {
+  const now = Date.now()
+  if (cachedBroadcastData && (now - cachedBroadcastData.timestamp < BROADCAST_CACHE_TTL_MS)) {
+    return c.json({ success: true, broadcast: cachedBroadcastData.data })
+  }
+
   const kv = (c.env as any).TUNELY_SESSIONS as KVNamespace
   let broadcast = null
   if (kv) {
-    const raw = await kv.get('global:broadcast')
-    if (raw) {
-      try { broadcast = JSON.parse(raw) } catch {}
+    try {
+      const raw = await kv.get('global:broadcast')
+      if (raw) {
+        try { broadcast = JSON.parse(raw) } catch {}
+      }
+    } catch (e) {
+      console.warn('Failed to read global broadcast from KV:', e)
     }
   }
+
+  cachedBroadcastData = { data: broadcast, timestamp: now }
   return c.json({ success: true, broadcast })
 })
 

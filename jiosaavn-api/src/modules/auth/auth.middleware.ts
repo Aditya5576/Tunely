@@ -141,7 +141,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     return next()
   }
 
-  // ── BRANCH B: Legacy KV Session Token (Compatibility Support) ─────────────
+  // ── BRANCH B: Legacy non-HMAC Session Token ──────────────────────────────
   const cached = memorySessionCache.get(token)
   if (cached && (now - cached.timestamp < MEMORY_CACHE_TTL_MS)) {
     if (cached.isBanned) {
@@ -152,52 +152,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     return next()
   }
 
-  const kv = env.TUNELY_SESSIONS as KVNamespace
-  let sessionRaw: string | null = null
-  let kvGetSuccess = false
-
-  if (kv) {
-    try {
-      sessionRaw = await kv.get(token)
-      kvGetSuccess = true
-    } catch {
-      kvGetSuccess = false
-    }
-  }
-
-  if (!sessionRaw) {
-    if (kvGetSuccess) {
-      memorySessionCache.delete(token)
-      return c.json({ success: false, message: 'Session expired or invalid. Please log in again.' }, 401)
-    }
-    if (cached) {
-      if (cached.isBanned) return c.json({ success: false, message: 'Account suspended', banned: true }, 403)
-      c.set('userId', cached.userId)
-      c.set('token', token)
-      return next()
-    }
-    return c.json({ success: false, message: 'Authorization service temporarily unavailable' }, 503)
-  }
-
-  let session: { userId: string }
-  try {
-    session = JSON.parse(sessionRaw)
-  } catch {
-    memorySessionCache.delete(token)
-    return c.json({ success: false, message: 'Malformed session data' }, 401)
-  }
-
-  const authStatus = await fetchAuthorizationStatus(env, session.userId)
-  const isBanned = authStatus?.isBanned || false
-  const authVersion = authStatus?.authVersion || 1
-
-  if (isBanned) {
-    memorySessionCache.set(token, { userId: session.userId, authVersion, isBanned: true, timestamp: now })
-    return c.json({ success: false, message: 'Account suspended', banned: true }, 403)
-  }
-
-  memorySessionCache.set(token, { userId: session.userId, authVersion, isBanned: false, timestamp: now })
-  c.set('userId', session.userId)
-  c.set('token', token)
-  await next()
+  // All modern Tunely sessions use signed HMAC tokens containing '.'
+  memorySessionCache.delete(token)
+  return c.json({ success: false, message: 'Session expired or invalid. Please log in again.' }, 401)
 }
