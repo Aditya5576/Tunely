@@ -49,8 +49,37 @@ const deduplicateTracks = (tracks) => {
 
 // In-memory cache for search results and trending data
 const searchCache = new Map();
+const inFlightSearchRequests = new Map();
 const homeCache = { data: null, ts: 0 };
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function fetchWith429Retry(url, options = {}, maxRetries = 2) {
+  let attempt = 0;
+  const isTest = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || (import.meta?.env?.MODE === 'test') || (import.meta?.env?.DEV);
+  while (attempt <= maxRetries) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status === 429 && attempt < maxRetries) {
+        attempt++;
+        const retryAfterHeader = res.headers ? res.headers.get('Retry-After') : null;
+        let delayMs = isTest ? 10 : 500 * Math.pow(2, attempt - 1);
+        if (retryAfterHeader && !isTest) {
+          const parsed = parseInt(retryAfterHeader, 10);
+          if (!isNaN(parsed) && parsed > 0) delayMs = Math.min(parsed * 1000, 3000);
+        }
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      if (attempt >= maxRetries) throw err;
+      attempt++;
+      const delayMs = isTest ? 10 : 500 * attempt;
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
 
 const MOCK_PODCAST_SHOWS = [
   {
@@ -410,14 +439,27 @@ export default function MainContent({
     error: null
   });
 
-  // Fetch all Home view sections concurrently on mount
+  const activeSearchIdRef = useRef(0);
+  const activeAbortControllerRef = useRef(null);
+
+  // Progressive controlled Home shelves loader — ONLY loads when currentView === 'home'
   useEffect(() => {
-    fetchHomeTrending();
-    fetchHomeFeatured();
-    fetchHomeNewReleases();
-    fetchHomeChill();
-    fetchHomeWorkout();
-  }, []);
+    if (currentView !== 'home') return;
+    let isCancelled = false;
+    const loadHomeProgressively = async () => {
+      await fetchHomeTrending();
+      if (isCancelled) return;
+      await fetchHomeFeatured();
+      if (isCancelled) return;
+      await fetchHomeNewReleases();
+      if (isCancelled) return;
+      await fetchHomeChill();
+      if (isCancelled) return;
+      await fetchHomeWorkout();
+    };
+    loadHomeProgressively();
+    return () => { isCancelled = true; };
+  }, [currentView]);
 
 
   // Focus search input when view changes to search
@@ -468,8 +510,8 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=25`);
-      if (res.ok) {
+      const res = await fetchWith429Retry(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=25`);
+      if (res && res.ok) {
         const obj = await res.json();
         const results = deduplicateTracks(obj.data.results || []).slice(0, 10);
         homeCache.data = results;
@@ -488,8 +530,8 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeFeaturedLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
-      if (res.ok) {
+      const res = await fetchWith429Retry(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
+      if (res && res.ok) {
         const obj = await res.json();
         const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
         setHomeFeatured(results);
@@ -506,8 +548,8 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeNewReleasesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
-      if (res.ok) {
+      const res = await fetchWith429Retry(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
+      if (res && res.ok) {
         const obj = await res.json();
         const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
         setHomeNewReleases(results);
@@ -524,8 +566,8 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeChillLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
-      if (res.ok) {
+      const res = await fetchWith429Retry(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
+      if (res && res.ok) {
         const obj = await res.json();
         const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
         setHomeChill(results);
@@ -542,8 +584,8 @@ export default function MainContent({
     const randomQuery = encodeURIComponent(queries[Math.floor(Math.random() * queries.length)]);
     setHomeWorkoutLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
-      if (res.ok) {
+      const res = await fetchWith429Retry(`${API_BASE}/api/search/songs?query=${randomQuery}&limit=16`);
+      if (res && res.ok) {
         const obj = await res.json();
         const results = deduplicateTracks(obj.data.results || []).slice(0, 8);
         setHomeWorkout(results);
@@ -567,13 +609,13 @@ export default function MainContent({
       }
       const typePath = currentView === 'album' ? 'albums' : 'playlists';
       const url = `${API_BASE}/api/${typePath}?id=${selectedPlaylistId}`;
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      if (res.ok) {
+      const res = await fetchWith429Retry(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (res && res.ok) {
         const obj = await res.json();
         setDetailData(obj.data);
       }
     } catch (e) {
-      console.error(`Error loading ${currentView} details:`, e);
+      if (import.meta.env.DEV) console.error(`Error loading ${currentView} details:`, e);
     } finally {
       setDetailLoading(false);
     }
@@ -620,70 +662,106 @@ export default function MainContent({
   };
 
   async function performSearch(query) {
+    if (!query || !query.trim()) return;
     const cacheKey = query.trim().toLowerCase();
-    // Return cached result if available
+
+    // Instant result from cache if available
     if (searchCache.has(cacheKey)) {
       setSearchResults(searchCache.get(cacheKey));
       setSearchLoading(false);
       return;
     }
+
+    // Abort active fetch for previous query
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const currentSearchId = Date.now();
+    activeSearchIdRef.current = currentSearchId;
+
     addToHistory(query);
+    setSearchLoading(true);
+
     try {
-      const [songsRes, albumsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`),
-        fetch(`${API_BASE}/api/search/albums?query=${encodeURIComponent(query)}&limit=12`).catch(() => null)
-      ]);
+      // In-flight request deduplication
+      let searchPromise = inFlightSearchRequests.get(cacheKey);
+      if (!searchPromise) {
+        searchPromise = (async () => {
+          // 1. Song request first
+          const songsRes = await fetchWith429Retry(
+            `${API_BASE}/api/search/songs?query=${encodeURIComponent(query)}&limit=15`,
+            { signal: abortController.signal }
+          );
 
-      let songs = [];
-      let albums = [];
+          let songs = [];
+          if (songsRes && songsRes.ok) {
+            const obj = await songsRes.json();
+            const resultsList = obj.data?.results || [];
+            const q = query.toLowerCase().trim();
+            const getScore = (track) => {
+              let score = 0;
+              const title = (track.name || '').toLowerCase();
+              const primaryStr = (track.artists?.primary?.map(art => art.name.toLowerCase()) || []).join(' ');
+              const allStr = (track.artists?.all?.map(art => art.name.toLowerCase()) || []).join(' ');
+              const combined = `${title} ${primaryStr} ${allStr}`;
+              const tokens = q.split(/\s+/).filter(Boolean);
 
-      if (songsRes && songsRes.ok) {
-        const obj = await songsRes.json();
-        const resultsList = obj.data.results || [];
-        const q = query.toLowerCase().trim();
-        const getScore = (track) => {
-          let score = 0;
-          const title = (track.name || '').toLowerCase();
-          const primaryStr = (track.artists?.primary?.map(art => art.name.toLowerCase()) || []).join(' ');
-          const allStr = (track.artists?.all?.map(art => art.name.toLowerCase()) || []).join(' ');
-          const combined = `${title} ${primaryStr} ${allStr}`;
-          const tokens = q.split(/\s+/).filter(Boolean);
+              if (title === q) score += 120;
+              else if (title.startsWith(q)) score += 70;
+              else if (title.includes(q)) score += 40;
 
-          // 1. Direct title matching
-          if (title === q) score += 120;
-          else if (title.startsWith(q)) score += 70;
-          else if (title.includes(q)) score += 40;
+              const matchedTokens = tokens.filter(tok => combined.includes(tok));
+              if (tokens.length > 0 && matchedTokens.length === tokens.length) {
+                score += 80;
+              } else {
+                score += matchedTokens.length * 15;
+              }
 
-          // 2. Multi-token match across title & artists combined (e.g., "kalyani shreya ghoshal")
-          const matchedTokens = tokens.filter(tok => combined.includes(tok));
-          if (tokens.length > 0 && matchedTokens.length === tokens.length) {
-            score += 80; // All search tokens match across song title and artist!
-          } else {
-            score += matchedTokens.length * 15;
+              const playCount = Number(track.playCount) || 0;
+              if (playCount > 0) score += Math.log10(playCount) * 8;
+              return score;
+            };
+            songs = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
           }
 
-          // 3. Play count / popularity boost
-          const playCount = Number(track.playCount) || 0;
-          if (playCount > 0) score += Math.log10(playCount) * 8;
-          return score;
-        };
-        songs = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
+          // 2. Album request secondarily
+          let albums = [];
+          try {
+            const albumsRes = await fetchWith429Retry(
+              `${API_BASE}/api/search/albums?query=${encodeURIComponent(query)}&limit=12`,
+              { signal: abortController.signal }
+            );
+            if (albumsRes && albumsRes.ok) {
+              const obj = await albumsRes.json();
+              albums = obj.data?.results || [];
+            }
+          } catch (albumErr) {
+            if (albumErr.name === 'AbortError') throw albumErr;
+          }
+
+          return { songs, albums };
+        })();
+
+        inFlightSearchRequests.set(cacheKey, searchPromise);
       }
 
-      if (albumsRes && albumsRes.ok) {
-        const obj = await albumsRes.json();
-        albums = obj.data.results || [];
+      const result = await searchPromise;
+      if (activeSearchIdRef.current === currentSearchId) {
+        if (searchCache.size > 100) searchCache.clear();
+        searchCache.set(cacheKey, result);
+        setSearchResults(result);
       }
-
-      const result = { songs, albums };
-      // Cache result (max 100 entries to avoid memory bloat)
-      if (searchCache.size > 100) searchCache.clear();
-      searchCache.set(cacheKey, result);
-      setSearchResults(result);
     } catch (e) {
-      console.error("Search failed:", e);
+      if (e.name !== 'AbortError') {
+        if (import.meta.env.DEV) console.error("Search failed:", e);
+      }
     } finally {
-      setSearchLoading(false);
+      inFlightSearchRequests.delete(cacheKey);
+      if (activeSearchIdRef.current === currentSearchId) {
+        setSearchLoading(false);
+      }
     }
   }
 
@@ -847,8 +925,7 @@ export default function MainContent({
 
   const handleCategoryClick = (category) => {
     setSearchQuery(category);
-    setSearchLoading(true);
-    performSearch(category);
+    // Debounced searchQuery effect is the single source of truth
   };
 
   const handlePlayCategory = async (e, query) => {

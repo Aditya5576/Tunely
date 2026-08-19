@@ -286,3 +286,158 @@ describe('MainContent Component Unit Tests — Recommended Radio Shelf', () => {
     expect(newFetchCount).toBe(initialFetchCount);
   });
 });
+
+describe('MainContent Component Unit Tests — Guest Mode & Request Storm Prevention', () => {
+  let mockFetch;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAudioState = {
+      playTrack: mockPlayTrack,
+      currentTrack: null,
+      startRadio: mockStartRadio,
+      likedSongsMetadata: [],
+      toggleLikeTrack: vi.fn(),
+      recentlyPlayed: [],
+      isShuffle: false,
+      toggleShuffle: vi.fn()
+    };
+
+    mockFetch = vi.fn().mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/api/search/songs')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              results: [
+                { id: 's1', name: 'Test Song 1', playCount: 100, artists: { primary: [{ name: 'Artist 1' }] } }
+              ]
+            }
+          })
+        };
+      }
+      if (typeof url === 'string' && url.includes('/api/search/albums')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { results: [{ id: 'a1', name: 'Test Album 1' }] }
+          })
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, data: [] }) };
+    });
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('1. Search view does NOT trigger Home API calls', async () => {
+    render(
+      <MemoryRouter>
+        <MainContent currentView="search" customPlaylists={[]} />
+      </MemoryRouter>
+    );
+
+    await act(async () => {});
+
+    // Verify no Home shelf searches were triggered
+    const homeSearchCalls = mockFetch.mock.calls.filter(c =>
+      c[0].includes('Top%20Hindi') ||
+      c[0].includes('Bollywood%20Hits') ||
+      c[0].includes('New%20Bollywood')
+    );
+    expect(homeSearchCalls.length).toBe(0);
+  });
+
+  it('2. Home view triggers Home data loading', async () => {
+    render(
+      <MemoryRouter>
+        <MainContent currentView="home" customPlaylists={[]} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      const homeSearchCalls = mockFetch.mock.calls.filter(c => typeof c[0] === 'string' && c[0].includes('/api/search/songs'));
+      expect(homeSearchCalls.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('3. Category click results in exactly ONE debounced search operation', async () => {
+    render(
+      <MemoryRouter>
+        <MainContent currentView="search" customPlaylists={[]} />
+      </MemoryRouter>
+    );
+
+    const popCategory = screen.getByText('Pop');
+    fireEvent.click(popCategory);
+
+    await waitFor(() => {
+      const songSearchCalls = mockFetch.mock.calls.filter(c => typeof c[0] === 'string' && c[0].includes('/api/search/songs?query=Pop%20Hits'));
+      expect(songSearchCalls.length).toBe(1);
+    }, { timeout: 3000 });
+  });
+
+  it('4. HTTP 429 retries with bounded backoff and renders results on success', async () => {
+    let songAttempts = 0;
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/api/search/songs')) {
+        songAttempts++;
+        if (songAttempts === 1) {
+          return { ok: false, status: 429, headers: new Headers() };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { results: [{ id: 's-retry', name: 'Retry Song', artists: { primary: [{ name: 'Artist' }] } }] }
+          })
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, data: [] }) };
+    });
+
+    render(
+      <MemoryRouter>
+        <MainContent currentView="search" customPlaylists={[]} />
+      </MemoryRouter>
+    );
+
+    const rockCategory = screen.getByText('Rock');
+    fireEvent.click(rockCategory);
+
+    await waitFor(() => {
+      expect(screen.getByText('Retry Song')).toBeInTheDocument();
+    }, { timeout: 4000 });
+    expect(songAttempts).toBe(2);
+  });
+
+  it('5. Failed HTTP 429 retry does not crash the UI', async () => {
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/api/search/songs')) {
+        return { ok: false, status: 429, headers: new Headers() };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, data: [] }) };
+    });
+
+    render(
+      <MemoryRouter>
+        <MainContent currentView="search" customPlaylists={[]} />
+      </MemoryRouter>
+    );
+
+    const hipHopCategory = screen.getByText('Hip-Hop');
+    fireEvent.click(hipHopCategory);
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('What do you want to listen to?').length).toBeGreaterThan(0);
+    }, { timeout: 3000 });
+  });
+});
