@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test:frontend": "vitest run",
     "test:ui": "playwright test",
-    "test:ui:update": "playwright test --update-snapshots"
+    "test:ui:update": "playwright test --update-snapshots",
+    "git:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-tunely.ps1",
+    "git:status-safe": "powershell -ExecutionPolicy Bypass -File ./scripts/tunely-status.ps1"
   },
   "dependencies": {
     "framer-motion": "^12.40.0",
