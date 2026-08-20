@@ -12,6 +12,7 @@ import TunelyLogo from './TunelyLogo';
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 
 import { decodeHtml } from '../utils/lyrics';
+import { calculateTrackRelevanceScore, normalizeQueryForFallback, getDidYouMeanSuggestion } from '../utils/textSimilarity';
 
 const SPOTIFY_GENRES = [
   { name: 'Pop', gradient: 'linear-gradient(135deg, #ff416c, #ff4b2b)', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80', query: 'Pop Hits' },
@@ -699,31 +700,27 @@ export default function MainContent({
           if (songsRes && songsRes.ok) {
             const obj = await songsRes.json();
             const resultsList = obj.data?.results || [];
-            const q = query.toLowerCase().trim();
-            const getScore = (track) => {
-              let score = 0;
-              const title = (track.name || '').toLowerCase();
-              const primaryStr = (track.artists?.primary?.map(art => art.name.toLowerCase()) || []).join(' ');
-              const allStr = (track.artists?.all?.map(art => art.name.toLowerCase()) || []).join(' ');
-              const combined = `${title} ${primaryStr} ${allStr}`;
-              const tokens = q.split(/\s+/).filter(Boolean);
+            songs = [...resultsList].sort((a, b) => calculateTrackRelevanceScore(b, query) - calculateTrackRelevanceScore(a, query));
+          }
 
-              if (title === q) score += 120;
-              else if (title.startsWith(q)) score += 70;
-              else if (title.includes(q)) score += 40;
-
-              const matchedTokens = tokens.filter(tok => combined.includes(tok));
-              if (tokens.length > 0 && matchedTokens.length === tokens.length) {
-                score += 80;
-              } else {
-                score += matchedTokens.length * 15;
+          // Single bounded fallback if initial song search returned 0 results
+          if (songs.length === 0) {
+            const fallbackQuery = normalizeQueryForFallback(query);
+            if (fallbackQuery && fallbackQuery.toLowerCase() !== query.trim().toLowerCase()) {
+              try {
+                const fallbackRes = await fetchWith429Retry(
+                  `${API_BASE}/api/search/songs?query=${encodeURIComponent(fallbackQuery)}&limit=15`,
+                  { signal: abortController.signal }
+                );
+                if (fallbackRes && fallbackRes.ok) {
+                  const fallbackObj = await fallbackRes.json();
+                  const fallbackResultsList = fallbackObj.data?.results || [];
+                  songs = [...fallbackResultsList].sort((a, b) => calculateTrackRelevanceScore(b, query) - calculateTrackRelevanceScore(a, query));
+                }
+              } catch (fbErr) {
+                if (fbErr.name === 'AbortError') throw fbErr;
               }
-
-              const playCount = Number(track.playCount) || 0;
-              if (playCount > 0) score += Math.log10(playCount) * 8;
-              return score;
-            };
-            songs = [...resultsList].sort((a, b) => getScore(b) - getScore(a));
+            }
           }
 
           // 2. Album request secondarily
@@ -741,7 +738,10 @@ export default function MainContent({
             if (albumErr.name === 'AbortError') throw albumErr;
           }
 
-          return { songs, albums };
+          // Compute "Did you mean" suggestion from top result if any
+          const didYouMean = songs.length > 0 ? getDidYouMeanSuggestion(query, songs[0]) : null;
+
+          return { songs, albums, didYouMean };
         })();
 
         inFlightSearchRequests.set(cacheKey, searchPromise);
@@ -1595,6 +1595,45 @@ export default function MainContent({
             {/* Search results output */}
             {searchResults && !searchLoading && (
               <div className="search-results">
+                {searchResults.didYouMean && (
+                  <div
+                    className="did-you-mean-banner"
+                    style={{
+                      marginBottom: 16,
+                      padding: '10px 16px',
+                      background: 'rgba(0, 229, 255, 0.08)',
+                      border: '1px solid rgba(0, 229, 255, 0.2)',
+                      borderRadius: '12px',
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span>Did you mean </span>
+                    <button
+                      type="button"
+                      className="did-you-mean-link"
+                      onClick={() => {
+                        setSearchQuery(searchResults.didYouMean);
+                        performSearch(searchResults.didYouMean);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#00e5ff',
+                        fontWeight: '700',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: '14px'
+                      }}
+                    >
+                      "{searchResults.didYouMean}"
+                    </button>?
+                  </div>
+                )}
                 {/* Categorized Search Tabs */}
                 <div style={{ display: 'flex', gap: 12, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 10 }}>
                   <button
