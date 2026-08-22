@@ -290,30 +290,6 @@ export const AudioProvider = ({ children }) => {
     }
   }, []);
 
-  // React to login/logout changes
-  useEffect(() => {
-    if (isLoading) return; // Wait for session restore before acting
-    if (!isLoggedIn) {
-      // ── LOGOUT ─── clear in-memory state so UI shows clean guest view
-      /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      setLikedSongs([]);
-      setLikedSongsMetadata([]);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
-      setIsPlaying(false);
-      setCurrentTrack(null);
-      setQueue([]);
-      setCurrentIndex(-1);
-      return;
-    }
-
-    // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
-    if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
-    syncLikedSongs();
-  }, [isLoggedIn, isLoading, authFetch, user, token]);
-
   const syncLikedSongs = async () => {
     if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
     try {
@@ -337,6 +313,30 @@ export const AudioProvider = ({ children }) => {
       console.warn('Liked songs sync failed:', e);
     }
   };
+
+  // React to login/logout changes
+  useEffect(() => {
+    if (isLoading) return; // Wait for session restore before acting
+    if (!isLoggedIn) {
+      // ── LOGOUT ─── clear in-memory state so UI shows clean guest view
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      setLikedSongs([]);
+      setLikedSongsMetadata([]);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      setIsPlaying(false);
+      setCurrentTrack(null);
+      setQueue([]);
+      setCurrentIndex(-1);
+      return;
+    }
+
+    // ── LOGIN ──── smart sync: compare local vs server timestamps and merge
+    if (!isLoggedIn || !token || user?.isGuest || !authFetch) return;
+    syncLikedSongs();
+  }, [isLoggedIn, isLoading, authFetch, user, token]);
 
   // Live Sync / Periodic Polling for Liked Songs
   useEffect(() => {
