@@ -173,6 +173,8 @@ export async function fetchSpotifyPlaylistData(
           if (stateData && stateData.entity) {
             const playlistName = stateData.entity.name || 'Imported Playlist'
             const trackList = stateData.entity.trackList || []
+            if (trackList.length === 0) return null
+
             const tracks: SpotifyTrackItem[] = trackList.map((t: any) => ({
               id: t.id || t.uri || undefined,
               title: t.title || 'Unknown Song',
@@ -193,6 +195,7 @@ export async function fetchSpotifyPlaylistData(
       }
     } catch (embedErr) {
       console.error('Spotify embed fetch error:', embedErr)
+      throw embedErr
     }
   }
 
