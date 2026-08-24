@@ -70,9 +70,9 @@ export class App {
             if (!accessToken) {
               useEmbedFallback = true
             } else {
-              // Step 2: Fetch playlist details (name + first 100 tracks + pagination info)
+              // Step 2: Fetch playlist details (name + snapshot_id + first 100 tracks + pagination info)
               const playlistRes = await fetch(
-                `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
+                `https://api.spotify.com/v1/playlists/${id}?fields=name,snapshot_id,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
                 {
                   headers: { 'Authorization': `Bearer ${accessToken}` }
                 }
@@ -83,6 +83,7 @@ export class App {
               } else {
                 const playlistData: any = await playlistRes.json()
                 const playlistName = playlistData.name || 'Imported Playlist'
+                const snapshotId = playlistData.snapshot_id || null
                 let items = playlistData.tracks?.items || []
                 let nextUrl = playlistData.tracks?.next
 
@@ -117,6 +118,8 @@ export class App {
                     success: true,
                     data: {
                       name: playlistName,
+                      spotify_playlist_id: id,
+                      snapshot_id: snapshotId,
                       tracks
                     }
                   })
@@ -151,6 +154,7 @@ export class App {
               const stateData = parsed.props?.pageProps?.state?.data
               if (stateData && stateData.entity) {
                 const playlistName = stateData.entity.name || 'Imported Playlist'
+                const snapshotId = stateData.entity.revisionId || stateData.entity.snapshot_id || `embed_${id}_${stateData.entity.trackList?.length || 0}`
                 const trackList = stateData.entity.trackList || []
                 if (trackList.length > 0) {
                   const tracks = trackList.map((t: any) => ({
@@ -161,6 +165,8 @@ export class App {
                     success: true,
                     data: {
                       name: playlistName,
+                      spotify_playlist_id: id,
+                      snapshot_id: snapshotId,
                       tracks
                     }
                   })

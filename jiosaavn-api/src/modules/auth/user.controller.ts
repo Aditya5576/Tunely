@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { authMiddleware } from './auth.middleware'
 import { generatePlaylistId, verifySignedTicket } from './crypto'
+import { fetchSpotifyPlaylistData } from '#modules/playlists/helpers/spotify-api.helper'
 
 export const userController = new Hono<{
   Variables: {
@@ -230,13 +231,16 @@ userController.get('/playlists', authMiddleware, async (c) => {
   const db = (c.env as any).DB as D1Database
 
   const rows = await db.prepare(
-    'SELECT id, name, songs, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
+    'SELECT id, name, songs, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(userId).all()
 
   const playlists = (rows.results || []).map((r: any) => ({
     id: r.id,
     name: r.name,
     songs: (() => { try { return JSON.parse(r.songs) } catch { return [] } })(),
+    spotify_playlist_id: r.spotify_playlist_id || undefined,
+    spotify_snapshot_id: r.spotify_snapshot_id || undefined,
+    last_spotify_sync_at: r.last_spotify_sync_at || undefined,
     updatedAt: r.updated_at,
     createdAt: r.created_at,
     type: 'custom'
@@ -247,17 +251,17 @@ userController.get('/playlists', authMiddleware, async (c) => {
 
 /**
  * POST /api/user/playlists
- * Body: { name, songs: [...full metadata snapshots] }
+ * Body: { name, songs: [...full metadata snapshots], spotify_playlist_id?, spotify_snapshot_id? }
  * Creates a new playlist.
  */
 userController.post('/playlists', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
-  let body: { name?: string; songs?: any[]; id?: string }
+  let body: { name?: string; songs?: any[]; id?: string; spotify_playlist_id?: string; spotify_snapshot_id?: string; last_spotify_sync_at?: string }
   try { body = await c.req.json() } catch {
     return c.json({ success: false, message: 'Invalid JSON body' }, 400)
   }
 
-  const { name, songs = [], id: clientId } = body
+  const { name, songs = [], id: clientId, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at } = body
   if (!name?.trim()) return c.json({ success: false, message: 'Playlist name is required' }, 400)
 
   const id = clientId || generatePlaylistId()
@@ -265,13 +269,23 @@ userController.post('/playlists', authMiddleware, async (c) => {
   const db = (c.env as any).DB as D1Database
 
   await db.prepare(
-    'INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(id, userId, name.trim(), JSON.stringify(songs), now, now).run()
+    'INSERT INTO playlists (id, user_id, name, songs, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, userId, name.trim(), JSON.stringify(songs), spotify_playlist_id || null, spotify_snapshot_id || null, last_spotify_sync_at || null, now, now).run()
 
   // Track overall playlists update time in D1 SQL (0 KV PUTs!)
   await updateSyncState(db, userId, 'playlists', now)
 
-  const playlistData = { id, name: name.trim(), songs, updatedAt: now, createdAt: now, type: 'custom' };
+  const playlistData = {
+    id,
+    name: name.trim(),
+    songs,
+    spotify_playlist_id: spotify_playlist_id || undefined,
+    spotify_snapshot_id: spotify_snapshot_id || undefined,
+    last_spotify_sync_at: last_spotify_sync_at || undefined,
+    updatedAt: now,
+    createdAt: now,
+    type: 'custom'
+  };
 
   // Broadcast real-time event to all connected devices AFTER D1 persistence succeeds
   c.executionCtx.waitUntil(
@@ -288,13 +302,13 @@ userController.post('/playlists', authMiddleware, async (c) => {
 
 /**
  * PUT /api/user/playlists/:id
- * Body: { name?, songs? }
+ * Body: { name?, songs?, spotify_playlist_id?, spotify_snapshot_id?, last_spotify_sync_at? }
  * Updates a playlist's name and/or songs.
  */
 userController.put('/playlists/:id', authMiddleware, async (c) => {
   const userId = c.get('userId') as string
   const playlistId = c.req.param('id')
-  let body: { name?: string; songs?: any[] }
+  let body: { name?: string; songs?: any[]; spotify_playlist_id?: string; spotify_snapshot_id?: string; last_spotify_sync_at?: string }
   try { body = await c.req.json() } catch {
     return c.json({ success: false, message: 'Invalid JSON body' }, 400)
   }
@@ -308,6 +322,9 @@ userController.put('/playlists/:id', authMiddleware, async (c) => {
   const values: any[] = []
   if (body.name !== undefined) { fields.push('name = ?'); values.push(body.name.trim()) }
   if (body.songs !== undefined) { fields.push('songs = ?'); values.push(JSON.stringify(body.songs)) }
+  if (body.spotify_playlist_id !== undefined) { fields.push('spotify_playlist_id = ?'); values.push(body.spotify_playlist_id) }
+  if (body.spotify_snapshot_id !== undefined) { fields.push('spotify_snapshot_id = ?'); values.push(body.spotify_snapshot_id) }
+  if (body.last_spotify_sync_at !== undefined) { fields.push('last_spotify_sync_at = ?'); values.push(body.last_spotify_sync_at) }
   fields.push('updated_at = ?')
   values.push(nowStr, playlistId, userId)
 
@@ -389,12 +406,28 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
 
     if (localPlaylists.length > 0) {
       const stmt = db.prepare(
-        `INSERT INTO playlists (id, user_id, name, songs, updated_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, songs = excluded.songs, updated_at = excluded.updated_at`
+        `INSERT INTO playlists (id, user_id, name, songs, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at, updated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           songs = excluded.songs,
+           spotify_playlist_id = COALESCE(excluded.spotify_playlist_id, playlists.spotify_playlist_id),
+           spotify_snapshot_id = COALESCE(excluded.spotify_snapshot_id, playlists.spotify_snapshot_id),
+           last_spotify_sync_at = COALESCE(excluded.last_spotify_sync_at, playlists.last_spotify_sync_at),
+           updated_at = excluded.updated_at`
       )
       const batch = localPlaylists.map((pl: any) =>
-        stmt.bind(pl.id, userId, pl.name, JSON.stringify(pl.songs || []), localUpdatedAt || nowTs, pl.createdAt || localUpdatedAt || nowTs)
+        stmt.bind(
+          pl.id,
+          userId,
+          pl.name,
+          JSON.stringify(pl.songs || []),
+          pl.spotify_playlist_id || pl.spotifyPlaylistId || null,
+          pl.spotify_snapshot_id || pl.spotifySnapshotId || null,
+          pl.last_spotify_sync_at || pl.lastSpotifySyncAt || null,
+          localUpdatedAt || nowTs,
+          pl.createdAt || localUpdatedAt || nowTs
+        )
       )
       await db.batch(batch)
     }
@@ -415,19 +448,193 @@ userController.post('/playlists/sync', authMiddleware, async (c) => {
   }
 
   const rows = await db.prepare(
-    'SELECT id, name, songs, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
+    'SELECT id, name, songs, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at, updated_at, created_at FROM playlists WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(userId).all()
 
   const serverPlaylists = (rows.results || []).map((r: any) => ({
     id: r.id,
     name: r.name,
     songs: (() => { try { return JSON.parse(r.songs) } catch { return [] } })(),
+    spotify_playlist_id: r.spotify_playlist_id || undefined,
+    spotify_snapshot_id: r.spotify_snapshot_id || undefined,
+    last_spotify_sync_at: r.last_spotify_sync_at || undefined,
     updatedAt: r.updated_at,
     createdAt: r.created_at,
     type: 'custom'
   }))
 
   return c.json({ success: true, data: { source: 'server', playlists: serverPlaylists, serverUpdatedAt } })
+})
+
+/**
+ * POST /api/user/playlists/:id/sync-spotify
+ * Manual Spotify playlist sync for linked playlists.
+ */
+userController.post('/playlists/:id/sync-spotify', authMiddleware, async (c) => {
+  const userId = c.get('userId') as string
+  const playlistId = c.req.param('id')
+  const db = (c.env as any).DB as D1Database
+
+  const row: any = await db.prepare(
+    'SELECT id, name, songs, spotify_playlist_id, spotify_snapshot_id, last_spotify_sync_at, updated_at, created_at FROM playlists WHERE id = ? AND user_id = ?'
+  ).bind(playlistId, userId).first()
+
+  if (!row) {
+    return c.json({ success: false, message: 'Playlist not found' }, 404)
+  }
+
+  const spotifyPlaylistId = row.spotify_playlist_id
+  if (!spotifyPlaylistId) {
+    return c.json({ success: false, message: 'This playlist is not linked to a Spotify playlist' }, 400)
+  }
+
+  const currentSpotifyData = await fetchSpotifyPlaylistData(spotifyPlaylistId, c.env)
+  if (!currentSpotifyData) {
+    return c.json({ success: false, message: 'Failed to fetch Spotify playlist. Make sure the Spotify playlist is public.' }, 502)
+  }
+
+  const existingSongs: any[] = (() => { try { return JSON.parse(row.songs) } catch { return [] } })()
+
+  // 1. Check if snapshot_id matches
+  if (currentSpotifyData.snapshot_id && row.spotify_snapshot_id && currentSpotifyData.snapshot_id === row.spotify_snapshot_id) {
+    const playlistData = {
+      id: row.id,
+      name: row.name,
+      songs: existingSongs,
+      spotify_playlist_id: spotifyPlaylistId,
+      spotify_snapshot_id: row.spotify_snapshot_id,
+      last_spotify_sync_at: row.last_spotify_sync_at || new Date().toISOString(),
+      updatedAt: row.updated_at,
+      createdAt: row.created_at,
+      type: 'custom'
+    }
+    return c.json({
+      success: true,
+      changed: false,
+      added: 0,
+      skipped: 0,
+      unmatched: 0,
+      status: 'up_to_date',
+      message: 'Playlist is already up to date',
+      playlist: playlistData
+    })
+  }
+
+  // 2. Build normalized title + artist lookup set from existing Tunely songs
+  const normalize = (str: string) => (str || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+  const existingSignatures = new Set(
+    existingSongs.map(s => {
+      const title = normalize(s.name || s.title || '')
+      const artist = normalize(s.artists?.primary?.[0]?.name || s.artist || '')
+      return `${title}|${artist}`
+    })
+  )
+  const existingSongIds = new Set(existingSongs.map(s => String(s.id)))
+
+  // 3. Identify new tracks from Spotify that are missing from Tunely playlist
+  const newSpotifyTracks = currentSpotifyData.tracks.filter(t => {
+    const sig = `${normalize(t.title)}|${normalize(t.artist)}`
+    return !existingSignatures.has(sig)
+  })
+
+  if (newSpotifyTracks.length === 0) {
+    const nowStr = new Date().toISOString()
+    const newSnapshotId = currentSpotifyData.snapshot_id || row.spotify_snapshot_id
+    await db.prepare(
+      'UPDATE playlists SET spotify_snapshot_id = ?, last_spotify_sync_at = ? WHERE id = ? AND user_id = ?'
+    ).bind(newSnapshotId, nowStr, playlistId, userId).run()
+
+    const playlistData = {
+      id: row.id,
+      name: row.name,
+      songs: existingSongs,
+      spotify_playlist_id: spotifyPlaylistId,
+      spotify_snapshot_id: newSnapshotId,
+      last_spotify_sync_at: nowStr,
+      updatedAt: row.updated_at,
+      createdAt: row.created_at,
+      type: 'custom'
+    }
+    return c.json({
+      success: true,
+      changed: false,
+      added: 0,
+      skipped: 0,
+      unmatched: 0,
+      status: 'up_to_date',
+      message: 'Playlist is already up to date',
+      playlist: playlistData
+    })
+  }
+
+  // 4. Resolve new Spotify tracks on Tunely via search
+  const matchedSongs: any[] = []
+  let unmatchedCount = 0
+
+  const apiBase = (c.env as any)?.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev'
+
+  for (const track of newSpotifyTracks) {
+    try {
+      const query = `${track.title} ${track.artist}`.trim()
+      const searchRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(query)}&limit=3`)
+      if (searchRes.ok) {
+        const obj: any = await searchRes.json()
+        const results = obj.data?.results || []
+        if (results.length > 0) {
+          const song = results[0]
+          if (song && !existingSongIds.has(String(song.id))) {
+            matchedSongs.push(song)
+            existingSongIds.add(String(song.id))
+          } else {
+            unmatchedCount++
+          }
+          continue
+        }
+      }
+    } catch {}
+    unmatchedCount++
+  }
+
+  const updatedSongs = [...existingSongs, ...matchedSongs]
+  const nowStr = new Date().toISOString()
+  const newSnapshotId = currentSpotifyData.snapshot_id || row.spotify_snapshot_id || `sync_${Date.now()}`
+
+  await db.prepare(
+    'UPDATE playlists SET songs = ?, spotify_snapshot_id = ?, last_spotify_sync_at = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+  ).bind(JSON.stringify(updatedSongs), newSnapshotId, nowStr, nowStr, playlistId, userId).run()
+
+  await updateSyncState(db, userId, 'playlists', nowStr)
+
+  const updatedPlaylist = {
+    id: row.id,
+    name: row.name,
+    songs: updatedSongs,
+    spotify_playlist_id: spotifyPlaylistId,
+    spotify_snapshot_id: newSnapshotId,
+    last_spotify_sync_at: nowStr,
+    updatedAt: nowStr,
+    createdAt: row.created_at,
+    type: 'custom'
+  }
+
+  c.executionCtx.waitUntil(
+    broadcastUserEvent(c.env, userId, {
+      type: 'playlist',
+      action: 'playlist.updated',
+      data: { playlistId, name: row.name, songs: updatedSongs },
+      updatedAt: nowStr
+    })
+  )
+
+  return c.json({
+    success: true,
+    changed: matchedSongs.length > 0,
+    added: matchedSongs.length,
+    skipped: 0,
+    unmatched: unmatchedCount,
+    status: matchedSongs.length > 0 ? 'updated' : 'up_to_date',
+    playlist: updatedPlaylist
+  })
 })
 
 /**

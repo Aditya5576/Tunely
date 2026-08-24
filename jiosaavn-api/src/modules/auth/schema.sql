@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS playlists (
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   songs TEXT NOT NULL DEFAULT '[]',          -- full metadata snapshots array (JSON)
+  spotify_playlist_id TEXT,                 -- linked Spotify playlist ID (e.g. 37i9dQZF1DXcBWIGoYBM5M)
+  spotify_snapshot_id TEXT,                 -- Spotify playlist snapshot_id for change tracking
+  last_spotify_sync_at DATETIME,            -- last successful sync timestamp
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -53,5 +56,6 @@ CREATE TABLE IF NOT EXISTS recently_played (
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_liked_user ON liked_songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_playlist_user ON playlists(user_id);
+CREATE INDEX IF NOT EXISTS idx_playlists_spotify_id ON playlists(spotify_playlist_id);
 CREATE INDEX IF NOT EXISTS idx_recently_played_user ON recently_played(user_id, played_at);
 CREATE INDEX IF NOT EXISTS idx_user_sync ON user_sync_state(user_id);

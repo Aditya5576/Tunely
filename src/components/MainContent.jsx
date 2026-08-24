@@ -429,7 +429,7 @@ export default function MainContent({
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Spotify Playlist Import states
+  // Spotify Playlist Import & Sync states
   const [showImportModal, setShowImportModal] = useState(false);
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [importStatus, setImportStatus] = useState({
@@ -439,6 +439,94 @@ export default function MainContent({
     total: 0,
     error: null
   });
+  const [isSyncingSpotify, setIsSyncingSpotify] = useState(false);
+  const [syncNotification, setSyncNotification] = useState(null);
+
+  const handleSyncSpotifyPlaylist = async (playlist) => {
+    if (!playlist || isSyncingSpotify) return;
+    const playlistId = playlist.id;
+    setIsSyncingSpotify(true);
+    setSyncNotification(null);
+
+    try {
+      if (isLoggedIn && authFetch) {
+        const res = await authFetch(`${API_BASE}/api/user/playlists/${playlistId}/sync-spotify`, {
+          method: 'POST'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            if (data.playlist) {
+              const updated = customPlaylists.map(pl => pl.id === playlistId ? { ...pl, ...data.playlist } : pl);
+              setCustomPlaylists(updated);
+              localStorage.setItem('spotify_custom_playlists', JSON.stringify(updated));
+              setDetailData(data.playlist);
+            }
+            if (data.changed && data.added > 0) {
+              setSyncNotification({ type: 'success', text: `Sync complete! ${data.added} new song(s) added from Spotify.` });
+            } else {
+              setSyncNotification({ type: 'info', text: 'Playlist is already up to date with Spotify.' });
+            }
+          } else {
+            setSyncNotification({ type: 'error', text: data.message || 'Failed to sync playlist.' });
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setSyncNotification({ type: 'error', text: errData.message || 'Sync failed. Ensure Spotify playlist is public.' });
+        }
+      } else {
+        // Guest mode / local offline sync
+        const spotifyId = playlist.spotify_playlist_id || playlist.spotifyPlaylistId;
+        if (!spotifyId) throw new Error('Playlist is not linked to Spotify.');
+
+        const spotifyRes = await fetch(`${API_BASE}/api/spotify/playlist?id=${spotifyId}`);
+        if (!spotifyRes.ok) throw new Error('Could not fetch Spotify playlist. Ensure it is public.');
+        const spotifyData = await spotifyRes.json();
+        const tracks = spotifyData.data?.tracks || [];
+
+        const normalize = (str) => (str || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+        const existingSigs = new Set((playlist.songs || []).map(s => `${normalize(s.name || s.title)}|${normalize(s.artists?.primary?.[0]?.name || s.artist)}`));
+        const newTracks = tracks.filter(t => !existingSigs.has(`${normalize(t.title)}|${normalize(t.artist)}`));
+
+        if (newTracks.length === 0) {
+          setSyncNotification({ type: 'info', text: 'Playlist is already up to date with Spotify.' });
+        } else {
+          const matchedSongs = [];
+          for (const t of newTracks) {
+            try {
+              const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${t.title} ${t.artist}`)}&limit=3`);
+              if (searchRes.ok) {
+                const searchObj = await searchRes.json();
+                if (searchObj.data?.results?.[0]) matchedSongs.push(searchObj.data.results[0]);
+              }
+            } catch {}
+          }
+          if (matchedSongs.length > 0) {
+            const existingIds = new Set((playlist.songs || []).map(s => s.id));
+            const uniqueAdditions = matchedSongs.filter(s => !existingIds.has(s.id));
+            const updatedPlaylist = {
+              ...playlist,
+              songs: [...(playlist.songs || []), ...uniqueAdditions],
+              spotify_playlist_id: spotifyId,
+              spotify_snapshot_id: spotifyData.data?.snapshot_id || playlist.spotify_snapshot_id,
+              last_spotify_sync_at: new Date().toISOString()
+            };
+            const updatedList = customPlaylists.map(pl => pl.id === playlistId ? updatedPlaylist : pl);
+            setCustomPlaylists(updatedList);
+            localStorage.setItem('spotify_custom_playlists', JSON.stringify(updatedList));
+            setDetailData(updatedPlaylist);
+            setSyncNotification({ type: 'success', text: `Sync complete! ${uniqueAdditions.length} new song(s) added from Spotify.` });
+          } else {
+            setSyncNotification({ type: 'info', text: 'No new matching songs found on Tunely.' });
+          }
+        }
+      }
+    } catch (err) {
+      setSyncNotification({ type: 'error', text: err.message || 'Error syncing Spotify playlist.' });
+    } finally {
+      setIsSyncingSpotify(false);
+    }
+  };
 
   const activeSearchIdRef = useRef(0);
   const activeAbortControllerRef = useRef(null);
@@ -807,6 +895,9 @@ export default function MainContent({
       const responseObj = await res.json();
       const playlistName = responseObj.data?.name || 'Imported Playlist';
       const trackList = responseObj.data?.tracks || [];
+      const spotifyPlaylistId = responseObj.data?.spotify_playlist_id || playlistId;
+      const spotifySnapshotId = responseObj.data?.snapshot_id || null;
+      const nowIso = new Date().toISOString();
 
       if (trackList.length === 0) {
         throw new Error('This playlist has no tracks, or it is private.');
@@ -872,7 +963,10 @@ export default function MainContent({
 
         const updatedPlaylist = {
           ...existingPlaylist,
-          songs: [...existingPlaylist.songs, ...newUniqueSongs]
+          songs: [...existingPlaylist.songs, ...newUniqueSongs],
+          spotify_playlist_id: existingPlaylist.spotify_playlist_id || spotifyPlaylistId,
+          spotify_snapshot_id: spotifySnapshotId || existingPlaylist.spotify_snapshot_id,
+          last_spotify_sync_at: nowIso
         };
 
         updated = [...customPlaylists];
@@ -888,7 +982,10 @@ export default function MainContent({
           id: newPlaylistId,
           name: `${playlistName} (Spotify)`,
           type: 'custom',
-          songs: matchedSongs
+          songs: matchedSongs,
+          spotify_playlist_id: spotifyPlaylistId,
+          spotify_snapshot_id: spotifySnapshotId,
+          last_spotify_sync_at: nowIso
         };
 
         updated = [...customPlaylists, newPlaylist];
@@ -1929,14 +2026,60 @@ export default function MainContent({
                         ? 'Your personal collection of saved favorite tracks.'
                         : 'Create your own personal mixtape. Add any song search results to this playlist.'}
                     </p>
-                    <div className="detail-stats">
+                    <div className="detail-stats" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <span className="stat-highlight">{detailData.songs?.length || 0} songs</span>
+                      {(detailData.spotify_playlist_id || detailData.spotifyPlaylistId) && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 10px', borderRadius: '12px', background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.25)', color: '#00e5ff', fontSize: '12px', fontWeight: '600' }}>
+                          <span>Spotify Linked 🟢</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
+                {/* Sync Notification Banner */}
+                {syncNotification && (
+                  <div
+                    className="sync-notification-banner"
+                    style={{
+                      margin: '12px 0 16px 0',
+                      padding: '10px 16px',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'space-between',
+                      background: syncNotification.type === 'success'
+                        ? 'rgba(34, 197, 94, 0.15)'
+                        : syncNotification.type === 'error'
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : 'rgba(0, 229, 255, 0.12)',
+                      border: syncNotification.type === 'success'
+                        ? '1px solid rgba(34, 197, 94, 0.3)'
+                        : syncNotification.type === 'error'
+                        ? '1px solid rgba(239, 68, 68, 0.3)'
+                        : '1px solid rgba(0, 229, 255, 0.25)',
+                      color: syncNotification.type === 'success'
+                        ? '#4ade80'
+                        : syncNotification.type === 'error'
+                        ? '#f87171'
+                        : '#38bdf8'
+                    }}
+                  >
+                    <span>{syncNotification.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSyncNotification(null)}
+                      style={{ background: 'transparent', border: 'none', color: 'currentColor', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
                 {/* Playlist Action Bar */}
-                <div className="detail-actions">
+                <div className="detail-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <button 
                     className="detail-play-btn"
                     onClick={() => playAllTracks(detailData.songs)}
@@ -1953,6 +2096,33 @@ export default function MainContent({
                     <Shuffle size={20} />
                     <span>Shuffle Play</span>
                   </button>
+
+                  {(detailData.spotify_playlist_id || detailData.spotifyPlaylistId) && (
+                    <button
+                      className="detail-sync-spotify-btn"
+                      onClick={() => handleSyncSpotifyPlaylist(detailData)}
+                      disabled={isSyncingSpotify}
+                      title="Sync new songs from Spotify"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 20px',
+                        borderRadius: '24px',
+                        background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(168, 85, 247, 0.2))',
+                        border: '1px solid rgba(0, 229, 255, 0.4)',
+                        color: '#00e5ff',
+                        fontWeight: '700',
+                        cursor: isSyncingSpotify ? 'not-allowed' : 'pointer',
+                        fontSize: '14px',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 14px rgba(0, 229, 255, 0.15)'
+                      }}
+                    >
+                      <RefreshCw size={18} className={isSyncingSpotify ? 'animate-spin' : ''} />
+                      <span>{isSyncingSpotify ? 'Syncing...' : 'Sync Now'}</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Tracklist List */}
