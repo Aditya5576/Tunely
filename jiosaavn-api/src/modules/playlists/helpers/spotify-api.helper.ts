@@ -1,4 +1,5 @@
 export interface SpotifyTrackItem {
+  id?: string
   title: string
   artist: string
 }
@@ -10,9 +11,74 @@ export interface SpotifyPlaylistFetchResult {
   tracks: SpotifyTrackItem[]
 }
 
+let cachedAccessToken: { token: string; expiresAt: number } | null = null
+
 /**
- * Fetches Spotify playlist details (name, snapshot_id, and track items)
- * via official Spotify Web API (Client Credentials) or public embed scraper fallback.
+ * Retrieves a Client Credentials access token from Spotify, with in-memory caching
+ * per Worker isolate to eliminate redundant token subrequests.
+ */
+async function getSpotifyAccessToken(clientId: string, clientSecret: string): Promise<string | null> {
+  const now = Date.now()
+  if (cachedAccessToken && cachedAccessToken.expiresAt > now + 60000) {
+    return cachedAccessToken.token
+  }
+
+  try {
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
+      },
+      body: 'grant_type=client_credentials'
+    })
+
+    if (tokenRes.ok) {
+      const tokenData: any = await tokenRes.json()
+      if (tokenData.access_token) {
+        const expiresInMs = (tokenData.expires_in || 3600) * 1000
+        cachedAccessToken = {
+          token: tokenData.access_token,
+          expiresAt: now + expiresInMs
+        }
+        return tokenData.access_token
+      }
+    }
+  } catch (e) {
+    console.error('Error requesting Spotify access token:', e)
+  }
+
+  return null
+}
+
+/**
+ * Computes a deterministic SHA-256 content fingerprint of playlist tracks.
+ * Uses Spotify track ID if available, otherwise normalized title + artist(s).
+ * Track ordering is strictly preserved.
+ */
+export async function generatePlaylistFingerprint(
+  tracks: Array<{ id?: string; title: string; artist: string }>
+): Promise<string> {
+  const normalize = (str: string) => (str || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+  const trackSignatures = tracks.map(t => {
+    if (t.id) return `id:${t.id}`
+    return `sig:${normalize(t.title)}|${normalize(t.artist)}`
+  })
+  const payload = trackSignatures.join(';')
+
+  const encoder = new TextEncoder()
+  const data = encoder.encode(payload)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32)
+  return `fp_${hashHex}`
+}
+
+/**
+ * Fetches Spotify playlist details (name, snapshot_id / content fingerprint, and track items).
+ * Priority:
+ * 1. Official Spotify Web API snapshot_id (when SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET are configured)
+ * 2. Deterministic SHA-256 playlist content fingerprint fallback
  */
 export async function fetchSpotifyPlaylistData(
   rawId: string,
@@ -28,65 +94,56 @@ export async function fetchSpotifyPlaylistData(
 
   if (clientId && clientSecret) {
     try {
-      const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
-        },
-        body: 'grant_type=client_credentials'
-      })
+      const accessToken = await getSpotifyAccessToken(clientId, clientSecret)
 
-      if (tokenRes.ok) {
-        const tokenData: any = await tokenRes.json()
-        const accessToken = tokenData.access_token
+      if (accessToken) {
+        const playlistRes = await fetch(
+          `https://api.spotify.com/v1/playlists/${id}?fields=name,snapshot_id,tracks.next,tracks.items(track(id,name,artists(name)))&limit=100`,
+          {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          }
+        )
 
-        if (accessToken) {
-          const playlistRes = await fetch(
-            `https://api.spotify.com/v1/playlists/${id}?fields=name,snapshot_id,tracks.next,tracks.items(track(name,artists(name)))&limit=100`,
-            {
-              headers: { 'Authorization': `Bearer ${accessToken}` }
+        if (playlistRes.ok) {
+          const playlistData: any = await playlistRes.json()
+          const playlistName = playlistData.name || 'Imported Playlist'
+          const officialSnapshotId = playlistData.snapshot_id || null
+          let items = playlistData.tracks?.items || []
+          let nextUrl = playlistData.tracks?.next
+
+          let pageCount = 1
+          while (nextUrl && pageCount < 10) {
+            try {
+              const nextRes = await fetch(nextUrl, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+              })
+              if (!nextRes.ok) break
+              const nextData: any = await nextRes.json()
+              items = items.concat(nextData.items || [])
+              nextUrl = nextData.next
+              pageCount++
+            } catch {
+              break
             }
-          )
+          }
 
-          if (playlistRes.ok) {
-            const playlistData: any = await playlistRes.json()
-            const playlistName = playlistData.name || 'Imported Playlist'
-            const snapshotId = playlistData.snapshot_id || null
-            let items = playlistData.tracks?.items || []
-            let nextUrl = playlistData.tracks?.next
+          const tracks: SpotifyTrackItem[] = items
+            .filter((item: any) => item?.track?.name)
+            .map((item: any) => ({
+              id: item.track.id || undefined,
+              title: item.track.name,
+              artist: (item.track.artists && Array.isArray(item.track.artists))
+                ? item.track.artists.filter((a: any) => a && a.name).map((a: any) => a.name).join(', ')
+                : 'Unknown Artist'
+            }))
 
-            let pageCount = 1
-            while (nextUrl && pageCount < 10) {
-              try {
-                const nextRes = await fetch(nextUrl, {
-                  headers: { 'Authorization': `Bearer ${accessToken}` }
-                })
-                if (!nextRes.ok) break
-                const nextData: any = await nextRes.json()
-                items = items.concat(nextData.items || [])
-                nextUrl = nextData.next
-                pageCount++
-              } catch {
-                break
-              }
-            }
+          const snapshotId = officialSnapshotId || (await generatePlaylistFingerprint(tracks))
 
-            const tracks: SpotifyTrackItem[] = items
-              .filter((item: any) => item?.track?.name)
-              .map((item: any) => ({
-                title: item.track.name,
-                artist: (item.track.artists && Array.isArray(item.track.artists))
-                  ? item.track.artists.filter((a: any) => a && a.name).map((a: any) => a.name).join(', ')
-                  : 'Unknown Artist'
-              }))
-
-            return {
-              name: playlistName,
-              spotify_playlist_id: id,
-              snapshot_id: snapshotId,
-              tracks
-            }
+          return {
+            name: playlistName,
+            spotify_playlist_id: id,
+            snapshot_id: snapshotId,
+            tracks
           }
         }
       }
@@ -115,12 +172,16 @@ export async function fetchSpotifyPlaylistData(
           const stateData = parsed.props?.pageProps?.state?.data
           if (stateData && stateData.entity) {
             const playlistName = stateData.entity.name || 'Imported Playlist'
-            const snapshotId = stateData.entity.revisionId || stateData.entity.snapshot_id || `embed_${id}_${stateData.entity.trackList?.length || 0}`
             const trackList = stateData.entity.trackList || []
             const tracks: SpotifyTrackItem[] = trackList.map((t: any) => ({
+              id: t.id || t.uri || undefined,
               title: t.title || 'Unknown Song',
               artist: t.subtitle || 'Unknown Artist'
             }))
+
+            const officialEmbedSnapshot = stateData.entity.snapshot_id || stateData.entity.revisionId || null
+            const snapshotId = officialEmbedSnapshot || (await generatePlaylistFingerprint(tracks))
+
             return {
               name: playlistName,
               spotify_playlist_id: id,
