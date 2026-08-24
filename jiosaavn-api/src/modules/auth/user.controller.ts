@@ -16,7 +16,7 @@ const lastSeenWriteCache = new Map<string, number>()
 /**
  * Helper to maintain user synchronization metadata in D1 SQL (0 KV PUTs!)
  */
-const updateSyncState = async (db: D1Database, userId: string, type: 'liked' | 'playlists', nowStr: string) => {
+export const updateSyncState = async (db: D1Database, userId: string, type: 'liked' | 'playlists', nowStr: string) => {
   try {
     if (type === 'liked') {
       await db.prepare(
