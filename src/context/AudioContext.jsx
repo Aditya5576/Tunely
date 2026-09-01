@@ -71,6 +71,16 @@ export const AudioProvider = ({ children }) => {
   const wasPlayingBeforeInterruptionRef = useRef(false);
   const isSystemInterruptedRef = useRef(false);
   const userQueuedCountRef = useRef(0);
+  const isRecoveringRef = useRef(false);
+  const savedPositionRef = useRef(0);
+  const queueRef = useRef(queue);
+  const currentIndexRef = useRef(currentIndex);
+  const loopModeRef = useRef(loopMode);
+  const isShuffleRef = useRef(isShuffle);
+  const shuffledIndicesRef = useRef(shuffledIndices);
+  const shuffledCurrentIndexRef = useRef(shuffledCurrentIndex);
+  const activeTransitionTokenRef = useRef(0);
+  const isTransitioningRef = useRef(false);
   // Audio Quality State
   const [audioQuality, setAudioQualityState] = useState(() => {
     return localStorage.getItem('tunely_audio_quality') || '320kbps';
@@ -622,22 +632,29 @@ export const AudioProvider = ({ children }) => {
 
   // Computes the next track index based on shuffle and loop mode
   const getNextIndex = () => {
-    if (queue.length === 0) return -1;
+    const currentQueue = queueRef.current || queue;
+    if (!currentQueue || currentQueue.length === 0) return -1;
     
-    if (isShuffle && shuffledIndices.length > 0) {
-      const nextShuffledIdx = shuffledCurrentIndex + 1;
-      if (nextShuffledIdx < shuffledIndices.length) {
-        return shuffledIndices[nextShuffledIdx];
-      } else if (loopMode === 'all') {
-        return shuffledIndices[0];
+    const isShuf = isShuffleRef.current ?? isShuffle;
+    const shufIndices = shuffledIndicesRef.current || shuffledIndices;
+    const shufCurrIdx = shuffledCurrentIndexRef.current ?? shuffledCurrentIndex;
+    const loopM = loopModeRef.current || loopMode;
+    const currIdx = currentIndexRef.current ?? currentIndex;
+
+    if (isShuf && shufIndices && shufIndices.length > 0) {
+      const nextShuffledIdx = shufCurrIdx + 1;
+      if (nextShuffledIdx < shufIndices.length) {
+        return shufIndices[nextShuffledIdx];
+      } else if (loopM === 'all') {
+        return shufIndices[0];
       }
       return -1;
     }
     
-    const nextIdx = currentIndex + 1;
-    if (nextIdx < queue.length) {
+    const nextIdx = currIdx + 1;
+    if (nextIdx < currentQueue.length) {
       return nextIdx;
-    } else if (loopMode === 'all') {
+    } else if (loopM === 'all') {
       return 0;
     }
     
@@ -646,23 +663,30 @@ export const AudioProvider = ({ children }) => {
 
   // Computes the previous track index
   const getPrevIndex = () => {
-    if (queue.length === 0) return -1;
+    const currentQueue = queueRef.current || queue;
+    if (!currentQueue || currentQueue.length === 0) return -1;
     
-    if (isShuffle && shuffledIndices.length > 0) {
-      const prevShuffledIdx = shuffledCurrentIndex - 1;
+    const isShuf = isShuffleRef.current ?? isShuffle;
+    const shufIndices = shuffledIndicesRef.current || shuffledIndices;
+    const shufCurrIdx = shuffledCurrentIndexRef.current ?? shuffledCurrentIndex;
+    const loopM = loopModeRef.current || loopMode;
+    const currIdx = currentIndexRef.current ?? currentIndex;
+
+    if (isShuf && shufIndices && shufIndices.length > 0) {
+      const prevShuffledIdx = shufCurrIdx - 1;
       if (prevShuffledIdx >= 0) {
-        return shuffledIndices[prevShuffledIdx];
-      } else if (loopMode === 'all') {
-        return shuffledIndices[shuffledIndices.length - 1];
+        return shufIndices[prevShuffledIdx];
+      } else if (loopM === 'all') {
+        return shufIndices[shufIndices.length - 1];
       }
       return -1;
     }
     
-    const prevIdx = currentIndex - 1;
+    const prevIdx = currIdx - 1;
     if (prevIdx >= 0) {
       return prevIdx;
-    } else if (loopMode === 'all') {
-      return queue.length - 1;
+    } else if (loopM === 'all') {
+      return currentQueue.length - 1;
     }
     
     return -1;
@@ -670,11 +694,15 @@ export const AudioProvider = ({ children }) => {
 
   // Preloads the next track into cache
   const preloadNextTrack = () => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) return; // Skip secondary audio element creation on mobile to prevent socket/focus conflicts
+
     const nextIdx = getNextIndex();
-    if (nextIdx !== -1 && queue[nextIdx]) {
-      const nextSong = queue[nextIdx];
-      const streamUrl = getStreamUrlByQuality(nextSong, audioQuality);
-      if (streamUrl && preloadRef.current.src !== streamUrl) {
+    const currentQueue = queueRef.current || queue;
+    if (nextIdx !== -1 && currentQueue && currentQueue[nextIdx]) {
+      const nextSong = currentQueue[nextIdx];
+      const streamUrl = getStreamUrlByQuality(nextSong, audioQualityRef.current || audioQuality);
+      if (streamUrl && preloadRef.current && preloadRef.current.src !== streamUrl) {
         preloadRef.current.src = streamUrl;
         preloadRef.current.preload = "auto";
         preloadRef.current.load();
@@ -731,6 +759,97 @@ export const AudioProvider = ({ children }) => {
         callback();
       }
     }, 20);
+  };
+
+  /**
+   * Robust Stream Recovery State Machine Function.
+   * Handles re-connecting dead/expired audio streams, background stalls, and lock-screen resumes.
+   * Uses isRecoveringRef lock to prevent race conditions or duplicate stream reloads.
+   */
+  const recoverStream = async ({ autoPlay = true, targetTime = null } = {}) => {
+    if (isRecoveringRef.current) return false;
+    const track = currentTrackRef.current || currentTrack;
+    if (!track) return false;
+
+    isRecoveringRef.current = true;
+    const audio = audioRef.current;
+    if (!audio) {
+      isRecoveringRef.current = false;
+      return false;
+    }
+
+    const posToRestore = targetTime !== null && targetTime !== undefined
+      ? targetTime
+      : (currentTimeRef.current || audio.currentTime || savedPositionRef.current || 0);
+
+    console.log("[AudioContext] Executing robust stream recovery for track:", track.id, "at position:", posToRestore);
+
+    let streamUrl = getStreamUrlByQuality(track, audioQualityRef.current || audioQuality);
+    if (!streamUrl && track.downloadUrl && track.downloadUrl.length > 0) {
+      streamUrl = track.downloadUrl[track.downloadUrl.length - 1]?.url;
+    }
+
+    if (!streamUrl) {
+      console.warn("[AudioContext] Stream recovery aborted: no valid stream URL for track:", track);
+      isRecoveringRef.current = false;
+      return false;
+    }
+
+    try {
+      audio.volume = volumeRef.current;
+      audio.src = streamUrl;
+      audio.load();
+
+      // Safely wait for loadedmetadata before setting currentTime to prevent WebKit / Blink InvalidStateError
+      await new Promise((resolve) => {
+        let resolved = false;
+        const onMetadata = () => {
+          if (resolved) return;
+          resolved = true;
+          audio.removeEventListener('loadedmetadata', onMetadata);
+          audio.removeEventListener('canplay', onMetadata);
+          try {
+            const dur = audio.duration && !isNaN(audio.duration) ? audio.duration : posToRestore;
+            const safePos = Math.max(0, Math.min(posToRestore, dur > 0.5 ? dur - 0.5 : posToRestore));
+            audio.currentTime = safePos;
+          } catch (e) {
+            console.warn("[AudioContext] Failed setting currentTime during stream recovery:", e);
+          }
+          resolve();
+        };
+
+        if (audio.readyState >= 1) {
+          onMetadata();
+        } else {
+          audio.addEventListener('loadedmetadata', onMetadata, { once: true });
+          audio.addEventListener('canplay', onMetadata, { once: true });
+          setTimeout(onMetadata, 1500);
+        }
+      });
+
+      if (autoPlay) {
+        await audio.play();
+        setIsPlaying(true);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "playing";
+        }
+      } else {
+        setIsPlaying(false);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
+      }
+      isRecoveringRef.current = false;
+      return true;
+    } catch (err) {
+      console.error("[AudioContext] Stream recovery failed:", err);
+      setIsPlaying(false);
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = "paused";
+      }
+      isRecoveringRef.current = false;
+      return false;
+    }
   };
 
   // Auto-resumes playback after call interruption or system audio focus return
@@ -817,16 +936,23 @@ export const AudioProvider = ({ children }) => {
   };
 
   // Handles playing a track at a specific index in the queue
-  const playTrackAtIndex = async (index) => {
+  const playTrackAtIndex = async (index, options = {}) => {
+    const { autoPlay = true, forcedToken = null } = options;
+    const currentQueue = queueRef.current || queue;
+    if (index < 0 || index >= currentQueue.length) return false;
+
+    const token = forcedToken || ++activeTransitionTokenRef.current;
+    isTransitioningRef.current = true;
     userInitiatedPauseRef.current = false;
     wasPlayingBeforeInterruptionRef.current = false;
     isSystemInterruptedRef.current = false;
-    if (index < 0 || index >= queue.length) return;
     
-    const track = queue[index];
+    const track = currentQueue[index];
     setCurrentIndex(index);
-    if (isShuffle && shuffledIndices.length > 0) {
-      const shuffledPos = shuffledIndices.indexOf(index);
+    const shufIndices = shuffledIndicesRef.current || shuffledIndices;
+    const isShuf = isShuffleRef.current ?? isShuffle;
+    if (isShuf && shufIndices && shufIndices.length > 0) {
+      const shuffledPos = shufIndices.indexOf(index);
       if (shuffledPos !== -1) {
         setShuffledCurrentIndex(shuffledPos);
       }
@@ -834,50 +960,126 @@ export const AudioProvider = ({ children }) => {
     setCurrentTrack(track);
     setIsLoadingTrack(true);
 
-    const streamUrl = getStreamUrlByQuality(track, audioQuality);
+    const streamUrl = getStreamUrlByQuality(track, audioQualityRef.current || audioQuality);
     if (!streamUrl) {
-      console.error("No valid stream URL found for track", track);
+      console.error("[AudioContext] No valid stream URL found for track", track);
       setIsLoadingTrack(false);
-      return;
+      isTransitioningRef.current = false;
+      return false;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) {
+      setIsLoadingTrack(false);
+      isTransitioningRef.current = false;
+      return false;
     }
 
     try {
       initWebAudio();
-      // Fade volume down before changing source
-      fadeOutVolume(() => {
-        audioRef.current.src = streamUrl;
-        audioRef.current.load();
-        
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setIsPlaying(true);
-              fadeInVolume();
-            })
-            .catch(error => {
-              console.error("Playback failed", error);
-              setIsPlaying(false);
-              setIsLoadingTrack(false);
-            });
+      audio.volume = volumeRef.current;
+      audio.src = streamUrl;
+      audio.load();
+
+      // Safely wait for metadata/canplay before play()
+      await new Promise((resolve) => {
+        let resolved = false;
+        const onMetadata = () => {
+          if (resolved) return;
+          resolved = true;
+          audio.removeEventListener('loadedmetadata', onMetadata);
+          audio.removeEventListener('canplay', onMetadata);
+          try {
+            audio.currentTime = 0;
+          } catch (e) {
+            // ignore initial position error
+          }
+          resolve();
+        };
+
+        if (audio.readyState >= 1) {
+          onMetadata();
+        } else {
+          audio.addEventListener('loadedmetadata', onMetadata, { once: true });
+          audio.addEventListener('canplay', onMetadata, { once: true });
+          setTimeout(onMetadata, 1500);
         }
       });
+
+      if (activeTransitionTokenRef.current !== token) {
+        console.warn("[AudioContext] Superceded track transition aborted.");
+        isTransitioningRef.current = false;
+        return false;
+      }
+
+      if (autoPlay) {
+        try {
+          await audio.play();
+          if (activeTransitionTokenRef.current !== token) {
+            isTransitioningRef.current = false;
+            return false;
+          }
+          setIsPlaying(true);
+          setIsLoadingTrack(false);
+          isTransitioningRef.current = false;
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
+          fadeInVolume();
+          return true;
+        } catch (playErr) {
+          console.warn("[AudioContext] Mobile background play() rejected on track transition:", playErr);
+          if (activeTransitionTokenRef.current !== token) {
+            isTransitioningRef.current = false;
+            return false;
+          }
+          // Mobile Background Recovery Path for end-of-track transitions
+          const recovered = await recoverStream({ autoPlay: true, targetTime: 0, forcedToken: token });
+          setIsLoadingTrack(false);
+          isTransitioningRef.current = false;
+          return recovered;
+        }
+      } else {
+        setIsPlaying(false);
+        setIsLoadingTrack(false);
+        isTransitioningRef.current = false;
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
+        return true;
+      }
     } catch (error) {
-      console.error(error);
-      setIsLoadingTrack(false);
+      console.error("[AudioContext] Error playing track at index:", error);
+      if (activeTransitionTokenRef.current === token) {
+        setIsPlaying(false);
+        setIsLoadingTrack(false);
+        isTransitioningRef.current = false;
+      }
+      return false;
     }
   };
 
   const handleSongEnded = () => {
-    if (loopMode === 'one') {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.error(e));
+    if (isTransitioningRef.current) return;
+
+    const loopM = loopModeRef.current || loopMode;
+    if (loopM === 'one') {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.error("[AudioContext] Loop one play error:", e));
+      }
     } else {
       const nextIdx = getNextIndex();
       if (nextIdx !== -1) {
-        playTrackAtIndex(nextIdx);
+        console.log("[AudioContext] Song ended. Transitioning to next queue index:", nextIdx);
+        playTrackAtIndex(nextIdx, { autoPlay: true });
       } else {
+        console.log("[AudioContext] Song ended. Reached end of queue.");
         setIsPlaying(false);
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
       }
     }
   };
@@ -1112,6 +1314,9 @@ export const AudioProvider = ({ children }) => {
 
     const handleTimeUpdate = () => {
       const now = audio.currentTime;
+      if (now > 0) {
+        savedPositionRef.current = now;
+      }
       // Throttle React state updates to 250ms interval to eliminate 60 FPS re-render UI freezing
       if (Math.abs(now - lastTimeUpdateRef.current) >= 0.25 || now === 0) {
         lastTimeUpdateRef.current = now;
@@ -1174,7 +1379,14 @@ export const AudioProvider = ({ children }) => {
     };
 
     const handlePause = () => {
+      // Ignore transient pause events emitted by browser media element when changing audio src during track transitions
+      if (isTransitioningRef.current) {
+        return;
+      }
       setIsPlaying(false);
+      if (audio.currentTime > 0) {
+        savedPositionRef.current = audio.currentTime;
+      }
       lastListenTimeRef.current = null;
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = "paused";
@@ -1188,6 +1400,26 @@ export const AudioProvider = ({ children }) => {
       }
     };
 
+    const handleError = (e) => {
+      console.warn("[AudioContext] Media element error encountered:", audio.error, e);
+      if (currentTrackRef.current && !userInitiatedPauseRef.current && wasPlayingBeforeInterruptionRef.current) {
+        recoverStream({ autoPlay: true });
+      }
+    };
+
+    const handleStalled = () => {
+      console.warn("[AudioContext] Media stream stalled.");
+      if (currentTrackRef.current && !userInitiatedPauseRef.current && wasPlayingBeforeInterruptionRef.current && !isRecoveringRef.current) {
+        recoverStream({ autoPlay: true });
+      }
+    };
+
+    const handleEmptied = () => {
+      if ('mediaSession' in navigator && currentTrackRef.current) {
+        navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+      }
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
@@ -1195,6 +1427,9 @@ export const AudioProvider = ({ children }) => {
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('emptied', handleEmptied);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -1204,6 +1439,9 @@ export const AudioProvider = ({ children }) => {
       audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('emptied', handleEmptied);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, loopMode, isShuffle]);
@@ -1365,6 +1603,12 @@ export const AudioProvider = ({ children }) => {
   useEffect(() => { nextTrackRef.current = nextTrack; }, [nextTrack]);
   useEffect(() => { prevTrackRef.current = prevTrack; }, [prevTrack]);
   useEffect(() => { setTrackTimeRef.current = setTrackTime; }, [setTrackTime]);
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { loopModeRef.current = loopMode; }, [loopMode]);
+  useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { shuffledIndicesRef.current = shuffledIndices; }, [shuffledIndices]);
+  useEffect(() => { shuffledCurrentIndexRef.current = shuffledCurrentIndex; }, [shuffledCurrentIndex]);
 
   // Handle Media Session Action Handlers (Registered ONCE on mount for rock-solid iOS stability)
   useEffect(() => {
@@ -1376,7 +1620,7 @@ export const AudioProvider = ({ children }) => {
       isSystemInterruptedRef.current = false;
 
       const audio = audioRef.current;
-      if (!audio) return;
+      if (!audio || !currentTrackRef.current) return;
 
       audio.volume = volumeRef.current;
 
@@ -1392,68 +1636,13 @@ export const AudioProvider = ({ children }) => {
           }
           return;
         } catch (initialErr) {
-          console.warn("Direct MediaSession play attempt failed (possible background stream stall):", initialErr, {
-            readyState: audio.readyState,
-            networkState: audio.networkState,
-            error: audio.error
-          });
+          console.warn("[MediaSession] Direct play attempt failed, delegating to stream recovery:", initialErr);
         }
       }
 
-      // ── RECOVERY PATH: Re-connect stream URL for long-pause / background stream recovery ──
-      const streamUrl = getStreamUrlByQuality(currentTrackRef.current, audioQualityRef.current);
-      if (streamUrl) {
-        const savedTime = currentTimeRef.current || audio.currentTime || 0;
-        console.log("Executing background MediaSession stream recovery to position:", savedTime);
-        audio.src = streamUrl;
-        audio.load();
-
-        // Wait safely for metadata before restoring currentTime to prevent WebKit InvalidStateError
-        await new Promise((resolve) => {
-          let resolved = false;
-          const restoreTime = () => {
-            if (resolved) return;
-            resolved = true;
-            audio.removeEventListener('loadedmetadata', restoreTime);
-            audio.removeEventListener('canplay', restoreTime);
-            try {
-              const dur = audio.duration && !isNaN(audio.duration) ? audio.duration : savedTime;
-              audio.currentTime = Math.min(savedTime, dur);
-            } catch (e) {
-              console.warn("Failed to set currentTime on metadata:", e);
-            }
-            resolve();
-          };
-
-          if (audio.readyState >= 1) {
-            restoreTime();
-          } else {
-            audio.addEventListener('loadedmetadata', restoreTime, { once: true });
-            audio.addEventListener('canplay', restoreTime, { once: true });
-            setTimeout(restoreTime, 1200);
-          }
-        });
-
-        audio.volume = volumeRef.current;
-        try {
-          await audio.play();
-          setIsPlaying(true);
-          if ('mediaSession' in navigator) {
-            navigator.mediaSession.playbackState = "playing";
-          }
-        } catch (recoveryErr) {
-          console.error("MediaSession stream recovery play failed:", recoveryErr);
-          setIsPlaying(false);
-          if ('mediaSession' in navigator) {
-            navigator.mediaSession.playbackState = "paused";
-          }
-        }
-      } else {
-        setIsPlaying(false);
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = "paused";
-        }
-      }
+      // Delegate to single-lock stream recovery state machine
+      const targetPos = currentTimeRef.current || audio.currentTime || savedPositionRef.current || 0;
+      await recoverStream({ autoPlay: true, targetTime: targetPos });
     };
 
     const handleMediaPause = () => {
@@ -1461,6 +1650,9 @@ export const AudioProvider = ({ children }) => {
       wasPlayingBeforeInterruptionRef.current = false;
       isSystemInterruptedRef.current = false;
       if (audioRef.current) {
+        if (audioRef.current.currentTime > 0) {
+          savedPositionRef.current = audioRef.current.currentTime;
+        }
         audioRef.current.pause();
         setIsPlaying(false);
         if ('mediaSession' in navigator) {

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 // Ensure robust localStorage mock for jsdom environment
 if (typeof window !== 'undefined') {
@@ -17,4 +18,9 @@ if (typeof window !== 'undefined') {
   const storageMock = createStorageMock();
   Object.defineProperty(window, 'localStorage', { value: storageMock, writable: true, configurable: true });
   Object.defineProperty(global, 'localStorage', { value: storageMock, writable: true, configurable: true });
+
+  // Mock HTMLMediaElement play/pause methods for jsdom
+  window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+  window.HTMLMediaElement.prototype.pause = vi.fn();
+  window.HTMLMediaElement.prototype.load = vi.fn();
 }
