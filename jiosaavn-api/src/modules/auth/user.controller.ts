@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { authMiddleware } from './auth.middleware'
 import { generatePlaylistId, verifySignedTicket } from './crypto'
 import { fetchSpotifyPlaylistData } from '#modules/playlists/helpers/spotify-api.helper'
+import { findBestCandidateMatch } from '#modules/playlists/helpers/spotify-matcher.helper'
 
 export const userController = new Hono<{
   Variables: {
@@ -576,13 +577,17 @@ userController.post('/playlists/:id/sync-spotify', authMiddleware, async (c) => 
   for (const track of newSpotifyTracks) {
     try {
       const query = `${track.title} ${track.artist}`.trim()
-      const searchRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(query)}&limit=3`)
+      const searchRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(query)}&limit=10`)
       if (searchRes.ok) {
         const obj: any = await searchRes.json()
         const results = obj.data?.results || []
-        if (results.length > 0) {
-          const song = results[0]
-          if (song && !existingSongIds.has(String(song.id))) {
+        const matchResult = findBestCandidateMatch(track, results)
+        if (matchResult.match) {
+          const song = {
+            ...matchResult.match,
+            spotify_track_id: track.id || undefined
+          }
+          if (!existingSongIds.has(String(song.id))) {
             matchedSongs.push(song)
             existingSongIds.add(String(song.id))
           } else {

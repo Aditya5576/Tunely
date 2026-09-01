@@ -1,4 +1,5 @@
-import { fetchSpotifyPlaylistData } from '#modules/playlists/helpers/spotify-api.helper'
+import { fetchSpotifyPlaylistData, type SpotifyTrackItem } from '#modules/playlists/helpers/spotify-api.helper'
+import { findBestCandidateMatch } from '#modules/playlists/helpers/spotify-matcher.helper'
 import { SearchSongsUseCase } from '#modules/search/use-cases/search-songs/search-songs.use-case'
 import { broadcastUserEvent, updateSyncState } from '#modules/auth/user.controller'
 
@@ -20,7 +21,7 @@ const normalize = (str: string) => (str || '').toLowerCase().replace(/[^\w\s]/g,
  * 1. Normalized `${title}|${artist}` signature matching
  * 2. Song ID set matching
  */
-export function filterNewSpotifyTracks(spotifyTracks: Array<{ title: string; artist: string }>, existingSongs: any[]) {
+export function filterNewSpotifyTracks(spotifyTracks: SpotifyTrackItem[], existingSongs: any[]): SpotifyTrackItem[] {
   const existingSignatures = new Set(
     (existingSongs || []).map(s => {
       const title = normalize(s.name || s.title || '')
@@ -162,13 +163,21 @@ export async function runHourlySpotifySync(env: any): Promise<CronSyncStats> {
             const searchRes = await searchUseCase.execute({
               query: `${track.title} ${track.artist}`,
               page: 0,
-              limit: 1
+              limit: 10
             })
             if (searchRes.results && searchRes.results.length > 0) {
-              const matchedSong = searchRes.results[0]
-              const existingIds = new Set(existingSongs.concat(newlyMatchedSongs).map(s => String(s.id)))
-              if (!existingIds.has(String(matchedSong.id))) {
-                newlyMatchedSongs.push(matchedSong)
+              const matchResult = findBestCandidateMatch(track, searchRes.results)
+              if (matchResult.match) {
+                const matchedSong = {
+                  ...matchResult.match,
+                  spotify_track_id: track.id || undefined
+                }
+                const existingIds = new Set(existingSongs.concat(newlyMatchedSongs).map(s => String(s.id)))
+                if (!existingIds.has(String(matchedSong.id))) {
+                  newlyMatchedSongs.push(matchedSong)
+                }
+              } else {
+                stats.unmatchedSongs++
               }
             } else {
               // Confirmed unmatchable track (0 results returned cleanly) -> count as processed, do not block snapshot

@@ -13,6 +13,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityap
 
 import { decodeHtml } from '../utils/lyrics';
 import { calculateTrackRelevanceScore, normalizeQueryForFallback, getDidYouMeanSuggestion } from '../utils/textSimilarity';
+import { findBestCandidateMatch } from '../utils/spotifyMatcher';
 
 const SPOTIFY_GENRES = [
   { name: 'Pop', gradient: 'linear-gradient(135deg, #ff416c, #ff4b2b)', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80', query: 'Pop Hits' },
@@ -494,10 +495,17 @@ export default function MainContent({
           const matchedSongs = [];
           for (const t of newTracks) {
             try {
-              const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${t.title} ${t.artist}`)}&limit=3`);
+              const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${t.title} ${t.artist}`)}&limit=10`);
               if (searchRes.ok) {
                 const searchObj = await searchRes.json();
-                if (searchObj.data?.results?.[0]) matchedSongs.push(searchObj.data.results[0]);
+                const results = searchObj.data?.results || [];
+                const matchResult = findBestCandidateMatch(t, results);
+                if (matchResult.match) {
+                  matchedSongs.push({
+                    ...matchResult.match,
+                    spotify_track_id: t.id || undefined
+                  });
+                }
               }
             } catch {}
           }
@@ -517,7 +525,7 @@ export default function MainContent({
             setDetailData(updatedPlaylist);
             setSyncNotification({ type: 'success', text: `Sync complete! ${uniqueAdditions.length} new song(s) added from Spotify.` });
           } else {
-            setSyncNotification({ type: 'info', text: 'No new matching songs found on Tunely.' });
+            setSyncNotification({ type: 'info', text: 'No new confident matching songs found on Tunely.' });
           }
         }
       }
@@ -910,6 +918,7 @@ export default function MainContent({
       }));
 
       const matchedSongs = [];
+      const unmatchedTracks = [];
       const batchSize = 6;
       
       for (let i = 0; i < trackList.length; i += batchSize) {
@@ -926,28 +935,37 @@ export default function MainContent({
           const artist = item.artist || '';
           try {
             const searchQuery = `${title} ${artist}`.trim();
-            const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=3`);
+            const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=10`);
             if (searchRes.ok) {
               const searchObj = await searchRes.json();
-              const results = searchObj.data.results || [];
-              if (results.length > 0) {
-                return results[0];
+              const results = searchObj.data?.results || [];
+              const matchResult = findBestCandidateMatch(item, results);
+              if (matchResult.match) {
+                const song = {
+                  ...matchResult.match,
+                  spotify_track_id: item.id || undefined
+                };
+                return { matched: true, song, item };
               }
             }
           } catch (err) {
             console.error(`Error matching track ${title}:`, err);
           }
-          return null;
+          return { matched: false, song: null, item };
         });
 
         const results = await Promise.all(promises);
-        for (const song of results) {
-          if (song) matchedSongs.push(song);
+        for (const res of results) {
+          if (res.matched && res.song) {
+            matchedSongs.push(res.song);
+          } else if (res.item) {
+            unmatchedTracks.push(res.item);
+          }
         }
       }
 
       if (matchedSongs.length === 0) {
-        throw new Error('No songs could be matched on Tunely.');
+        throw new Error('No songs could be confidently matched on Tunely.');
       }
 
       const existingPlaylistIdx = customPlaylists.findIndex(p => p.name === `${playlistName} (Spotify)`);

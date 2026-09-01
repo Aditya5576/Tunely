@@ -2,6 +2,8 @@ export interface SpotifyTrackItem {
   id?: string
   title: string
   artist: string
+  album?: string
+  duration_ms?: number
 }
 
 export interface SpotifyPlaylistFetchResult {
@@ -98,7 +100,7 @@ export async function fetchSpotifyPlaylistData(
 
       if (accessToken) {
         const playlistRes = await fetch(
-          `https://api.spotify.com/v1/playlists/${id}?fields=name,snapshot_id,tracks.next,tracks.items(track(id,name,artists(name)))&limit=100`,
+          `https://api.spotify.com/v1/playlists/${id}?fields=name,snapshot_id,tracks.next,tracks.items(track(id,name,duration_ms,album(name),artists(name)))&limit=100`,
           {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           }
@@ -134,7 +136,9 @@ export async function fetchSpotifyPlaylistData(
               title: item.track.name,
               artist: (item.track.artists && Array.isArray(item.track.artists))
                 ? item.track.artists.filter((a: any) => a && a.name).map((a: any) => a.name).join(', ')
-                : 'Unknown Artist'
+                : 'Unknown Artist',
+              album: item.track.album?.name || undefined,
+              duration_ms: item.track.duration_ms || undefined
             }))
 
           const snapshotId = officialSnapshotId || (await generatePlaylistFingerprint(tracks))
@@ -178,7 +182,9 @@ export async function fetchSpotifyPlaylistData(
             const tracks: SpotifyTrackItem[] = trackList.map((t: any) => ({
               id: t.id || t.uri || undefined,
               title: t.title || 'Unknown Song',
-              artist: t.subtitle || 'Unknown Artist'
+              artist: t.subtitle || 'Unknown Artist',
+              album: t.album?.name || t.album || undefined,
+              duration_ms: typeof t.duration === 'number' ? (t.duration < 10000 ? t.duration * 1000 : t.duration) : undefined
             }))
 
             const officialEmbedSnapshot = stateData.entity.snapshot_id || stateData.entity.revisionId || null

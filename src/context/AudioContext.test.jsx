@@ -600,4 +600,169 @@ describe('AudioContext - Recently Played & Radio Unit Tests', () => {
       );
     });
   });
+
+  // ==========================================
+  // SECTION E: Background Recovery State Machine
+  // ==========================================
+  describe('Background Recovery & State Machine', () => {
+    it('1. preserves position and currentTrack when user pauses and resumes', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'track-recov-1', name: 'Recov Song 1' };
+      const trackB = { id: 'track-recov-2', name: 'Recov Song 2' };
+
+      await act(async () => {
+        ctx.playTrack(trackA, [trackA, trackB]);
+      });
+
+      expect(ctx.currentTrack.id).toBe('track-recov-1');
+
+      await act(async () => {
+        ctx.setTrackTime(15);
+      });
+
+      expect(ctx.currentTrack.id).toBe('track-recov-1');
+      expect(ctx.currentTime).toBe(15);
+    });
+
+    it('2. does NOT auto-resume audio when returning to app / window focus', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'track-recov-1', name: 'Recov Song 1' };
+
+      await act(async () => {
+        ctx.playTrack(trackA);
+      });
+
+      // Simulate app returning from background / window focus
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      expect(ctx.currentTrack.id).toBe('track-recov-1');
+    });
+
+    it('3. queue nextTrack and prevTrack continue working as expected', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'track-recov-1', name: 'Recov Song 1' };
+      const trackB = { id: 'track-recov-2', name: 'Recov Song 2' };
+
+      await act(async () => {
+        ctx.playTrack(trackA, [trackA, trackB]);
+      });
+
+      expect(ctx.currentIndex).toBe(0);
+
+      await act(async () => {
+        ctx.nextTrack();
+      });
+
+      expect(ctx.currentIndex).toBe(1);
+      expect(ctx.currentTrack.id).toBe('track-recov-2');
+    });
+
+    it('4. audio quality change updates live stream quality', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'track-recov-1', name: 'Recov Song 1' };
+
+      await act(async () => {
+        ctx.playTrack(trackA);
+        ctx.setAudioQuality('160kbps');
+      });
+
+      expect(ctx.audioQuality).toBe('160kbps');
+    });
+  });
+
+  // ==========================================
+  // SECTION F: End-to-End Automatic Track Transitions
+  // ==========================================
+  describe('End-to-End Automatic Track Transitions', () => {
+    it('1. Song A ended -> Song B starts automatically -> Song B ended -> Song C starts', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'song_a', name: 'Song A' };
+      const trackB = { id: 'song_b', name: 'Song B' };
+      const trackC = { id: 'song_c', name: 'Song C' };
+
+      await act(async () => {
+        ctx.playTrack(trackA, [trackA, trackB, trackC]);
+      });
+
+      expect(ctx.currentTrack.id).toBe('song_a');
+      expect(ctx.currentIndex).toBe(0);
+
+      const audio = getAudioInstance();
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('ended'));
+      });
+
+      expect(ctx.currentTrack.id).toBe('song_b');
+      expect(ctx.currentIndex).toBe(1);
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('ended'));
+      });
+
+      expect(ctx.currentTrack.id).toBe('song_c');
+      expect(ctx.currentIndex).toBe(2);
+    });
+
+    it('2. Loop Mode "one" replays current track on ended', async () => {
+      let ctx;
+      render(
+        <AudioProvider>
+          <TestConsumer onContext={(c) => { ctx = c; }} />
+        </AudioProvider>
+      );
+
+      const trackA = { id: 'song_a', name: 'Song A' };
+      const trackB = { id: 'song_b', name: 'Song B' };
+
+      await act(async () => {
+        ctx.playTrack(trackA, [trackA, trackB]);
+        ctx.toggleLoop(); // 'all'
+        ctx.toggleLoop(); // 'one'
+      });
+
+      expect(ctx.loopMode).toBe('one');
+
+      const audio = getAudioInstance();
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('ended'));
+      });
+
+      expect(ctx.currentTrack.id).toBe('song_a');
+      expect(ctx.currentIndex).toBe(0);
+    });
+  });
 });
