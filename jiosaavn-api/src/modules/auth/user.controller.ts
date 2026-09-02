@@ -576,11 +576,25 @@ userController.post('/playlists/:id/sync-spotify', authMiddleware, async (c) => 
 
   for (const track of newSpotifyTracks) {
     try {
-      const query = `${track.title} ${track.artist}`.trim()
-      const searchRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(query)}&limit=10`)
+      const title = (track.title || '').replace(/[\u00a0\s]+/g, ' ').trim()
+      const artist = (track.artist || '').replace(/[\u00a0\s]+/g, ' ').trim()
+      const primaryArtist = artist.split(/[,&/]|(?:\b(?:feat|featuring|ft|with|x|vs)\.?\b)/i)[0]?.trim() || artist
+
+      let searchRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(`${title} ${artist}`.trim())}&limit=10`)
+      let results: any[] = []
       if (searchRes.ok) {
         const obj: any = await searchRes.json()
-        const results = obj.data?.results || []
+        results = obj.data?.results || []
+      }
+      if (results.length === 0 && primaryArtist && primaryArtist !== artist) {
+        const fallbackRes = await fetch(`${apiBase}/api/search/songs?query=${encodeURIComponent(`${title} ${primaryArtist}`.trim())}&limit=10`)
+        if (fallbackRes.ok) {
+          const fallbackObj: any = await fallbackRes.json()
+          results = fallbackObj.data?.results || []
+        }
+      }
+
+      if (results.length > 0) {
         const matchResult = findBestCandidateMatch(track, results)
         if (matchResult.match) {
           const song = {

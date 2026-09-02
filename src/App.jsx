@@ -3,7 +3,7 @@ import { Home, Search, ListMusic, Music, Settings, Info, Palette, X, User, Shiel
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PlayerBar from './components/PlayerBar';
-import { AudioProvider } from './context/AudioContext';
+import { AudioProvider, useAudio } from './context/AudioContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import NetworkErrorOverlay from './components/NetworkErrorOverlay';
@@ -24,6 +24,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityap
 
 function TunelyApp() {
   const { user, logout, isLoggedIn, isLoading, authFetch } = useAuth() || {};
+  const { syncLikedSongs, setLikedSongs, setLikedSongsMetadata } = useAudio() || {};
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -136,12 +137,15 @@ function TunelyApp() {
     return () => clearTimeout(playlistPushTimer.current);
   }, [customPlaylists, isLoggedIn, authFetch, user, isLoading]);
 
-  // Real-time cross-device event synchronization & reconnection reconciliation
+  // Single authoritative real-time cross-device event synchronization & reconnection reconciliation
   useRealtimeSync({
     isLoggedIn,
     user,
     authFetch,
+    syncLikedSongs,
     syncPlaylistsOnLogin,
+    setLikedSongs,
+    setLikedSongsMetadata,
     setCustomPlaylists: _setCustomPlaylists
   });
 

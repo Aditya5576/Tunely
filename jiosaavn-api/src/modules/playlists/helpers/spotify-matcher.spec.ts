@@ -456,4 +456,36 @@ describe('Backend Spotify Matcher Helper — Pure Deterministic Unit & Regressio
       expect(match.match.id).toBe('correct_funk')
     })
   })
+
+  // 22. Spotify Embed NBSP & HTML Entity Handling
+  describe('22. Spotify Embed NBSP & HTML Entity Sanitization', () => {
+    it('correctly matches tracks when Spotify metadata contains non-breaking spaces (\u00a0)', () => {
+      const spotify = {
+        title: 'Dai Dai',
+        artist: 'Shakira,\u00a0Burna Boy',
+        duration_ms: 223448
+      }
+      const pool = [
+        { id: 'c_karaoke', name: 'Dai Dai (Karaoke Version)', artists: { primary: [{ name: 'ZZang KARAOKE' }] }, duration: 226 },
+        { id: 'c_official', name: 'Dai Dai', artists: { primary: [{ name: 'Shakira' }, { name: 'Burna Boy' }] }, duration: 224 }
+      ]
+      const match = findBestCandidateMatch(spotify, pool)
+      expect(match.status).toBe('matched')
+      expect(match.match.id).toBe('c_official')
+    })
+
+    it('correctly normalizes HTML entities (&amp;, &#39;, &quot;)', () => {
+      const spotify = {
+        title: 'Rock &amp; Roll',
+        artist: 'Led Zeppelin',
+        duration_ms: 220000
+      }
+      const pool = [
+        { id: 'c_rock', name: 'Rock & Roll', artists: { primary: [{ name: 'Led Zeppelin' }] }, duration: 220 }
+      ]
+      const match = findBestCandidateMatch(spotify, pool)
+      expect(match.status).toBe('matched')
+      expect(match.match.id).toBe('c_rock')
+    })
+  })
 })

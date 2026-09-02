@@ -2,7 +2,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { parseLyrics } from '../utils/lyrics';
-import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://jiosaavn-api.adityapatil2348.workers.dev').trim();
 const AudioContext = createContext(null);
@@ -399,16 +398,6 @@ export const AudioProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isLoggedIn, isLoading, authFetch, user?.isGuest]);
-
-  // Real-time cross-device liked songs synchronization & reconciliation
-  useRealtimeSync({
-    isLoggedIn,
-    user,
-    authFetch,
-    syncLikedSongs,
-    setLikedSongs,
-    setLikedSongsMetadata
-  });
 
   const toggleLikeTrack = async (track) => {
     if (!track) return;

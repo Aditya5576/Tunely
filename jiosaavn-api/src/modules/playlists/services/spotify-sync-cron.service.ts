@@ -160,13 +160,28 @@ export async function runHourlySpotifySync(env: any): Promise<CronSyncStats> {
 
         for (const track of tracksToProcess) {
           try {
-            const searchRes = await searchUseCase.execute({
-              query: `${track.title} ${track.artist}`,
+            const title = (track.title || '').replace(/[\u00a0\s]+/g, ' ').trim()
+            const artist = (track.artist || '').replace(/[\u00a0\s]+/g, ' ').trim()
+            const primaryArtist = artist.split(/[,&/]|(?:\b(?:feat|featuring|ft|with|x|vs)\.?\b)/i)[0]?.trim() || artist
+
+            let searchRes = await searchUseCase.execute({
+              query: `${title} ${artist}`.trim(),
               page: 0,
               limit: 10
             })
-            if (searchRes.results && searchRes.results.length > 0) {
-              const matchResult = findBestCandidateMatch(track, searchRes.results)
+
+            let results = searchRes.results || []
+            if (results.length === 0 && primaryArtist && primaryArtist !== artist) {
+              const fallbackRes = await searchUseCase.execute({
+                query: `${title} ${primaryArtist}`.trim(),
+                page: 0,
+                limit: 10
+              })
+              results = fallbackRes.results || []
+            }
+
+            if (results.length > 0) {
+              const matchResult = findBestCandidateMatch(track, results)
               if (matchResult.match) {
                 const matchedSong = {
                   ...matchResult.match,

@@ -17,6 +17,11 @@ export function normalizeText(str) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // remove diacritics/accents
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/[\u00a0]/g, ' ')      // replace non-breaking space with regular space
     .replace(/[^\w\s]/g, ' ')       // replace punctuation with space
     .replace(/\s+/g, ' ')           // collapse spaces
     .trim();

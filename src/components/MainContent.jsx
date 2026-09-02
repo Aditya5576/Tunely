@@ -495,10 +495,25 @@ export default function MainContent({
           const matchedSongs = [];
           for (const t of newTracks) {
             try {
-              const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${t.title} ${t.artist}`)}&limit=10`);
+              const title = (t.title || '').replace(/[\u00a0\s]+/g, ' ').trim();
+              const artist = (t.artist || '').replace(/[\u00a0\s]+/g, ' ').trim();
+              const primaryArtist = artist.split(/[,&/]|(?:\b(?:feat|featuring|ft|with|x|vs)\.?\b)/i)[0]?.trim() || artist;
+
+              let searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${title} ${artist}`.trim())}&limit=10`);
+              let results = [];
               if (searchRes.ok) {
                 const searchObj = await searchRes.json();
-                const results = searchObj.data?.results || [];
+                results = searchObj.data?.results || [];
+              }
+              if (results.length === 0 && primaryArtist && primaryArtist !== artist) {
+                const fallbackRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(`${title} ${primaryArtist}`.trim())}&limit=10`);
+                if (fallbackRes.ok) {
+                  const fallbackObj = await fallbackRes.json();
+                  results = fallbackObj.data?.results || [];
+                }
+              }
+
+              if (results.length > 0) {
                 const matchResult = findBestCandidateMatch(t, results);
                 if (matchResult.match) {
                   matchedSongs.push({
@@ -931,14 +946,27 @@ export default function MainContent({
         }));
 
         const promises = batch.map(async (item) => {
-          const title = item.title;
-          const artist = item.artist || '';
+          const title = (item.title || '').replace(/[\u00a0\s]+/g, ' ').trim();
+          const artist = (item.artist || '').replace(/[\u00a0\s]+/g, ' ').trim();
+          const primaryArtist = artist.split(/[,&/]|(?:\b(?:feat|featuring|ft|with|x|vs)\.?\b)/i)[0]?.trim() || artist;
           try {
             const searchQuery = `${title} ${artist}`.trim();
-            const searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=10`);
+            let searchRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(searchQuery)}&limit=10`);
+            let results = [];
             if (searchRes.ok) {
               const searchObj = await searchRes.json();
-              const results = searchObj.data?.results || [];
+              results = searchObj.data?.results || [];
+            }
+            if (results.length === 0 && primaryArtist && primaryArtist !== artist) {
+              const fallbackQuery = `${title} ${primaryArtist}`.trim();
+              const fallbackRes = await fetch(`${API_BASE}/api/search/songs?query=${encodeURIComponent(fallbackQuery)}&limit=10`);
+              if (fallbackRes.ok) {
+                const fallbackObj = await fallbackRes.json();
+                results = fallbackObj.data?.results || [];
+              }
+            }
+
+            if (results.length > 0) {
               const matchResult = findBestCandidateMatch(item, results);
               if (matchResult.match) {
                 const song = {
